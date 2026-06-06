@@ -1,0 +1,6 @@
+{
+    "terminal.integrated.env.windows": {
+        "_comment": "Set the HED_CACHE_DIR environment variable for repositories accessing citation sites such as semantic scholar.",
+        "HED_CACHE_DIR": "<your-cache-root>"
+    }
+}
