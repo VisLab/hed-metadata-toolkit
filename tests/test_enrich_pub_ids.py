@@ -43,15 +43,25 @@ TODAY = "2026-05-06"
 CACHE = Path("/fake/cache")
 
 COLUMNS = [
-    "citation_id", "doi", "url", "source_link", "pub_id",
-    "first_author_family", "year", "title",
-    "status", "metadata_source", "verified_on", "notes",
+    "citation_id",
+    "doi",
+    "url",
+    "source_link",
+    "pub_id",
+    "first_author_family",
+    "year",
+    "title",
+    "status",
+    "metadata_source",
+    "verified_on",
+    "notes",
 ]
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_row(
     cit_id: str,
@@ -104,15 +114,14 @@ def _run_pass2(row: dict, paths: str = "ABCD", limit: int | None = None):
     registry = {row["citation_id"]: row}
     stats = _make_stats()
     warnings: list[str] = []
-    _process_pass2(
-        registry, TODAY, set(paths), CACHE, limit, warnings, stats
-    )
+    _process_pass2(registry, TODAY, set(paths), CACHE, limit, warnings, stats)
     return registry, stats, warnings
 
 
 # ---------------------------------------------------------------------------
 # Crossref fixture data
 # ---------------------------------------------------------------------------
+
 
 def _cr_journal(
     doi: str = "10.1016/j.neuroimage.2022.100001",
@@ -142,9 +151,7 @@ def _cr_preprint_is_preprint_of(
         "title": [title],
         "author": [{"sequence": "first", "family": family, "given": "Alice"}],
         "published": {"date-parts": [[2021, 6, 1]]},
-        "relation": {
-            "is-preprint-of": [{"id-type": "doi", "id": journal_doi}]
-        },
+        "relation": {"is-preprint-of": [{"id-type": "doi", "id": journal_doi}]},
         "DOI": preprint_doi,
         "_source": "crossref",
         "_doi": preprint_doi,
@@ -162,9 +169,7 @@ def _cr_preprint_has_version(
         "title": [title],
         "author": [{"sequence": "first", "family": family, "given": "Kevin"}],
         "published": {"date-parts": [[2020, 9, 15]]},
-        "relation": {
-            "has-version": [{"id-type": "doi", "id": journal_doi}]
-        },
+        "relation": {"has-version": [{"id-type": "doi", "id": journal_doi}]},
         "DOI": preprint_doi,
         "_source": "crossref",
         "_doi": preprint_doi,
@@ -192,6 +197,7 @@ def _cr_preprint_no_relation(
 # ---------------------------------------------------------------------------
 # OpenAlex fixture data
 # ---------------------------------------------------------------------------
+
 
 def _oa_journal(
     doi: str = "10.1016/j.neuroimage.2022.100001",
@@ -276,6 +282,7 @@ def _oa_preprint_no_journal(
 # Europe PMC fixture
 # ---------------------------------------------------------------------------
 
+
 def _epmc_with_doi(
     pmid: str = "12345678",
     doi: str = "10.1016/j.neuroimage.2018.10.002",
@@ -298,14 +305,13 @@ def _epmc_with_doi(
 # OSF fixture data
 # ---------------------------------------------------------------------------
 
+
 def _osf_guid_resp(obj_type: str, obj_id: str) -> dict:
     return {
         "data": {
             "type": "guids",
             "id": obj_id,
-            "relationships": {
-                "referent": {"data": {"type": obj_type, "id": obj_id}}
-            },
+            "relationships": {"referent": {"data": {"type": obj_type, "id": obj_id}}},
         }
     }
 
@@ -355,11 +361,12 @@ def _osf_file_resp(file_id: str = "fileabc", parent_node_id: str = "bxvhr") -> d
 # Tests — Pass 1 (offline)
 # ===========================================================================
 
-class TestPass1Offline:
 
+class TestPass1Offline:
     def test_computes_pub_id_for_row_with_full_metadata(self):
-        row = _make_row("cit_p1", family="Smith", year="2019",
-                        title="A brain imaging study")
+        row = _make_row(
+            "cit_p1", family="Smith", year="2019", title="A brain imaging study"
+        )
         registry = {"cit_p1": row}
         stats = _make_stats()
         _process_pass1(registry, TODAY, stats)
@@ -372,15 +379,18 @@ class TestPass1Offline:
 
     def test_no_http_calls_in_pass1(self):
         """Pass 1 is offline: client functions must never be invoked."""
-        row = _make_row("cit_nhttp", family="Jones", year="2020",
-                        title="Memory study")
+        row = _make_row("cit_nhttp", family="Jones", year="2020", title="Memory study")
         registry = {"cit_nhttp": row}
         stats = _make_stats()
 
         error = AssertionError("Pass 1 made a network call!")
         with (
-            patch("src.clients.crossref.lookup_by_doi", side_effect=error),
-            patch("src.clients.openalex.lookup_by_doi", side_effect=error),
+            patch(
+                "hed_metadata_toolkit.clients.crossref.lookup_by_doi", side_effect=error
+            ),
+            patch(
+                "hed_metadata_toolkit.clients.openalex.lookup_by_doi", side_effect=error
+            ),
         ):
             _process_pass1(registry, TODAY, stats)
 
@@ -395,8 +405,13 @@ class TestPass1Offline:
         assert "cit_missy" not in stats["pass1_resolved"]
 
     def test_skips_terminal_status(self):
-        row = _make_row("cit_rej", family="Chen", year="2021",
-                        title="Rejected entry", status="rejected")
+        row = _make_row(
+            "cit_rej",
+            family="Chen",
+            year="2021",
+            title="Rejected entry",
+            status="rejected",
+        )
         registry = {"cit_rej": row}
         stats = _make_stats()
         _process_pass1(registry, TODAY, stats)
@@ -407,18 +422,24 @@ class TestPass1Offline:
 # Tests — Path A direct DOI resolution
 # ===========================================================================
 
-class TestPathADirect:
 
+class TestPathADirect:
     def test_crossref_happy_path(self):
         """Path A: DOI in registry → Crossref returns metadata → pub_id set."""
         doi = "10.1016/j.neuroimage.2022.100001"
         row = _make_row("cit_cr", doi=doi, status="manual")
-        cr_resp = _cr_journal(doi=doi, family="Smith", year=2022,
-                              title="A neuroimaging study")
+        cr_resp = _cr_journal(
+            doi=doi, family="Smith", year=2022, title="A neuroimaging study"
+        )
 
         with (
-            patch("src.clients.crossref.lookup_by_doi", return_value=cr_resp),
-            patch("src.clients.openalex.lookup_by_doi", return_value=None),
+            patch(
+                "hed_metadata_toolkit.clients.crossref.lookup_by_doi",
+                return_value=cr_resp,
+            ),
+            patch(
+                "hed_metadata_toolkit.clients.openalex.lookup_by_doi", return_value=None
+            ),
         ):
             registry, stats, warnings = _run_pass2(row, paths="A")
 
@@ -432,12 +453,21 @@ class TestPathADirect:
         """Path A: Crossref returns None → OpenAlex returns metadata → pub_id set."""
         doi = "10.1016/j.neuroimage.2021.118411"
         row = _make_row("cit_oa", doi=doi, status="manual")
-        oa_resp = _oa_journal(doi=doi, family_display="Katja Whitaker",
-                              year=2022, title="A unified framework study")
+        oa_resp = _oa_journal(
+            doi=doi,
+            family_display="Katja Whitaker",
+            year=2022,
+            title="A unified framework study",
+        )
 
         with (
-            patch("src.clients.crossref.lookup_by_doi", return_value=None),
-            patch("src.clients.openalex.lookup_by_doi", return_value=oa_resp),
+            patch(
+                "hed_metadata_toolkit.clients.crossref.lookup_by_doi", return_value=None
+            ),
+            patch(
+                "hed_metadata_toolkit.clients.openalex.lookup_by_doi",
+                return_value=oa_resp,
+            ),
         ):
             registry, stats, warnings = _run_pass2(row, paths="A")
 
@@ -450,8 +480,8 @@ class TestPathADirect:
 # Tests — Path A relation chase
 # ===========================================================================
 
-class TestPathARelationChase:
 
+class TestPathARelationChase:
     def test_is_preprint_of_chase(self):
         """bioRxiv preprint with is-preprint-of → resolves to journal metadata."""
         preprint_doi = "10.1101/2021.06.01.234567"
@@ -459,12 +489,16 @@ class TestPathARelationChase:
 
         row = _make_row("cit_biochase", doi=preprint_doi, status="manual")
         cr_preprint = _cr_preprint_is_preprint_of(
-            preprint_doi=preprint_doi, journal_doi=journal_doi,
-            family="Jones", title="Memory study preprint"
+            preprint_doi=preprint_doi,
+            journal_doi=journal_doi,
+            family="Jones",
+            title="Memory study preprint",
         )
         cr_journal = _cr_journal(
-            doi=journal_doi, family="Jones", year=2022,
-            title="Memory study published"  # >50% token overlap
+            doi=journal_doi,
+            family="Jones",
+            year=2022,
+            title="Memory study published",  # >50% token overlap
         )
 
         def cr_side_effect(doi, cache_dir):
@@ -474,7 +508,10 @@ class TestPathARelationChase:
                 return cr_journal
             return None
 
-        with patch("src.clients.crossref.lookup_by_doi", side_effect=cr_side_effect):
+        with patch(
+            "hed_metadata_toolkit.clients.crossref.lookup_by_doi",
+            side_effect=cr_side_effect,
+        ):
             registry, stats, warnings = _run_pass2(row, paths="A")
 
         r = registry["cit_biochase"]
@@ -492,12 +529,16 @@ class TestPathARelationChase:
 
         row = _make_row("cit_psychase", doi=preprint_doi, status="needs_review")
         cr_preprint = _cr_preprint_has_version(
-            preprint_doi=preprint_doi, journal_doi=journal_doi,
-            family="Lee", title="Cognitive flexibility study"
+            preprint_doi=preprint_doi,
+            journal_doi=journal_doi,
+            family="Lee",
+            title="Cognitive flexibility study",
         )
         cr_journal = _cr_journal(
-            doi=journal_doi, family="Lee", year=2022,
-            title="Cognitive flexibility in healthy adults"  # high token overlap
+            doi=journal_doi,
+            family="Lee",
+            year=2022,
+            title="Cognitive flexibility in healthy adults",  # high token overlap
         )
 
         def cr_side_effect(doi, cache_dir):
@@ -507,7 +548,10 @@ class TestPathARelationChase:
                 return cr_journal
             return None
 
-        with patch("src.clients.crossref.lookup_by_doi", side_effect=cr_side_effect):
+        with patch(
+            "hed_metadata_toolkit.clients.crossref.lookup_by_doi",
+            side_effect=cr_side_effect,
+        ):
             registry, stats, warnings = _run_pass2(row, paths="A")
 
         r = registry["cit_psychase"]
@@ -524,13 +568,17 @@ class TestPathARelationChase:
         row = _make_row("cit_sanity", doi=preprint_doi, status="needs_review")
 
         cr_preprint = _cr_preprint_has_version(
-            preprint_doi=preprint_doi, journal_doi=journal_doi,
-            family="Martinez", title="Working memory fMRI study"
+            preprint_doi=preprint_doi,
+            journal_doi=journal_doi,
+            family="Martinez",
+            title="Working memory fMRI study",
         )
         # Different family AND very different title → sanity check fails
         cr_journal_wrong = _cr_journal(
-            doi=journal_doi, family="Yamamoto", year=2022,
-            title="Entirely unrelated paper on sleep"
+            doi=journal_doi,
+            family="Yamamoto",
+            year=2022,
+            title="Entirely unrelated paper on sleep",
         )
 
         def cr_side_effect(doi, cache_dir):
@@ -540,7 +588,10 @@ class TestPathARelationChase:
                 return cr_journal_wrong
             return None
 
-        with patch("src.clients.crossref.lookup_by_doi", side_effect=cr_side_effect):
+        with patch(
+            "hed_metadata_toolkit.clients.crossref.lookup_by_doi",
+            side_effect=cr_side_effect,
+        ):
             registry, stats, warnings = _run_pass2(row, paths="A")
 
         r = registry["cit_sanity"]
@@ -558,15 +609,21 @@ class TestPathARelationChase:
 
         row = _make_row("cit_oafb", doi=preprint_doi, status="auto")
         cr_preprint_no_rel = _cr_preprint_no_relation(
-            preprint_doi=preprint_doi, family="Chen", title="Brain connectivity in aging"
+            preprint_doi=preprint_doi,
+            family="Chen",
+            title="Brain connectivity in aging",
         )
         oa_preprint_with_loc = _oa_biorxiv_with_journal(
-            preprint_doi=preprint_doi, journal_doi=journal_doi,
-            family_display="Wei Chen", title="Brain connectivity in aging"
+            preprint_doi=preprint_doi,
+            journal_doi=journal_doi,
+            family_display="Wei Chen",
+            title="Brain connectivity in aging",
         )
         cr_journal = _cr_journal(
-            doi=journal_doi, family="Chen", year=2022,
-            title="Brain connectivity changes in healthy aging"
+            doi=journal_doi,
+            family="Chen",
+            year=2022,
+            title="Brain connectivity changes in healthy aging",
         )
 
         def cr_side_effect(doi, cache_dir):
@@ -582,8 +639,14 @@ class TestPathARelationChase:
             return None
 
         with (
-            patch("src.clients.crossref.lookup_by_doi", side_effect=cr_side_effect),
-            patch("src.clients.openalex.lookup_by_doi", side_effect=oa_side_effect),
+            patch(
+                "hed_metadata_toolkit.clients.crossref.lookup_by_doi",
+                side_effect=cr_side_effect,
+            ),
+            patch(
+                "hed_metadata_toolkit.clients.openalex.lookup_by_doi",
+                side_effect=oa_side_effect,
+            ),
         ):
             registry, stats, warnings = _run_pass2(row, paths="A")
 
@@ -606,8 +669,14 @@ class TestPathARelationChase:
         )
 
         with (
-            patch("src.clients.crossref.lookup_by_doi", return_value=cr_no_rel),
-            patch("src.clients.openalex.lookup_by_doi", return_value=oa_no_loc),
+            patch(
+                "hed_metadata_toolkit.clients.crossref.lookup_by_doi",
+                return_value=cr_no_rel,
+            ),
+            patch(
+                "hed_metadata_toolkit.clients.openalex.lookup_by_doi",
+                return_value=oa_no_loc,
+            ),
         ):
             registry, stats, warnings = _run_pass2(row, paths="A")
 
@@ -621,20 +690,27 @@ class TestPathARelationChase:
 # Tests — Path B URL synthesis
 # ===========================================================================
 
-class TestPathB:
 
+class TestPathB:
     def test_psyarxiv_synth(self):
         """psyarxiv.com/<guid> → 10.31234/osf.io/<guid> → Path A resolved."""
         url = "https://psyarxiv.com/3x2qh"
         row = _make_row("cit_psy", url=url, status="needs_review")
         cr_resp = _cr_journal(
-            doi="10.31234/osf.io/3x2qh", family="Lee", year=2020,
-            title="Cognitive flexibility study"
+            doi="10.31234/osf.io/3x2qh",
+            family="Lee",
+            year=2020,
+            title="Cognitive flexibility study",
         )
 
         with (
-            patch("src.clients.crossref.lookup_by_doi", return_value=cr_resp),
-            patch("src.clients.openalex.lookup_by_doi", return_value=None),
+            patch(
+                "hed_metadata_toolkit.clients.crossref.lookup_by_doi",
+                return_value=cr_resp,
+            ),
+            patch(
+                "hed_metadata_toolkit.clients.openalex.lookup_by_doi", return_value=None
+            ),
         ):
             registry, stats, warnings = _run_pass2(row, paths="B")
 
@@ -651,12 +727,16 @@ class TestPathB:
         row = _make_row("cit_bio", url=url, status="needs_review")
 
         cr_preprint = _cr_preprint_is_preprint_of(
-            preprint_doi=preprint_doi, journal_doi=journal_doi,
-            family="Kim", title="Neural synchrony study"
+            preprint_doi=preprint_doi,
+            journal_doi=journal_doi,
+            family="Kim",
+            title="Neural synchrony study",
         )
         cr_journal = _cr_journal(
-            doi=journal_doi, family="Kim", year=2019,
-            title="Neural synchrony during encoding"
+            doi=journal_doi,
+            family="Kim",
+            year=2019,
+            title="Neural synchrony during encoding",
         )
 
         def cr_side_effect(doi, cache_dir):
@@ -667,8 +747,13 @@ class TestPathB:
             return None
 
         with (
-            patch("src.clients.crossref.lookup_by_doi", side_effect=cr_side_effect),
-            patch("src.clients.openalex.lookup_by_doi", return_value=None),
+            patch(
+                "hed_metadata_toolkit.clients.crossref.lookup_by_doi",
+                side_effect=cr_side_effect,
+            ),
+            patch(
+                "hed_metadata_toolkit.clients.openalex.lookup_by_doi", return_value=None
+            ),
         ):
             registry, stats, warnings = _run_pass2(row, paths="B")
 
@@ -683,12 +768,18 @@ class TestPathB:
         url = "https://elifesciences.org/articles/12345"
         doi = "10.7554/elife.12345"  # _try_synth canonicalises to lowercase
         row = _make_row("cit_eli", url=url, status="needs_review")
-        cr_resp = _cr_journal(doi=doi, family="Nguyen", year=2021,
-                              title="Synaptic plasticity mechanisms")
+        cr_resp = _cr_journal(
+            doi=doi, family="Nguyen", year=2021, title="Synaptic plasticity mechanisms"
+        )
 
         with (
-            patch("src.clients.crossref.lookup_by_doi", return_value=cr_resp),
-            patch("src.clients.openalex.lookup_by_doi", return_value=None),
+            patch(
+                "hed_metadata_toolkit.clients.crossref.lookup_by_doi",
+                return_value=cr_resp,
+            ),
+            patch(
+                "hed_metadata_toolkit.clients.openalex.lookup_by_doi", return_value=None
+            ),
         ):
             registry, stats, warnings = _run_pass2(row, paths="B")
 
@@ -702,23 +793,37 @@ class TestPathB:
 # Tests — Path C PMID URL → Europe PMC
 # ===========================================================================
 
-class TestPathC:
 
+class TestPathC:
     def test_pmid_url_europepmc_doi_then_path_a(self):
         """pubmed URL → lookup_by_pmid → DOI → Path A resolved."""
         url = "https://pubmed.ncbi.nlm.nih.gov/12345678"
         epmc_doi = "10.1016/j.neuroimage.2018.10.002"
         row = _make_row("cit_pmid", url=url, status="needs_review")
 
-        epmc_resp = _epmc_with_doi(pmid="12345678", doi=epmc_doi,
-                                   family="Adams", title="fMRI paradigm", year=2019)
-        cr_resp = _cr_journal(doi=epmc_doi, family="Adams", year=2019,
-                              title="fMRI paradigm study")
+        epmc_resp = _epmc_with_doi(
+            pmid="12345678",
+            doi=epmc_doi,
+            family="Adams",
+            title="fMRI paradigm",
+            year=2019,
+        )
+        cr_resp = _cr_journal(
+            doi=epmc_doi, family="Adams", year=2019, title="fMRI paradigm study"
+        )
 
         with (
-            patch("src.clients.europepmc.lookup_by_pmid", return_value=epmc_resp),
-            patch("src.clients.crossref.lookup_by_doi", return_value=cr_resp),
-            patch("src.clients.openalex.lookup_by_doi", return_value=None),
+            patch(
+                "hed_metadata_toolkit.clients.europepmc.lookup_by_pmid",
+                return_value=epmc_resp,
+            ),
+            patch(
+                "hed_metadata_toolkit.clients.crossref.lookup_by_doi",
+                return_value=cr_resp,
+            ),
+            patch(
+                "hed_metadata_toolkit.clients.openalex.lookup_by_doi", return_value=None
+            ),
         ):
             registry, stats, warnings = _run_pass2(row, paths="C")
 
@@ -732,8 +837,8 @@ class TestPathC:
 # Tests — Path D OSF
 # ===========================================================================
 
-class TestPathD:
 
+class TestPathD:
     def test_osf_preprint_resolved(self):
         """OSF preprint GUID → attrs.doi → Path A → resolved."""
         url = "https://osf.io/3x2qh"
@@ -741,15 +846,30 @@ class TestPathD:
         row = _make_row("cit_osfp", url=url, status="needs_review")
 
         guid_resp = _osf_guid_resp("preprints", "3x2qh")
-        typed_resp = _osf_preprint_resp("3x2qh", preprint_doi, "Cognitive flexibility preprint")
-        cr_resp = _cr_journal(doi=preprint_doi, family="Lee", year=2020,
-                              title="Cognitive flexibility study")
+        typed_resp = _osf_preprint_resp(
+            "3x2qh", preprint_doi, "Cognitive flexibility preprint"
+        )
+        cr_resp = _cr_journal(
+            doi=preprint_doi,
+            family="Lee",
+            year=2020,
+            title="Cognitive flexibility study",
+        )
 
         with (
-            patch("src.clients.osf.lookup_guid", return_value=guid_resp),
-            patch("src.clients.osf.lookup_typed", return_value=typed_resp),
-            patch("src.clients.crossref.lookup_by_doi", return_value=cr_resp),
-            patch("src.clients.openalex.lookup_by_doi", return_value=None),
+            patch(
+                "hed_metadata_toolkit.clients.osf.lookup_guid", return_value=guid_resp
+            ),
+            patch(
+                "hed_metadata_toolkit.clients.osf.lookup_typed", return_value=typed_resp
+            ),
+            patch(
+                "hed_metadata_toolkit.clients.crossref.lookup_by_doi",
+                return_value=cr_resp,
+            ),
+            patch(
+                "hed_metadata_toolkit.clients.openalex.lookup_by_doi", return_value=None
+            ),
         ):
             registry, stats, warnings = _run_pass2(row, paths="D")
 
@@ -767,8 +887,12 @@ class TestPathD:
         typed_resp = _osf_node_resp("bxvhr", "Dataset node")
 
         with (
-            patch("src.clients.osf.lookup_guid", return_value=guid_resp),
-            patch("src.clients.osf.lookup_typed", return_value=typed_resp),
+            patch(
+                "hed_metadata_toolkit.clients.osf.lookup_guid", return_value=guid_resp
+            ),
+            patch(
+                "hed_metadata_toolkit.clients.osf.lookup_typed", return_value=typed_resp
+            ),
         ):
             registry, stats, warnings = _run_pass2(row, paths="D")
 
@@ -783,7 +907,7 @@ class TestPathD:
         url = "https://osf.io/er5u7"
         row = _make_row("cit_osfpriv", url=url, status="needs_review")
 
-        with patch("src.clients.osf.lookup_guid", return_value={}):
+        with patch("hed_metadata_toolkit.clients.osf.lookup_guid", return_value={}):
             registry, stats, warnings = _run_pass2(row, paths="D")
 
         r = registry["cit_osfpriv"]
@@ -818,8 +942,14 @@ class TestPathD:
             return {}
 
         with (
-            patch("src.clients.osf.lookup_guid", side_effect=mock_lookup_guid),
-            patch("src.clients.osf.lookup_typed", side_effect=mock_lookup_typed),
+            patch(
+                "hed_metadata_toolkit.clients.osf.lookup_guid",
+                side_effect=mock_lookup_guid,
+            ),
+            patch(
+                "hed_metadata_toolkit.clients.osf.lookup_typed",
+                side_effect=mock_lookup_typed,
+            ),
         ):
             registry, stats, warnings = _run_pass2(row, paths="D")
 
@@ -844,8 +974,12 @@ class TestPathD:
         }
 
         with (
-            patch("src.clients.osf.lookup_guid", return_value=guid_resp),
-            patch("src.clients.osf.lookup_typed", return_value=typed_resp),
+            patch(
+                "hed_metadata_toolkit.clients.osf.lookup_guid", return_value=guid_resp
+            ),
+            patch(
+                "hed_metadata_toolkit.clients.osf.lookup_typed", return_value=typed_resp
+            ),
         ):
             registry, stats, warnings = _run_pass2(row, paths="D")
 
@@ -856,8 +990,8 @@ class TestPathD:
 # Tests — edge cases and guards
 # ===========================================================================
 
-class TestEdgeCases:
 
+class TestEdgeCases:
     def test_terminal_status_rows_skipped(self):
         """Rows with rejected / not_a_citation status skipped entirely."""
         rows = [
@@ -876,12 +1010,18 @@ class TestEdgeCases:
         """After first resolution, second run leaves registry byte-identical."""
         doi = "10.1016/j.neuroimage.2022.100001"
         row = _make_row("cit_idem", doi=doi, status="manual")
-        cr_resp = _cr_journal(doi=doi, family="Wang", year=2022,
-                              title="An idempotency test paper")
+        cr_resp = _cr_journal(
+            doi=doi, family="Wang", year=2022, title="An idempotency test paper"
+        )
 
         with (
-            patch("src.clients.crossref.lookup_by_doi", return_value=cr_resp),
-            patch("src.clients.openalex.lookup_by_doi", return_value=None),
+            patch(
+                "hed_metadata_toolkit.clients.crossref.lookup_by_doi",
+                return_value=cr_resp,
+            ),
+            patch(
+                "hed_metadata_toolkit.clients.openalex.lookup_by_doi", return_value=None
+            ),
         ):
             # First run
             registry1 = {"cit_idem": dict(row)}
@@ -914,8 +1054,8 @@ class TestEdgeCases:
 # Tests — Registry write/read round-trip (truncation regression)
 # ===========================================================================
 
-class TestRegistryRoundTrip:
 
+class TestRegistryRoundTrip:
     def test_200_row_roundtrip_no_truncation(self, tmp_path):
         """write_registry + load_registry round-trip preserves all 200+ rows."""
         n_rows = 210
@@ -955,8 +1095,11 @@ class TestRegistryRoundTrip:
 
     def test_write_is_atomic(self, tmp_path):
         """write_registry uses tmp file → rename so no partial writes on disk."""
-        rows = {"cit_000001": _make_row("cit_000001", doi="10.1/test",
-                                        family="Test", year="2020", title="T")}
+        rows = {
+            "cit_000001": _make_row(
+                "cit_000001", doi="10.1/test", family="Test", year="2020", title="T"
+            )
+        }
         p = tmp_path / "reg.tsv"
         write_registry(p, rows, COLUMNS)
 
@@ -973,8 +1116,8 @@ class TestRegistryRoundTrip:
 # Tests — Utility / helper functions
 # ===========================================================================
 
-class TestHelpers:
 
+class TestHelpers:
     def test_title_token_overlap_identical(self):
         assert _title_token_overlap("a memory study", "a memory study") == 1.0
 
@@ -983,8 +1126,7 @@ class TestHelpers:
 
     def test_title_token_overlap_partial(self):
         score = _title_token_overlap(
-            "Brain connectivity in aging",
-            "Brain connectivity changes in healthy aging"
+            "Brain connectivity in aging", "Brain connectivity changes in healthy aging"
         )
         assert score >= 0.5
 
@@ -1028,19 +1170,23 @@ class TestHelpers:
         assert _try_synth("https://psyarxiv.org/3x2qh") == "10.31234/osf.io/3x2qh"
 
     def test_try_synth_biorxiv_strips_version(self):
-        assert _try_synth(
-            "https://biorxiv.org/content/10.1101/283234v2"
-        ) == "10.1101/283234"
+        assert (
+            _try_synth("https://biorxiv.org/content/10.1101/283234v2")
+            == "10.1101/283234"
+        )
 
     def test_try_synth_elife(self):
         # DOIs are canonical lowercase; eLife's camelcase is lowercased by _try_synth
-        assert _try_synth("https://elifesciences.org/articles/67890") == "10.7554/elife.67890"
+        assert (
+            _try_synth("https://elifesciences.org/articles/67890")
+            == "10.7554/elife.67890"
+        )
 
     def test_extract_relation_doi_is_preprint_of_wins(self):
         cr_data = {
             "relation": {
                 "is-preprint-of": [{"id-type": "doi", "id": "10.1234/journal"}],
-                "has-version":    [{"id-type": "doi", "id": "10.5678/other"}],
+                "has-version": [{"id-type": "doi", "id": "10.5678/other"}],
             }
         }
         doi, via = _extract_relation_doi(cr_data)
@@ -1051,9 +1197,7 @@ class TestHelpers:
         """10.17605/OSF.IO/* DOIs in relation fields are filtered out."""
         cr_data = {
             "relation": {
-                "is-preprint-of": [
-                    {"id-type": "doi", "id": "10.17605/OSF.IO/YCQGD"}
-                ]
+                "is-preprint-of": [{"id-type": "doi", "id": "10.17605/OSF.IO/YCQGD"}]
             }
         }
         doi, via = _extract_relation_doi(cr_data)

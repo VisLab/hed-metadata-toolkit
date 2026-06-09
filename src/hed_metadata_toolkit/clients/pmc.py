@@ -211,7 +211,8 @@ def _get(url: str, headers: dict | None = None) -> dict | None:
             if "json" not in ctype:
                 logger.info(
                     "pmc 200 non-json content-type=%r for %s (treating as not-in-OA)",
-                    ctype, url,
+                    ctype,
+                    url,
                 )
                 return {}
             try:
@@ -295,6 +296,7 @@ def lookup_by_pmcid(
 # PMC OA Web Service (PR-H5, 2026-06-04)
 # ---------------------------------------------------------------------------
 
+
 def _normalise_oa_href(href: str) -> str:
     """Convert FTP-scheme hrefs to HTTPS.
 
@@ -305,7 +307,7 @@ def _normalise_oa_href(href: str) -> str:
     """
     s = (href or "").strip()
     if s.lower().startswith("ftp://"):
-        return "https://" + s[len("ftp://"):]
+        return "https://" + s[len("ftp://") :]
     return s
 
 
@@ -361,14 +363,18 @@ def lookup_oa_pdf_url(
             return {}
         err = root.find(".//error")
         if err is not None:
-            return {"_error_code": err.get("code") or "",
-                    "_error_text": (err.text or "").strip()}
+            return {
+                "_error_code": err.get("code") or "",
+                "_error_text": (err.text or "").strip(),
+            }
         links = []
         for link_el in root.findall(".//link"):
-            links.append({
-                "format": link_el.get("format", "") or "",
-                "href":   link_el.get("href", "") or "",
-            })
+            links.append(
+                {
+                    "format": link_el.get("format", "") or "",
+                    "href": link_el.get("href", "") or "",
+                }
+            )
         return {"links": links}
 
     cached = cache_get_or_fetch(
@@ -382,8 +388,9 @@ def lookup_oa_pdf_url(
         logger.info("source=pmc_oa pmcid=%s status=not_found", canonical)
         return None
     if cached.get("_error_code"):
-        logger.info("source=pmc_oa pmcid=%s status=%s",
-                    canonical, cached["_error_code"])
+        logger.info(
+            "source=pmc_oa pmcid=%s status=%s", canonical, cached["_error_code"]
+        )
         return None
 
     for link in cached.get("links") or []:
@@ -391,8 +398,9 @@ def lookup_oa_pdf_url(
         if fmt.startswith("pdf"):
             href = _normalise_oa_href(link.get("href") or "")
             if href:
-                logger.info("source=pmc_oa pmcid=%s status=200 href=%s",
-                            canonical, href)
+                logger.info(
+                    "source=pmc_oa pmcid=%s status=200 href=%s", canonical, href
+                )
                 return href
 
     logger.info("source=pmc_oa pmcid=%s status=200_no_pdf_link", canonical)
@@ -402,6 +410,7 @@ def lookup_oa_pdf_url(
 # ---------------------------------------------------------------------------
 # PMC image two-stage fetcher  (PR-G, plan v2 §13)
 # ---------------------------------------------------------------------------
+
 
 def _stream_body(
     resp: "requests.Response",
@@ -476,23 +485,21 @@ def _fetch_image_url_map(
 
     try:
         if resp.status_code != 200:
-            logger.info("pmc_landing %d for %s",
-                        resp.status_code, canonical)
+            logger.info("pmc_landing %d for %s", resp.status_code, canonical)
             return None
 
-        body = _stream_body(resp, max_bytes=max_bytes,
-                            label=f"pmc_landing {canonical}")
+        body = _stream_body(resp, max_bytes=max_bytes, label=f"pmc_landing {canonical}")
         if body is None:
             return None
     finally:
         try:
             resp.close()
-        except Exception:                              # noqa: BLE001
+        except Exception:  # noqa: BLE001
             logger.debug("response close raised; ignored", exc_info=True)
 
     try:
         html = body.decode("utf-8", errors="replace")
-    except Exception as exc:                           # noqa: BLE001
+    except Exception as exc:  # noqa: BLE001
         logger.info("pmc_landing decode error %s: %s", canonical, exc)
         return None
 
@@ -506,8 +513,7 @@ def _fetch_image_url_map(
         url_map.setdefault(fname, full_url)
 
     _image_url_cache[canonical] = url_map
-    logger.info("pmc_landing parsed %s: %d image url(s)",
-                canonical, len(url_map))
+    logger.info("pmc_landing parsed %s: %d image url(s)", canonical, len(url_map))
     return url_map
 
 
@@ -563,19 +569,26 @@ def fetch_image(
         logger.info("source=pmc_image pmcid=%r status=invalid", pmcid)
         return None
     if not isinstance(filename, str) or not filename.strip():
-        logger.info("source=pmc_image pmcid=%s filename=%r status=invalid",
-                    canonical, filename)
+        logger.info(
+            "source=pmc_image pmcid=%s filename=%r status=invalid", canonical, filename
+        )
         return None
     filename = filename.strip()
 
     # ---- Stage 1: resolve CDN URL via the landing-page map.
     url_map = _fetch_image_url_map(
-        canonical, timeout=timeout, email=email, session=session,
+        canonical,
+        timeout=timeout,
+        email=email,
+        session=session,
     )
     if url_map is None:
         # Transient landing-page fetch error; logged inside the helper.
-        logger.info("source=pmc_image pmcid=%s filename=%s status=landing_fail",
-                    canonical, filename)
+        logger.info(
+            "source=pmc_image pmcid=%s filename=%s status=landing_fail",
+            canonical,
+            filename,
+        )
         return None
 
     url = url_map.get(filename)
@@ -584,8 +597,11 @@ def fetch_image(
         # Treat as a miss — BioC ``infons["file"]`` may reference
         # a supplementary image absent from the article body, or
         # PMC may have changed its markup.
-        logger.info("source=pmc_image pmcid=%s filename=%s status=not_in_landing",
-                    canonical, filename)
+        logger.info(
+            "source=pmc_image pmcid=%s filename=%s status=not_in_landing",
+            canonical,
+            filename,
+        )
         return None
 
     # ---- Stage 2: fetch bytes from the CDN URL.
@@ -601,33 +617,40 @@ def fetch_image(
         getter = session.get if session is not None else requests.get
         resp = getter(url, headers=headers, timeout=timeout, stream=True)
     except requests.RequestException as exc:
-        logger.info("pmc_image network error %s/%s: %s",
-                    canonical, filename, exc)
+        logger.info("pmc_image network error %s/%s: %s", canonical, filename, exc)
         return None
 
     try:
         if resp.status_code != 200:
-            logger.info("pmc_image %d for %s/%s",
-                        resp.status_code, canonical, filename)
+            logger.info("pmc_image %d for %s/%s", resp.status_code, canonical, filename)
             return None
 
         raw_ctype = resp.headers.get("Content-Type", "") or ""
         ctype = raw_ctype.split(";", 1)[0].strip().lower()
         if not ctype.startswith("image/"):
-            logger.info("pmc_image non-image content-type=%r for %s/%s",
-                        ctype, canonical, filename)
+            logger.info(
+                "pmc_image non-image content-type=%r for %s/%s",
+                ctype,
+                canonical,
+                filename,
+            )
             return None
 
-        body = _stream_body(resp, max_bytes=max_bytes,
-                            label=f"pmc_image {canonical}/{filename}")
+        body = _stream_body(
+            resp, max_bytes=max_bytes, label=f"pmc_image {canonical}/{filename}"
+        )
         if body is None:
             return None
     finally:
         try:
             resp.close()
-        except Exception:                              # noqa: BLE001
+        except Exception:  # noqa: BLE001
             logger.debug("response close raised; ignored", exc_info=True)
 
-    logger.info("source=pmc_image pmcid=%s filename=%s status=200 bytes=%d",
-                canonical, filename, len(body))
+    logger.info(
+        "source=pmc_image pmcid=%s filename=%s status=200 bytes=%d",
+        canonical,
+        filename,
+        len(body),
+    )
     return body

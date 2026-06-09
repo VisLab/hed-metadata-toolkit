@@ -4,6 +4,7 @@ import time
 import os
 from dotenv import load_dotenv
 
+
 def get_github_organization_repositories(organization, token=None):
     """
     Retrieves a list of tuples (repository name, updated_at) for a GitHub organization.
@@ -25,9 +26,7 @@ def get_github_organization_repositories(organization, token=None):
     per_page = 100  # GitHub API max per page
     api_url = f"https://api.github.com/orgs/{organization}/repos"
 
-    headers = {
-        "Accept": "application/vnd.github.v3+json"
-    }
+    headers = {"Accept": "application/vnd.github.v3+json"}
     if token:
         headers["Authorization"] = f"token {token}"
 
@@ -42,7 +41,9 @@ def get_github_organization_repositories(organization, token=None):
                 # No more repositories to fetch
                 break
 
-            repos.extend((repo['name'], repo['updated_at']) for repo in current_page_repos)
+            repos.extend(
+                (repo["name"], repo["updated_at"]) for repo in current_page_repos
+            )
 
             # If the number of repos returned is less than per_page, it's the last page
             if len(current_page_repos) < per_page:
@@ -52,7 +53,6 @@ def get_github_organization_repositories(organization, token=None):
             # To avoid hitting the rate limit too quickly, sleep for a short duration
             time.sleep(5)
             print(page)
-
 
         except requests.exceptions.HTTPError as http_err:
             print(f"HTTP error occurred: {http_err}")
@@ -65,31 +65,90 @@ def get_github_organization_repositories(organization, token=None):
 
     return repos
 
-# --- Example Usage ---
+
+# ---------------------------------------------------------------------------
+# Library API
+# ---------------------------------------------------------------------------
+
+
+def run_fetch(
+    *,
+    org_name: str,
+    output_path: "Path | str",
+    token: "str | None" = None,
+) -> int:
+    """Fetch every repository in ``org_name`` and write a 2-column TSV.
+
+    Library entry point.  Returns the number of repositories written;
+    raises nothing on a successful zero-result run (just returns 0).
+
+    Parameters
+    ----------
+    org_name
+        GitHub organization, e.g. ``"OpenNeuroDatasets"``.
+    output_path
+        Destination TSV with ``name`` + ``updated_at`` columns.
+    token
+        Optional GitHub personal-access token.  Falls back to
+        ``$GITHUB_TOKEN`` if ``None``.
+    """
+    from pathlib import Path as _P
+
+    if token is None:
+        token = os.environ.get("GITHUB_TOKEN")
+    repos = get_github_organization_repositories(org_name, token=token)
+    if not repos:
+        return 0
+    df = pd.DataFrame(repos, columns=["name", "updated_at"])
+    output_path = _P(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    df.to_csv(output_path, sep="\t", index=False)
+    return len(repos)
+
+
+# ---------------------------------------------------------------------------
+# CLI
+# ---------------------------------------------------------------------------
+
+
+def main(argv: "list[str] | None" = None) -> int:
+    """Argparse wrapper around :func:`run_fetch`."""
+    import argparse
+    from pathlib import Path as _P
+
+    load_dotenv()
+
+    parser = argparse.ArgumentParser(
+        description="Fetch every repository in a GitHub organization.",
+    )
+    parser.add_argument(
+        "--org",
+        default="OpenNeuroDatasets",
+        help="GitHub organization name.",
+    )
+    parser.add_argument(
+        "--output",
+        type=_P,
+        default=_P("datasets/dataset_summaries/datasets.tsv"),
+        help="Destination TSV.",
+    )
+    parser.add_argument(
+        "--token",
+        default=None,
+        help="GitHub PAT (defaults to $GITHUB_TOKEN).",
+    )
+    args = parser.parse_args(argv)
+
+    print(f"Fetching repositories for the '{args.org}' organization...")
+    n = run_fetch(org_name=args.org, output_path=args.output, token=args.token)
+
+    if n:
+        print(f"Successfully retrieved {n} repositories.")
+        print(f"Data saved to {args.output.resolve()}")
+        return 0
+    print("Could not retrieve repositories.")
+    return 1
+
+
 if __name__ == "__main__":
-    # Assumes personal access token is stored in a .env file
-    load_dotenv() # Load environment variables from .env file
-
-    # Replace 'google' with the GitHub organization you are interested in.
-    org_name = "OpenNeuroDatasets"
-
-     # For higher rate limits or to access private repositories, generate a
-    # personal access token from your GitHub settings and provide it here.
-    personal_access_token = os.environ.get("GITHUB_TOKEN")
-    print(f"Fetching repositories for the '{org_name}' organization...")
-    all_repos = get_github_organization_repositories(org_name, token=personal_access_token)
-
-    if all_repos:
-        print(f"Successfully retrieved {len(all_repos)} repositories.")
-
-        # Create a pandas DataFrame and save it to a TSV file
-        df = pd.DataFrame(all_repos, columns=['name', 'updated_at'])
-        df.to_csv("../datasets/dataset_summaries/datasets.tsv", sep='\t', index=False)
-
-        print("Data saved to ../datasets/dataset_summaries/datasets.tsv")
-
-        # To print all repository names and last update time:
-        # for repo_name, last_updated in all_repos:
-        #     print(f"- {repo_name} (Last updated: {last_updated})")
-    else:
-        print("Could not retrieve repositories.")
+    raise SystemExit(main())

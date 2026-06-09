@@ -18,6 +18,7 @@ import csv
 import json
 import re
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 
 _SRC = Path(__file__).resolve().parent
@@ -38,9 +39,9 @@ _LINK_PATTERNS = [
 
 
 def _clean_link(link: str) -> str:
-    if ')' in link:
-        link = link[:link.index(')')]
-    if link.endswith('.'):
+    if ")" in link:
+        link = link[: link.index(")")]
+    if link.endswith("."):
         link = link[:-1]
     return link
 
@@ -83,8 +84,7 @@ def _extract_links_from_readme(readme_path: Path) -> list[str]:
 
 def _find_readme_files(dataset_dir: Path) -> list[Path]:
     try:
-        return [p for p in dataset_dir.iterdir()
-                if p.name.lower().startswith("readme")]
+        return [p for p in dataset_dir.iterdir() if p.name.lower().startswith("readme")]
     except Exception:
         return []
 
@@ -135,21 +135,25 @@ def collect_dataset_citations(
         if filtered:
             print(f"  Found {len(filtered)} citation link(s)")
             for lnk in filtered:
-                rows.append({
-                    "dataset_id": dsid,
-                    "citation_id": "",
-                    "raw_link": lnk,
-                    "UnlinkedAck": unlinked_ack,
-                })
+                rows.append(
+                    {
+                        "dataset_id": dsid,
+                        "citation_id": "",
+                        "raw_link": lnk,
+                        "UnlinkedAck": unlinked_ack,
+                    }
+                )
         else:
             print("  No citation links found")
             if unlinked_ack == "yes":
-                rows.append({
-                    "dataset_id": dsid,
-                    "citation_id": "",
-                    "raw_link": "",
-                    "UnlinkedAck": "yes",
-                })
+                rows.append(
+                    {
+                        "dataset_id": dsid,
+                        "citation_id": "",
+                        "raw_link": "",
+                        "UnlinkedAck": "yes",
+                    }
+                )
 
     return rows
 
@@ -157,12 +161,82 @@ def collect_dataset_citations(
 def write_citations(rows: list[dict], output_path: Path) -> None:
     with output_path.open("w", encoding="utf-8", newline="") as f:
         writer = csv.DictWriter(
-            f, fieldnames=MAPPING_COLUMNS, delimiter="\t", lineterminator="\n",
+            f,
+            fieldnames=MAPPING_COLUMNS,
+            delimiter="\t",
+            lineterminator="\n",
         )
         writer.writeheader()
         for row in rows:
             writer.writerow({c: row.get(c, "") for c in MAPPING_COLUMNS})
     print(f"Wrote {len(rows)} rows to {output_path}")
+
+
+# ---------------------------------------------------------------------------
+# Library API
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class CollectionResult:
+    """Outcome of :func:`run_collection`."""
+
+    rows: list[dict]
+    skip_pattern_count: int
+    with_links: int
+    without_links: int
+    output_path: Path | None
+    written: bool
+
+
+def run_collection(
+    *,
+    datasets_tsv: Path,
+    datasets_dir: Path,
+    skip_list_path: Path,
+    output_path: Path,
+    write_back: bool = False,
+) -> CollectionResult:
+    """Collect raw citation links from dataset files.
+
+    Library entry point.  ``write_back=False`` (the default) leaves
+    ``output_path`` untouched; the in-memory rows are still returned
+    on the result so callers can inspect or process them further.
+
+    Parameters
+    ----------
+    datasets_tsv
+        Per-dataset TSV (typically ``datasets_ordered.tsv``) that
+        lists which dataset directories to scan.
+    datasets_dir
+        Parent directory holding the ``dsXXXXXX/`` dataset
+        sub-directories.
+    skip_list_path
+        Path to the skip-list file used by
+        :func:`citation_normalize.is_junk_link`.
+    output_path
+        Destination for the citations TSV when ``write_back=True``.
+    write_back
+        If True, write the collected rows to ``output_path``.
+    """
+    skip_patterns = load_skip_list(skip_list_path)
+    rows = collect_dataset_citations(datasets_tsv, datasets_dir, skip_patterns)
+    with_links = sum(1 for r in rows if r["raw_link"])
+    if write_back:
+        write_citations(rows, output_path)
+    return CollectionResult(
+        rows=rows,
+        skip_pattern_count=len(skip_patterns),
+        with_links=with_links,
+        without_links=len(rows) - with_links,
+        output_path=output_path if write_back else None,
+        written=write_back,
+    )
+
+
+# ---------------------------------------------------------------------------
+# CLI
+# ---------------------------------------------------------------------------
 
 
 def parse_args() -> argparse.Namespace:
@@ -171,63 +245,74 @@ def parse_args() -> argparse.Namespace:
     )
     group = parser.add_mutually_exclusive_group()
     group.add_argument(
-        "--dry-run", action="store_true", default=False,
+        "--dry-run",
+        action="store_true",
+        default=False,
         help="Scan and report without writing the output TSV (default).",
     )
     group.add_argument(
-        "--write-back", action="store_true", default=False,
+        "--write-back",
+        action="store_true",
+        default=False,
         help="Write the output TSV after scanning.",
     )
     parser.add_argument(
-        "--datasets-tsv", type=Path,
-        default=(_REPO_ROOT / "datasets" / "dataset_summaries"
-                 / "datasets_ordered.tsv"),
+        "--datasets-tsv",
+        type=Path,
+        default=(
+            _REPO_ROOT / "datasets" / "dataset_summaries" / "datasets_ordered.tsv"
+        ),
     )
     parser.add_argument(
-        "--datasets-dir", type=Path,
+        "--datasets-dir",
+        type=Path,
         default=_REPO_ROOT / "datasets" / "dataset_repos",
     )
     parser.add_argument(
-        "--output", type=Path,
-        default=(_REPO_ROOT / "datasets" / "dataset_summaries"
-                 / "dataset_citations.tsv"),
+        "--output",
+        type=Path,
+        default=(
+            _REPO_ROOT / "datasets" / "dataset_summaries" / "dataset_citations.tsv"
+        ),
     )
     parser.add_argument(
-        "--skip-list", type=Path,
+        "--skip-list",
+        type=Path,
         default=_REPO_ROOT / "config" / "citation_skip_list.txt",
     )
     return parser.parse_args()
 
 
 def main() -> int:
+    """Argparse wrapper around :func:`run_collection`."""
     args = parse_args()
-    write = args.write_back
 
     print(f"Datasets TSV: {args.datasets_tsv}")
     print(f"Datasets dir: {args.datasets_dir}")
     print(f"Skip-list:    {args.skip_list}")
-    print(f"Mode:         {'WRITE-BACK' if write else 'DRY-RUN'}")
+    print(f"Mode:         {'WRITE-BACK' if args.write_back else 'DRY-RUN'}")
     print()
 
-    skip_patterns = load_skip_list(args.skip_list)
-    print(f"Loaded {len(skip_patterns)} skip-list pattern(s).\n")
+    result = run_collection(
+        datasets_tsv=args.datasets_tsv,
+        datasets_dir=args.datasets_dir,
+        skip_list_path=args.skip_list,
+        output_path=args.output,
+        write_back=args.write_back,
+    )
 
-    rows = collect_dataset_citations(args.datasets_tsv, args.datasets_dir, skip_patterns)
+    print(f"Loaded {result.skip_pattern_count} skip-list pattern(s).")
+    print(f"\nTotal rows collected: {len(result.rows)}")
+    print(f"  With links:         {result.with_links}")
+    print(f"  Empty/UnlinkedAck:  {result.without_links}")
 
-    link_rows = [r for r in rows if r["raw_link"]]
-    empty_rows = [r for r in rows if not r["raw_link"]]
-    print(f"\nTotal rows collected: {len(rows)}")
-    print(f"  With links:         {len(link_rows)}")
-    print(f"  Empty/UnlinkedAck:  {len(empty_rows)}")
-
-    if write:
-        write_citations(rows, args.output)
-    else:
-        print(f"\nDry-run.  No files written.  Pass --write-back to write "
-              f"{args.output}.")
+    if not result.written:
+        print(
+            f"\nDry-run.  No files written.  Pass --write-back to write {args.output}."
+        )
 
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    raise SystemExit(main())

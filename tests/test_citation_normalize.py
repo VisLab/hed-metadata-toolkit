@@ -34,6 +34,7 @@ from hed_metadata_toolkit.citation_normalize import (  # noqa: E402
 
 # canonicalize_doi -----------------------------------------------------------
 
+
 @pytest.mark.parametrize(
     "raw, expected",
     [
@@ -58,6 +59,7 @@ def test_canonicalize_doi(raw, expected):
 
 
 # canonicalize_url -----------------------------------------------------------
+
 
 @pytest.mark.parametrize(
     "raw, expected",
@@ -87,6 +89,7 @@ def test_canonicalize_url(raw, expected):
 
 
 # synthesise_doi_from_url ----------------------------------------------------
+
 
 @pytest.mark.parametrize(
     "url, expected_doi",
@@ -139,6 +142,7 @@ def test_synthesise_doi_from_url_returns_none_for_url_only_hosts(url):
 
 
 # extract_doi ----------------------------------------------------------------
+
 
 @pytest.mark.parametrize(
     "link, expected",
@@ -196,8 +200,14 @@ _TEST_SKIP_LIST = [
         ("https://www.nature.com/articles/s41597-023-02396-5", False),
     ],
     ids=[
-        "openneuro", "openneuro-uppercase", "github", "licenses",
-        "zip-file", "exe-file", "real-doi", "real-nature",
+        "openneuro",
+        "openneuro-uppercase",
+        "github",
+        "licenses",
+        "zip-file",
+        "exe-file",
+        "real-doi",
+        "real-nature",
     ],
 )
 def test_is_junk_link(link, expected):
@@ -205,6 +215,7 @@ def test_is_junk_link(link, expected):
 
 
 # load_skip_list -------------------------------------------------------------
+
 
 def test_load_skip_list(tmp_path):
     f = tmp_path / "skip.txt"
@@ -224,8 +235,7 @@ def test_load_skip_list(tmp_path):
 
 def test_load_skip_list_real_file_is_nonempty():
     skip_list_path = (
-        Path(__file__).resolve().parent.parent
-        / "config" / "citation_skip_list.txt"
+        Path(__file__).resolve().parent.parent / "config" / "citation_skip_list.txt"
     )
     patterns = load_skip_list(skip_list_path)
     assert len(patterns) >= 30
@@ -234,6 +244,7 @@ def test_load_skip_list_real_file_is_nonempty():
 
 
 # Round-trip / collision detection -------------------------------------------
+
 
 @pytest.mark.parametrize(
     "link_a, link_b",
@@ -260,8 +271,11 @@ def test_load_skip_list_real_file_is_nonempty():
         ),
     ],
     ids=[
-        "nature-www-vs-https", "doi-http-vs-https", "doi-prefix-vs-url",
-        "uppercase-vs-lower", "dx-vs-no-dx",
+        "nature-www-vs-https",
+        "doi-http-vs-https",
+        "doi-prefix-vs-url",
+        "uppercase-vs-lower",
+        "dx-vs-no-dx",
     ],
 )
 def test_canonicalisation_collapses_known_collisions(link_a, link_b):

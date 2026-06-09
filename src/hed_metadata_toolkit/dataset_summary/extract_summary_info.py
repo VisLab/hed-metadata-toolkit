@@ -43,6 +43,7 @@ import os
 import pandas as pd
 from dotenv import load_dotenv
 
+
 def count_subjects(file_list):
     """
     Count the number of subjects (entries starting with 'sub').
@@ -55,9 +56,10 @@ def count_subjects(file_list):
     """
     subject_count = 0
     for item in file_list:
-        if item.startswith('sub'):
+        if item.startswith("sub"):
             subject_count += 1
     return subject_count
+
 
 def check_has_events(file_list):
     """
@@ -70,9 +72,10 @@ def check_has_events(file_list):
         str: 'yes' if events.json files found, 'no' otherwise.
     """
     for item in file_list:
-        if item.endswith('events.json'):
-            return 'yes'
-    return 'no'
+        if item.endswith("events.json"):
+            return "yes"
+    return "no"
+
 
 def extract_task_names(file_list):
     """
@@ -87,12 +90,12 @@ def extract_task_names(file_list):
     task_names = set()  # Use set to avoid duplicates
 
     for item in file_list:
-        if 'task' in item.lower():
+        if "task" in item.lower():
             # Split by underscores
-            parts = item.split('_')
+            parts = item.split("_")
 
             for part in parts:
-                if part.startswith('task-'):
+                if part.startswith("task-"):
                     # Extract task name after 'task-'
                     task_name = part[5:]  # Remove 'task-' prefix
                     if task_name:  # Only add non-empty task names
@@ -100,9 +103,10 @@ def extract_task_names(file_list):
 
     # Convert set to sorted list and join with commas
     if task_names:
-        return ','.join(sorted(task_names))
+        return ",".join(sorted(task_names))
     else:
-        return ''
+        return ""
+
 
 def check_has_readme(file_list):
     """
@@ -115,9 +119,10 @@ def check_has_readme(file_list):
         str: 'yes' if README files found, 'no' otherwise.
     """
     for item in file_list:
-        if item.lower().startswith('readme'):
-            return 'yes'
-    return 'no'
+        if item.lower().startswith("readme"):
+            return "yes"
+    return "no"
+
 
 def extract_dataset_info(repo_contents_json_path):
     """
@@ -132,9 +137,11 @@ def extract_dataset_info(repo_contents_json_path):
     """
     # Load the repository contents data
     try:
-        with open(repo_contents_json_path, 'r', encoding='utf-8') as f:
+        with open(repo_contents_json_path, "r", encoding="utf-8") as f:
             repo_data = json.load(f)
-        print(f"Loaded data for {len(repo_data)} repositories from {repo_contents_json_path}")
+        print(
+            f"Loaded data for {len(repo_data)} repositories from {repo_contents_json_path}"
+        )
     except Exception as e:
         print(f"Error reading JSON file: {e}")
         return []
@@ -164,16 +171,16 @@ def extract_dataset_info(repo_contents_json_path):
 
         # Create dataset info record
         info = {
-            'name': dataset_name,
-            'subjs': subjs,
-            'title': '',  # Will be filled by another script
-            'links': '',  # Will be filled by another script
-            'readme': readme,
-            'events': events,
-            'tasks': tasks,
-            'modalities': '',  # Will be filled by another script
-            'contact': '',  # Will be filled by another script
-            'notes': ''  # Will be filled by another script
+            "name": dataset_name,
+            "subjs": subjs,
+            "title": "",  # Will be filled by another script
+            "links": "",  # Will be filled by another script
+            "readme": readme,
+            "events": events,
+            "tasks": tasks,
+            "modalities": "",  # Will be filled by another script
+            "contact": "",  # Will be filled by another script
+            "notes": "",  # Will be filled by another script
         }
 
         dataset_info.append(info)
@@ -189,6 +196,7 @@ def extract_dataset_info(repo_contents_json_path):
 
     return dataset_info
 
+
 def save_dataset_summary(dataset_info, output_file="dataset_summary.tsv"):
     """
     Save dataset information to a TSV file.
@@ -201,24 +209,36 @@ def save_dataset_summary(dataset_info, output_file="dataset_summary.tsv"):
     df = pd.DataFrame(dataset_info)
 
     # Ensure column order
-    columns = ['name', 'subjs', 'links', 'readme', 'events', 'title', 'tasks', 'modalities', 'contact', 'notes']
+    columns = [
+        "name",
+        "subjs",
+        "links",
+        "readme",
+        "events",
+        "title",
+        "tasks",
+        "modalities",
+        "contact",
+        "notes",
+    ]
     df = df[columns]
 
     # Save to TSV
-    df.to_csv(output_file, sep='\t', index=False)
+    df.to_csv(output_file, sep="\t", index=False)
     print(f"Dataset summary saved to {output_file}")
+
 
 def print_extraction_summary(dataset_info):
     """Print a summary of the extraction process."""
-    print("\n" + "="*50)
+    print("\n" + "=" * 50)
     print("DATASET EXTRACTION SUMMARY")
-    print("="*50)
+    print("=" * 50)
 
     total_datasets = len(dataset_info)
-    total_subjects = sum(info['subjs'] for info in dataset_info)
-    datasets_with_events = sum(1 for info in dataset_info if info['events'] == 'yes')
-    datasets_with_readme = sum(1 for info in dataset_info if info['readme'] == 'yes')
-    datasets_with_tasks = sum(1 for info in dataset_info if info['tasks'])
+    total_subjects = sum(info["subjs"] for info in dataset_info)
+    datasets_with_events = sum(1 for info in dataset_info if info["events"] == "yes")
+    datasets_with_readme = sum(1 for info in dataset_info if info["readme"] == "yes")
+    datasets_with_tasks = sum(1 for info in dataset_info if info["tasks"])
 
     print(f"Total datasets processed: {total_datasets}")
     print(f"Total subjects across all datasets: {total_subjects}")
@@ -227,52 +247,140 @@ def print_extraction_summary(dataset_info):
     print(f"Datasets with task information: {datasets_with_tasks}")
 
     if dataset_info:
-        print(f"\nAverage subjects per dataset: {total_subjects/total_datasets:.1f}")
+        print(f"\nAverage subjects per dataset: {total_subjects / total_datasets:.1f}")
 
         # Show some examples
         print("\nSample dataset info:")
         for info in dataset_info[:3]:
-            print(f"  {info['name']}: {info['subjs']} subjects, events={info['events']}, readme={info['readme']}")
-            if info['tasks']:
+            print(
+                f"  {info['name']}: {info['subjs']} subjects, events={info['events']}, readme={info['readme']}"
+            )
+            if info["tasks"]:
                 print(f"    Tasks: {info['tasks']}")
 
-    print("="*50)
+    print("=" * 50)
 
-# --- Example Usage ---
-if __name__ == "__main__":
-    # Load environment variables from .env file
+
+# ---------------------------------------------------------------------------
+# Library API
+# ---------------------------------------------------------------------------
+
+
+def run_extraction(
+    *,
+    input_path: "Path | str | None" = None,
+    repo_contents_path: "Path | str | None" = None,
+    legacy_repo_files_path: "Path | str | None" = None,
+    output_path: "Path | str",
+) -> int:
+    """Extract per-dataset summary info and write the summary TSV.
+
+    Library entry point.
+
+    Pass either ``input_path`` directly OR a pair of candidate paths
+    (``repo_contents_path`` preferred, ``legacy_repo_files_path``
+    fallback).  Returns the number of dataset rows written; returns
+    0 (and skips the write) if no dataset info was extracted.
+
+    Raises ``FileNotFoundError`` if neither candidate path exists.
+    """
+    from pathlib import Path as _P
+
+    if input_path is None:
+        if repo_contents_path and _P(repo_contents_path).exists():
+            input_path = _P(repo_contents_path)
+        elif legacy_repo_files_path and _P(legacy_repo_files_path).exists():
+            input_path = _P(legacy_repo_files_path)
+        else:
+            raise FileNotFoundError(
+                f"neither repo_contents path nor legacy fallback was found "
+                f"({repo_contents_path!r}, {legacy_repo_files_path!r})"
+            )
+    dataset_info = extract_dataset_info(str(input_path))
+    if not dataset_info:
+        return 0
+    save_dataset_summary(dataset_info, str(output_path))
+    return len(dataset_info)
+
+
+# ---------------------------------------------------------------------------
+# CLI
+# ---------------------------------------------------------------------------
+
+
+def main(argv: "list[str] | None" = None) -> int:
+    """Argparse wrapper around :func:`run_extraction`."""
+    import argparse
+    from pathlib import Path as _P
+
     load_dotenv()
 
-    # Configuration
-    repo_contents_json_path = "../datasets/dataset_summaries/repo_contents.json"
-    # Fallback to legacy repo_files.json if repo_contents.json doesn't exist
-    legacy_path = "../datasets/dataset_summaries/repo_files.json"
-    output_file = "../datasets/dataset_summaries/dataset_summary.tsv"
+    parser = argparse.ArgumentParser(
+        description="Extract dataset information from repo contents.",
+    )
+    parser.add_argument(
+        "--repo-contents",
+        type=_P,
+        default=_P("datasets/dataset_summaries/repo_contents.json"),
+        help="Path to the current-pipeline repo_contents.json.",
+    )
+    parser.add_argument(
+        "--legacy-repo-files",
+        type=_P,
+        default=_P("datasets/dataset_summaries/repo_files.json"),
+        help="Fallback path to the legacy repo_files.json.",
+    )
+    parser.add_argument(
+        "--output",
+        type=_P,
+        default=_P("datasets/dataset_summaries/dataset_summary.tsv"),
+        help="Destination path for the dataset summary TSV.",
+    )
+    args = parser.parse_args(argv)
 
     print("Extracting dataset information from repo contents...")
 
-    # Check which file exists
-    input_path = None
-    if os.path.exists(repo_contents_json_path):
-        input_path = repo_contents_json_path
-        print(f"Using current pipeline output: {os.path.abspath(input_path)}")
-    elif os.path.exists(legacy_path):
-        input_path = legacy_path
-        print(f"Using legacy output: {os.path.abspath(input_path)}")
-        print("Warning: repo_files.json is from the legacy pipeline. Consider running sync_repo_contents.py.")
+    if args.repo_contents.exists():
+        print(f"Using current pipeline output: {args.repo_contents.resolve()}")
+    elif args.legacy_repo_files.exists():
+        print(f"Using legacy output: {args.legacy_repo_files.resolve()}")
+        print(
+            "Warning: repo_files.json is from the legacy pipeline. "
+            "Consider running sync_repo_contents first."
+        )
     else:
-        print(f"Error: Neither {repo_contents_json_path} nor {legacy_path} found.")
-        print("Please run sync_repo_contents.py first (or get_repo_files.py for legacy pipeline).")
-        exit(1)
+        print(
+            f"Error: Neither {args.repo_contents} nor {args.legacy_repo_files} found."
+        )
+        print("Run sync_repo_contents first.")
+        return 1
 
-    print(f"Output file: {os.path.abspath(output_file)}")
+    print(f"Output file: {args.output.resolve()}")
 
-    # Extract dataset information
-    dataset_info = extract_dataset_info(input_path)
+    try:
+        n = run_extraction(
+            repo_contents_path=args.repo_contents,
+            legacy_repo_files_path=args.legacy_repo_files,
+            output_path=args.output,
+        )
+    except FileNotFoundError as exc:
+        print(f"Error: {exc}")
+        return 1
 
-    if dataset_info:
-        save_dataset_summary(dataset_info, output_file)
-        print_extraction_summary(dataset_info)
-        print("\nDataset information extraction complete!")
-    else:
+    if n == 0:
         print("No dataset information was extracted.")
+        return 1
+
+    # Re-extract for the per-extraction summary; cheap to do
+    # once more so the CLI summary doesn't need to be threaded
+    # through the library function.
+    input_used = (
+        args.repo_contents if args.repo_contents.exists() else args.legacy_repo_files
+    )
+    print_extraction_summary(extract_dataset_info(str(input_used)))
+    print("\nDataset information extraction complete!")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

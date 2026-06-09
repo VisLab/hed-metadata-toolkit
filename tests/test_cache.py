@@ -37,6 +37,7 @@ from hed_metadata_toolkit.cache import cache_get_or_fetch
 # Round-trip behaviour
 # ---------------------------------------------------------------------------
 
+
 def test_round_trip_writes_and_reads_back(tmp_path: Path) -> None:
     """A successful fetch is persisted; the next call returns the cached body."""
     calls = {"n": 0}
@@ -46,12 +47,20 @@ def test_round_trip_writes_and_reads_back(tmp_path: Path) -> None:
         return {"hello": "world", "n": calls["n"]}
 
     first = cache_get_or_fetch(
-        cache_dir=tmp_path, source="crossref", key="10.1/foo",
-        fetch=fetch, today="2026-05-01", stable=True,
+        cache_dir=tmp_path,
+        source="crossref",
+        key="10.1/foo",
+        fetch=fetch,
+        today="2026-05-01",
+        stable=True,
     )
     second = cache_get_or_fetch(
-        cache_dir=tmp_path, source="crossref", key="10.1/foo",
-        fetch=fetch, today="2026-05-01", stable=True,
+        cache_dir=tmp_path,
+        source="crossref",
+        key="10.1/foo",
+        fetch=fetch,
+        today="2026-05-01",
+        stable=True,
     )
     assert first == {"hello": "world", "n": 1}
     assert second == {"hello": "world", "n": 1}
@@ -67,12 +76,18 @@ def test_empty_dict_is_cached_as_not_found(tmp_path: Path) -> None:
         return {}
 
     first = cache_get_or_fetch(
-        cache_dir=tmp_path, source="crossref", key="10.1/missing",
-        fetch=fetch, stable=True,
+        cache_dir=tmp_path,
+        source="crossref",
+        key="10.1/missing",
+        fetch=fetch,
+        stable=True,
     )
     second = cache_get_or_fetch(
-        cache_dir=tmp_path, source="crossref", key="10.1/missing",
-        fetch=fetch, stable=True,
+        cache_dir=tmp_path,
+        source="crossref",
+        key="10.1/missing",
+        fetch=fetch,
+        stable=True,
     )
     assert first == {}
     assert second == {}
@@ -90,16 +105,25 @@ def test_none_signals_transient_error_and_is_not_cached(tmp_path: Path) -> None:
         return {"ok": True}
 
     first = cache_get_or_fetch(
-        cache_dir=tmp_path, source="crossref", key="10.1/flaky",
-        fetch=fetch, stable=True,
+        cache_dir=tmp_path,
+        source="crossref",
+        key="10.1/flaky",
+        fetch=fetch,
+        stable=True,
     )
     second = cache_get_or_fetch(
-        cache_dir=tmp_path, source="crossref", key="10.1/flaky",
-        fetch=fetch, stable=True,
+        cache_dir=tmp_path,
+        source="crossref",
+        key="10.1/flaky",
+        fetch=fetch,
+        stable=True,
     )
     third = cache_get_or_fetch(
-        cache_dir=tmp_path, source="crossref", key="10.1/flaky",
-        fetch=fetch, stable=True,
+        cache_dir=tmp_path,
+        source="crossref",
+        key="10.1/flaky",
+        fetch=fetch,
+        stable=True,
     )
     assert first == {}
     assert second == {}
@@ -110,6 +134,7 @@ def test_none_signals_transient_error_and_is_not_cached(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 # Corruption / collision fall-through
 # ---------------------------------------------------------------------------
+
 
 def test_corrupted_json_falls_through_to_refetch(tmp_path: Path) -> None:
     """A half-written cache file (invalid JSON) triggers a re-fetch and overwrite."""
@@ -122,8 +147,11 @@ def test_corrupted_json_falls_through_to_refetch(tmp_path: Path) -> None:
         return {"recovered": True}
 
     result = cache_get_or_fetch(
-        cache_dir=tmp_path, source="crossref", key="10.1/corrupt",
-        fetch=fetch, stable=True,
+        cache_dir=tmp_path,
+        source="crossref",
+        key="10.1/corrupt",
+        fetch=fetch,
+        stable=True,
     )
     assert result == {"recovered": True}
     data = json.loads(cache_path.read_text(encoding="utf-8"))
@@ -136,12 +164,14 @@ def test_key_metadata_mismatch_falls_through(tmp_path: Path) -> None:
     cache_path = cache_path.with_suffix(".json")
     cache_path.parent.mkdir(parents=True, exist_ok=True)
     cache_path.write_text(
-        json.dumps({
-            "source": "crossref",
-            "key": "10.1/key-B",
-            "fetched_on": "2026-05-01",
-            "response": {"wrong": True},
-        }),
+        json.dumps(
+            {
+                "source": "crossref",
+                "key": "10.1/key-B",
+                "fetched_on": "2026-05-01",
+                "response": {"wrong": True},
+            }
+        ),
         encoding="utf-8",
     )
 
@@ -149,8 +179,11 @@ def test_key_metadata_mismatch_falls_through(tmp_path: Path) -> None:
         return {"correct": True}
 
     result = cache_get_or_fetch(
-        cache_dir=tmp_path, source="crossref", key="10.1/key-A",
-        fetch=fetch, stable=True,
+        cache_dir=tmp_path,
+        source="crossref",
+        key="10.1/key-A",
+        fetch=fetch,
+        stable=True,
     )
     assert result == {"correct": True}
 
@@ -159,11 +192,15 @@ def test_key_metadata_mismatch_falls_through(tmp_path: Path) -> None:
 # Atomic-write behaviour
 # ---------------------------------------------------------------------------
 
+
 def test_no_tmp_leftover_after_successful_write(tmp_path: Path) -> None:
     """A clean write leaves cache_path on disk and no orphan .tmp files."""
     cache_get_or_fetch(
-        cache_dir=tmp_path, source="crossref", key="10.1/clean",
-        fetch=lambda: {"ok": True}, stable=True,
+        cache_dir=tmp_path,
+        source="crossref",
+        key="10.1/clean",
+        fetch=lambda: {"ok": True},
+        stable=True,
     )
     cache_dir = tmp_path / "crossref" / "stable"
     files = list(cache_dir.iterdir())
@@ -183,8 +220,11 @@ def test_rename_failure_leaves_no_partial_cache_path(tmp_path: Path) -> None:
     with patch.object(Path, "replace", boom):
         with pytest.raises(OSError, match="simulated rename failure"):
             cache_get_or_fetch(
-                cache_dir=tmp_path, source="crossref", key="10.1/fail",
-                fetch=lambda: {"ok": True}, stable=True,
+                cache_dir=tmp_path,
+                source="crossref",
+                key="10.1/fail",
+                fetch=lambda: {"ok": True},
+                stable=True,
             )
 
     cache_files = list(target_dir.glob("*.json")) if target_dir.exists() else []
@@ -206,15 +246,17 @@ def test_tmp_filename_includes_pid(tmp_path: Path) -> None:
     with patch.object(Path, "write_text", fake_write):
         with patch.object(Path, "replace", lambda self, target: None):
             cache_get_or_fetch(
-                cache_dir=tmp_path, source="crossref", key="10.1/pid-check",
-                fetch=lambda: {"ok": True}, stable=True,
+                cache_dir=tmp_path,
+                source="crossref",
+                key="10.1/pid-check",
+                fetch=lambda: {"ok": True},
+                stable=True,
             )
 
     assert captured, "write_text was not called"
     tmp_path_used = captured[0]
     assert f".{os.getpid()}.tmp" in tmp_path_used.name, (
-        f"tmp filename {tmp_path_used.name!r} should embed the PID "
-        f"({os.getpid()})"
+        f"tmp filename {tmp_path_used.name!r} should embed the PID ({os.getpid()})"
     )
 
 
@@ -227,6 +269,7 @@ def test_tmp_filename_includes_pid(tmp_path: Path) -> None:
 # layout (stable=False, the default) -- that is the layout the staleness
 # window applies to.
 
+
 def test_recent_date_stamped_cache_is_served_within_window(tmp_path: Path) -> None:
     """A search-style cache from 16 days ago is served when window is 30 days."""
     counter = {"n": 0}
@@ -236,12 +279,19 @@ def test_recent_date_stamped_cache_is_served_within_window(tmp_path: Path) -> No
         return {"version": counter["n"]}
 
     first = cache_get_or_fetch(
-        cache_dir=tmp_path, source="crossref", key="search-x",
-        fetch=fetch, today="2026-04-15",
+        cache_dir=tmp_path,
+        source="crossref",
+        key="search-x",
+        fetch=fetch,
+        today="2026-04-15",
     )
     second = cache_get_or_fetch(
-        cache_dir=tmp_path, source="crossref", key="search-x",
-        fetch=fetch, today="2026-05-01", max_age_days=30,
+        cache_dir=tmp_path,
+        source="crossref",
+        key="search-x",
+        fetch=fetch,
+        today="2026-05-01",
+        max_age_days=30,
     )
     assert first == {"version": 1}
     assert second == {"version": 1}
@@ -257,12 +307,19 @@ def test_outside_window_triggers_refetch(tmp_path: Path) -> None:
         return {"version": counter["n"]}
 
     cache_get_or_fetch(
-        cache_dir=tmp_path, source="crossref", key="search-x",
-        fetch=fetch, today="2026-03-30",
+        cache_dir=tmp_path,
+        source="crossref",
+        key="search-x",
+        fetch=fetch,
+        today="2026-03-30",
     )
     second = cache_get_or_fetch(
-        cache_dir=tmp_path, source="crossref", key="search-x",
-        fetch=fetch, today="2026-05-01", max_age_days=30,
+        cache_dir=tmp_path,
+        source="crossref",
+        key="search-x",
+        fetch=fetch,
+        today="2026-05-01",
+        max_age_days=30,
     )
     assert second == {"version": 2}
     assert counter["n"] == 2
@@ -280,12 +337,19 @@ def test_max_age_zero_restricts_lookup_to_today(tmp_path: Path) -> None:
         return {"version": counter["n"]}
 
     cache_get_or_fetch(
-        cache_dir=tmp_path, source="crossref", key="search-x",
-        fetch=fetch, today="2026-04-30",
+        cache_dir=tmp_path,
+        source="crossref",
+        key="search-x",
+        fetch=fetch,
+        today="2026-04-30",
     )
     second = cache_get_or_fetch(
-        cache_dir=tmp_path, source="crossref", key="search-x",
-        fetch=fetch, today="2026-05-01", max_age_days=0,
+        cache_dir=tmp_path,
+        source="crossref",
+        key="search-x",
+        fetch=fetch,
+        today="2026-05-01",
+        max_age_days=0,
     )
     assert second == {"version": 2}
     assert counter["n"] == 2
@@ -300,16 +364,27 @@ def test_newest_within_window_wins(tmp_path: Path) -> None:
         return {"version": counter["n"]}
 
     cache_get_or_fetch(
-        cache_dir=tmp_path, source="crossref", key="search-x",
-        fetch=fetch, today="2026-04-10",
+        cache_dir=tmp_path,
+        source="crossref",
+        key="search-x",
+        fetch=fetch,
+        today="2026-04-10",
     )
     cache_get_or_fetch(
-        cache_dir=tmp_path, source="crossref", key="search-x",
-        fetch=fetch, today="2026-04-25", max_age_days=0,
+        cache_dir=tmp_path,
+        source="crossref",
+        key="search-x",
+        fetch=fetch,
+        today="2026-04-25",
+        max_age_days=0,
     )
     result = cache_get_or_fetch(
-        cache_dir=tmp_path, source="crossref", key="search-x",
-        fetch=fetch, today="2026-05-01", max_age_days=30,
+        cache_dir=tmp_path,
+        source="crossref",
+        key="search-x",
+        fetch=fetch,
+        today="2026-05-01",
+        max_age_days=30,
     )
     assert result == {"version": 2}
     assert counter["n"] == 2
@@ -321,16 +396,19 @@ def test_corrupted_recent_falls_through_to_older_in_window(tmp_path: Path) -> No
 
     (tmp_path / "crossref" / "2026-04-30").mkdir(parents=True)
     (tmp_path / "crossref" / "2026-04-30" / f"{cache_hex}.json").write_text(
-        "{corrupt", encoding="utf-8",
+        "{corrupt",
+        encoding="utf-8",
     )
     (tmp_path / "crossref" / "2026-04-15").mkdir(parents=True)
     (tmp_path / "crossref" / "2026-04-15" / f"{cache_hex}.json").write_text(
-        json.dumps({
-            "source": "crossref",
-            "key": "search-x",
-            "fetched_on": "2026-04-15",
-            "response": {"valid": True},
-        }),
+        json.dumps(
+            {
+                "source": "crossref",
+                "key": "search-x",
+                "fetched_on": "2026-04-15",
+                "response": {"valid": True},
+            }
+        ),
         encoding="utf-8",
     )
 
@@ -338,8 +416,12 @@ def test_corrupted_recent_falls_through_to_older_in_window(tmp_path: Path) -> No
         raise AssertionError("fetch should not be called; older record is valid")
 
     result = cache_get_or_fetch(
-        cache_dir=tmp_path, source="crossref", key="search-x",
-        fetch=fetch, today="2026-05-01", max_age_days=30,
+        cache_dir=tmp_path,
+        source="crossref",
+        key="search-x",
+        fetch=fetch,
+        today="2026-05-01",
+        max_age_days=30,
     )
     assert result == {"valid": True}
 
@@ -350,23 +432,30 @@ def test_future_dated_buckets_are_ignored(tmp_path: Path) -> None:
 
     (tmp_path / "crossref" / "2026-06-15").mkdir(parents=True)
     (tmp_path / "crossref" / "2026-06-15" / f"{cache_hex}.json").write_text(
-        json.dumps({
-            "source": "crossref",
-            "key": "search-x",
-            "fetched_on": "2026-06-15",
-            "response": {"from_future": True},
-        }),
+        json.dumps(
+            {
+                "source": "crossref",
+                "key": "search-x",
+                "fetched_on": "2026-06-15",
+                "response": {"from_future": True},
+            }
+        ),
         encoding="utf-8",
     )
 
     counter = {"n": 0}
+
     def fetch() -> dict:
         counter["n"] += 1
         return {"from_today": True}
 
     result = cache_get_or_fetch(
-        cache_dir=tmp_path, source="crossref", key="search-x",
-        fetch=fetch, today="2026-05-01", max_age_days=30,
+        cache_dir=tmp_path,
+        source="crossref",
+        key="search-x",
+        fetch=fetch,
+        today="2026-05-01",
+        max_age_days=30,
     )
     assert result == {"from_today": True}
     assert counter["n"] == 1
@@ -375,13 +464,15 @@ def test_future_dated_buckets_are_ignored(tmp_path: Path) -> None:
 def test_writes_always_go_to_today_bucket(tmp_path: Path) -> None:
     """A miss-then-fetch writes today's bucket regardless of max_age_days."""
     cache_get_or_fetch(
-        cache_dir=tmp_path, source="crossref", key="search-x",
+        cache_dir=tmp_path,
+        source="crossref",
+        key="search-x",
         fetch=lambda: {"ok": True},
-        today="2026-05-01", max_age_days=30,
+        today="2026-05-01",
+        max_age_days=30,
     )
     today_path = (
-        tmp_path / "crossref" / "2026-05-01"
-        / f"{_expected_hex('search-x')}.json"
+        tmp_path / "crossref" / "2026-05-01" / f"{_expected_hex('search-x')}.json"
     )
     assert today_path.exists()
 
@@ -390,7 +481,9 @@ def test_writes_always_go_to_today_bucket(tmp_path: Path) -> None:
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _expected_hex(key: str) -> str:
     """Mirror of cache._cache_key_hex for use in test fixtures."""
     import hashlib
+
     return hashlib.sha1(key.encode("utf-8")).hexdigest()[:16]

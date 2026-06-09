@@ -31,6 +31,7 @@ import unicodedata
 # Shared helpers
 # ---------------------------------------------------------------------------
 
+
 def _ascii_fold(s: str) -> str:
     """NFKD-normalize s and strip combining characters, yielding ASCII-safe text.
 
@@ -82,6 +83,7 @@ def _canonical_year(year: int | None) -> str:
 # Public functions
 # ---------------------------------------------------------------------------
 
+
 def build_canonical_string(
     first_author_family: str | None,
     year: int | None,
@@ -122,6 +124,7 @@ def build_pub_id(
 # ---------------------------------------------------------------------------
 # PDF filename helpers
 # ---------------------------------------------------------------------------
+
 
 def _filename_lastname(family: str | None) -> str:
     """Produce the <LastName> token for the PDF filename (§11.7 step 1).
@@ -176,7 +179,7 @@ def _is_acronym_token(token: str) -> bool:
     """
     if len(token) < 2:
         return False
-    if token.upper() == token:                          # all-uppercase: EEG, ADHD
+    if token.upper() == token:  # all-uppercase: EEG, ADHD
         return True
     if token[0].islower() and token[1:] == token[1:].upper():  # fMRI pattern
         return True

@@ -54,18 +54,21 @@ from dotenv import load_dotenv
 ORGANIZATION = "OpenNeuroDatasets"
 REST_URL = "https://api.github.com/repos/{org}/{repo}/contents/{path}"
 DEFAULT_WORKERS = 10
-DEFAULT_MAX_SIZE = 512 * 1024   # 512 KB
+DEFAULT_MAX_SIZE = 512 * 1024  # 512 KB
 RETRY_LIMIT = 3
 RETRY_DELAY = 5
 SHA_CACHE_FILENAME = ".sha_cache.json"
-FAILURES_FILENAME   = "download_failures.json"
+FAILURES_FILENAME = "download_failures.json"
 
 
 # ---------------------------------------------------------------------------
 # Windows-safe file replace
 # ---------------------------------------------------------------------------
 
-def _safe_replace(tmp_path: str, target_path: str, retries: int = 5, delay: float = 0.5) -> None:
+
+def _safe_replace(
+    tmp_path: str, target_path: str, retries: int = 5, delay: float = 0.5
+) -> None:
     """
     Replace target_path with tmp_path, retrying on Windows permission errors.
 
@@ -80,7 +83,9 @@ def _safe_replace(tmp_path: str, target_path: str, retries: int = 5, delay: floa
         except PermissionError:
             if attempt >= retries:
                 raise  # exhausted retries
-            print(f"    File locked, retrying in {delay}s... (attempt {attempt}/{retries})")
+            print(
+                f"    File locked, retrying in {delay}s... (attempt {attempt}/{retries})"
+            )
             time.sleep(delay)
             delay *= 2  # exponential backoff
 
@@ -88,6 +93,7 @@ def _safe_replace(tmp_path: str, target_path: str, retries: int = 5, delay: floa
 # ---------------------------------------------------------------------------
 # Rate-limit helpers
 # ---------------------------------------------------------------------------
+
 
 def _is_rate_limited(response) -> bool:
     """Return True if the response indicates a GitHub rate-limit hit."""
@@ -154,6 +160,7 @@ def _save_sha_cache(repo_dir: str, cache: dict) -> None:
 # ---------------------------------------------------------------------------
 # Single-file download
 # ---------------------------------------------------------------------------
+
 
 def _download_file(
     org: str,
@@ -224,8 +231,11 @@ def _download_file(
 # Failure tracking  (datasets/download_failures.json)
 # ---------------------------------------------------------------------------
 
+
 def _failures_path(contents_path: str) -> str:
-    return os.path.join(os.path.dirname(os.path.abspath(contents_path)), FAILURES_FILENAME)
+    return os.path.join(
+        os.path.dirname(os.path.abspath(contents_path)), FAILURES_FILENAME
+    )
 
 
 def _load_failures(contents_path: str) -> dict:
@@ -257,6 +267,7 @@ def _save_failures(failures: dict, contents_path: str) -> None:
 # Per-repo sync
 # ---------------------------------------------------------------------------
 
+
 def sync_repo(
     repo_name: str,
     entries: list[dict],
@@ -278,8 +289,12 @@ def sync_repo(
 
     blobs = [e for e in entries if e.get("type") == "blob"]
     stats = {
-        "downloaded": 0, "skipped_sha": 0, "skipped_size": 0,
-        "skipped_failed": 0, "not_found": 0, "errors": 0,
+        "downloaded": 0,
+        "skipped_sha": 0,
+        "skipped_size": 0,
+        "skipped_failed": 0,
+        "not_found": 0,
+        "errors": 0,
     }
 
     def handle_blob(entry: dict):
@@ -304,7 +319,12 @@ def sync_repo(
                 return
 
         # SHA-based skip
-        if not force and remote_sha and sha_cache.get(name) == remote_sha and os.path.exists(local_path):
+        if (
+            not force
+            and remote_sha
+            and sha_cache.get(name) == remote_sha
+            and os.path.exists(local_path)
+        ):
             stats["skipped_sha"] += 1
             return
 
@@ -352,6 +372,7 @@ def sync_repo(
 # Main
 # ---------------------------------------------------------------------------
 
+
 def sync_all(
     contents_path: str,
     datasets_dir: str,
@@ -385,12 +406,18 @@ def sync_all(
     # Load failures dict
     failures = _load_failures(contents_path)
     perm_skipped = sum(1 for v in failures.values() if v.get("skip"))
-    print(f"Failures dict: {len(failures)} entries ({perm_skipped} permanently skipped)")
+    print(
+        f"Failures dict: {len(failures)} entries ({perm_skipped} permanently skipped)"
+    )
 
     failures_lock = threading.Lock()
     totals = {
-        "downloaded": 0, "skipped_sha": 0, "skipped_size": 0,
-        "skipped_failed": 0, "not_found": 0, "errors": 0,
+        "downloaded": 0,
+        "skipped_sha": 0,
+        "skipped_size": 0,
+        "skipped_failed": 0,
+        "not_found": 0,
+        "errors": 0,
     }
 
     n = len(repo_contents)
@@ -436,31 +463,71 @@ def sync_all(
     print(f"  Errors          : {totals['errors']}")
     if totals["errors"] or totals["not_found"]:
         print(f"  Failures file   : {_failures_path(contents_path)}")
-        print("  Set \"skip\": true on any permanently inaccessible files in that file.")
+        print('  Set "skip": true on any permanently inaccessible files in that file.')
 
 
 # ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
 
-if __name__ == "__main__":
+
+def main(argv: "list[str] | None" = None) -> int:
+    """Argparse wrapper around :func:`sync_all`.
+
+    ``sync_all`` is the library entry point; consumers can call it
+    directly with their own paths and config.
+    """
     load_dotenv()
 
-    parser = argparse.ArgumentParser(description="Download top-level files for all ds* repos")
-    parser.add_argument("--repo",          default=None,  help="Only sync this single repo")
-    parser.add_argument("--workers",        type=int, default=DEFAULT_WORKERS, help="Parallel download threads")
-    parser.add_argument("--max-size",       type=int, default=DEFAULT_MAX_SIZE,
-                        help="Skip blobs larger than this (bytes, default 524288 = 512 KB)")
-    parser.add_argument("--force",          action="store_true", help="Re-download even if SHA matches")
-    parser.add_argument("--retry-failed",   action="store_true",
-                        help="Re-attempt files recorded in the failures dict (skip=true entries excluded)")
-    parser.add_argument("--contents",  default="../datasets/dataset_summaries/repo_contents.json",
-                        help="Path to repo_contents.json")
-    parser.add_argument("--datasets",  default="../datasets/dataset_repos",
-                        help="Root directory for local dataset folders")
-    args = parser.parse_args()
+    parser = argparse.ArgumentParser(
+        description="Download top-level files for every dataset repo.",
+    )
+    parser.add_argument(
+        "--repo",
+        default=None,
+        help="Only sync this single repo",
+    )
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=DEFAULT_WORKERS,
+        help="Parallel download threads",
+    )
+    parser.add_argument(
+        "--max-size",
+        type=int,
+        default=DEFAULT_MAX_SIZE,
+        help="Skip blobs larger than this (bytes, default 524288 = 512 KB)",
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Re-download even if SHA matches",
+    )
+    parser.add_argument(
+        "--retry-failed",
+        action="store_true",
+        help="Re-attempt files recorded in the failures dict "
+        "(skip=true entries excluded)",
+    )
+    parser.add_argument(
+        "--contents",
+        default="datasets/dataset_summaries/repo_contents.json",
+        help="Path to repo_contents.json",
+    )
+    parser.add_argument(
+        "--datasets",
+        default="datasets/dataset_repos",
+        help="Root directory for local dataset folders",
+    )
+    parser.add_argument(
+        "--token",
+        default=None,
+        help="GitHub PAT (defaults to $GITHUB_TOKEN).",
+    )
+    args = parser.parse_args(argv)
 
-    token = os.environ.get("GITHUB_TOKEN")
+    token = args.token or os.environ.get("GITHUB_TOKEN")
     if not token:
         print("Warning: GITHUB_TOKEN not set. Downloads will be rate-limited.")
 
@@ -474,3 +541,8 @@ if __name__ == "__main__":
         force=args.force,
         retry_failed=args.retry_failed,
     )
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

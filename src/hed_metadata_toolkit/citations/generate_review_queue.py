@@ -43,6 +43,7 @@ import json
 import logging
 import os
 import re
+from dataclasses import dataclass
 import sys
 import unicodedata
 from pathlib import Path
@@ -65,12 +66,11 @@ logger = logging.getLogger(__name__)
 
 TERMINAL_STATUSES = {"resolved", "rejected", "not_a_citation"}
 _DEFAULT_CACHE_DIR = _ROOT / "outputs" / "cache"
-_REGISTRY_DEFAULT = (
-    _ROOT / "datasets" / "dataset_summaries" / "citation_registry.tsv"
-)
+_REGISTRY_DEFAULT = _ROOT / "datasets" / "dataset_summaries" / "citation_registry.tsv"
 
-_OSF_URL_RE = re.compile(r"^https?://(www\.)?osf\.io/(?P<rest>[^?&#\s]+)",
-                          re.IGNORECASE)
+_OSF_URL_RE = re.compile(
+    r"^https?://(www\.)?osf\.io/(?P<rest>[^?&#\s]+)", re.IGNORECASE
+)
 _CR_API_BASE = "https://api.crossref.org"
 _CR_RATE_SEC = 0.2
 
@@ -81,6 +81,7 @@ _cr_last: list[float] = [0.0]
 # ---------------------------------------------------------------------------
 # Utility helpers
 # ---------------------------------------------------------------------------
+
 
 def today_iso() -> str:
     return datetime.date.today().isoformat()
@@ -93,8 +94,10 @@ def _ascii_fold_lower(s: str) -> str:
 
 def _title_token_overlap(t1: str, t2: str) -> float:
     """Jaccard coefficient of lowercased alphanumeric title tokens."""
+
     def tokens(t: str) -> set[str]:
         return set(re.sub(r"[^a-z0-9]", " ", _ascii_fold_lower(t)).split())
+
     a, b = tokens(t1), tokens(t2)
     if not a or not b:
         return 0.0
@@ -109,6 +112,7 @@ def _stable_cache_exists(cache_dir: Path, source: str, key: str) -> bool:
 # ---------------------------------------------------------------------------
 # OSF hint extraction (cache-only reads)
 # ---------------------------------------------------------------------------
+
 
 def _parse_osf_guid(url: str) -> str | None:
     """Extract the GUID from an OSF URL; returns None if not an OSF URL."""
@@ -132,7 +136,7 @@ def _read_osf_stable(cache_dir: Path, key: str) -> dict:
         cache_dir=cache_dir,
         source="osf",
         key=key,
-        fetch=lambda: None,   # never fetch fresh; return {} on miss
+        fetch=lambda: None,  # never fetch fresh; return {} on miss
         stable=True,
     )
 
@@ -172,9 +176,7 @@ def _build_osf_hints(url: str, cache_dir: Path) -> dict:
     else:
         # Shape (B): extract referent to get (type, id), then read typed cache.
         referent = (
-            data_block.get("relationships", {})
-            .get("referent", {})
-            .get("data", {})
+            data_block.get("relationships", {}).get("referent", {}).get("data", {})
         )
         obj_type_direct = referent.get("type", "")
         obj_id_direct = referent.get("id", "")
@@ -211,8 +213,10 @@ def _build_osf_hints(url: str, cache_dir: Path) -> dict:
 # Crossref title-search candidates (fresh call, date-stamped cache)
 # ---------------------------------------------------------------------------
 
+
 def _throttle_crossref() -> None:
     import time
+
     now = time.monotonic()
     gap = now - _cr_last[0]
     if gap < _CR_RATE_SEC:
@@ -298,7 +302,10 @@ def _candidate_from_item(item: dict, query_title: str) -> dict:
     authors = item.get("author") or []
     first_family = ""
     if authors:
-        fa = next((a for a in authors if a.get("sequence") == "first"), None) or authors[0]
+        fa = (
+            next((a for a in authors if a.get("sequence") == "first"), None)
+            or authors[0]
+        )
         first_family = fa.get("family", "")
 
     overlap = _title_token_overlap(title, query_title)
@@ -340,8 +347,7 @@ def _build_crossref_candidates(
 
         faf = _ascii_fold_lower(cand["first_author_family"])
         author_match = bool(family_set) and any(
-            faf == fam or fam in faf or faf in fam
-            for fam in family_set
+            faf == fam or fam in faf or faf in fam for fam in family_set
         )
         title_match = cand["title_overlap_score"] >= 0.5
 
@@ -356,6 +362,7 @@ def _build_crossref_candidates(
 # ---------------------------------------------------------------------------
 # Hint assembly
 # ---------------------------------------------------------------------------
+
 
 def build_hints(
     row: dict,
@@ -396,6 +403,7 @@ def build_hints(
 # Registry I/O
 # ---------------------------------------------------------------------------
 
+
 def load_registry(path: Path) -> tuple[dict[str, dict], list[str]]:
     with path.open(newline="", encoding="utf-8") as fh:
         reader = csv.DictReader(fh, delimiter="\t")
@@ -409,6 +417,7 @@ def load_registry(path: Path) -> tuple[dict[str, dict], list[str]]:
 # ---------------------------------------------------------------------------
 # Queue generation
 # ---------------------------------------------------------------------------
+
 
 def generate_queue(
     registry: dict[str, dict],
@@ -462,6 +471,7 @@ def generate_queue(
 # Atomic JSON write
 # ---------------------------------------------------------------------------
 
+
 def write_json_atomic(path: Path, data: list) -> None:
     """Serialise data to path via tmp-then-rename with fsync."""
     tmp = path.with_suffix(path.suffix + f".{os.getpid()}.tmp")
@@ -484,6 +494,7 @@ def write_json_atomic(path: Path, data: list) -> None:
 # CLI
 # ---------------------------------------------------------------------------
 
+
 def _resolve_email() -> str:
     """Read polite-pool email from .env (CROSSREF_MAILTO or OPENALEX_MAILTO)."""
     email = "hedannotation@gmail.com"
@@ -499,7 +510,100 @@ def _resolve_email() -> str:
     return email
 
 
-def main(argv: list[str] | None = None) -> None:
+# ---------------------------------------------------------------------------
+# Library API
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class ReviewQueueResult:
+    """Outcome of :func:`run_review_queue`."""
+
+    entries: list[dict]
+    output_path: Path
+    today: str
+    cache_dir: Path
+    include_hints: bool
+
+
+def run_review_queue(
+    *,
+    registry_path: Path,
+    output_path: Path,
+    cache_dir: Path,
+    email: str | None = None,
+    include_hints: bool = True,
+    limit: int | None = None,
+    today: str | None = None,
+) -> ReviewQueueResult:
+    """Generate a curator review queue JSON from the citation registry.
+
+    Library entry point.  Walks rows in ``needs_review`` state,
+    enriches them with OSF metadata + Crossref candidate hints
+    (when ``include_hints=True``), and writes the resulting queue to
+    ``output_path``.
+
+    Parameters
+    ----------
+    registry_path
+        Path to ``citation_registry.tsv``.
+    output_path
+        Destination JSON path for the queue.
+    cache_dir
+        Cache root passed through to the OSF / Crossref clients.
+    email
+        Polite-pool address for Crossref calls.  ``None`` →
+        :func:`_resolve_email` (env / repo .env / default).
+    include_hints
+        If False, skip OSF + Crossref enrichment (offline mode).
+    limit
+        Cap on the number of entries emitted.
+    today
+        ISO date stamped onto each entry.  ``None`` → today's UTC.
+    """
+    if today is None:
+        today = today_iso()
+    if email is None:
+        email = _resolve_email()
+
+    registry, _ = load_registry(registry_path)
+    entries = generate_queue(
+        registry,
+        cache_dir,
+        today,
+        include_hints,
+        limit,
+        email,
+    )
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    write_json_atomic(output_path, entries)
+
+    return ReviewQueueResult(
+        entries=entries,
+        output_path=output_path,
+        today=today,
+        cache_dir=cache_dir,
+        include_hints=include_hints,
+    )
+
+
+# ---------------------------------------------------------------------------
+# CLI
+# ---------------------------------------------------------------------------
+
+
+def _resolve_cli_cache_dir(arg_value: str | None) -> Path:
+    """``--cache-dir`` > ``$HED_CACHE_DIR`` > module default."""
+    if arg_value:
+        return Path(arg_value)
+    env_val = os.environ.get("HED_CACHE_DIR")
+    if env_val:
+        return Path(env_val)
+    return _DEFAULT_CACHE_DIR
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Argparse wrapper around :func:`run_review_queue`."""
     parser = argparse.ArgumentParser(
         description="Generate a manual curator review queue from the citation registry."
     )
@@ -536,32 +640,30 @@ def main(argv: list[str] | None = None) -> None:
     )
     args = parser.parse_args(argv)
 
-    if args.cache_dir:
-        cache_dir = Path(args.cache_dir)
-    elif "HED_CACHE_DIR" in os.environ:
-        cache_dir = Path(os.environ["HED_CACHE_DIR"])
-    else:
-        cache_dir = _DEFAULT_CACHE_DIR
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(levelname)s %(name)s: %(message)s",
+    )
 
     today = today_iso()
-    registry_path = Path(args.registry)
     output_path = (
-        Path(args.output) if args.output
+        Path(args.output)
+        if args.output
         else _ROOT / "datasets" / "dataset_summaries" / f"manual_review_{today}.json"
     )
-    email = _resolve_email()
 
-    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
-
-    registry, _ = load_registry(registry_path)
-    entries = generate_queue(
-        registry, cache_dir, today, args.include_hints, args.limit, email
+    result = run_review_queue(
+        registry_path=Path(args.registry),
+        output_path=output_path,
+        cache_dir=_resolve_cli_cache_dir(args.cache_dir),
+        include_hints=args.include_hints,
+        limit=args.limit,
+        today=today,
     )
 
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    write_json_atomic(output_path, entries)
-    print(f"Generated {len(entries)} entries -> {output_path}")
+    print(f"Generated {len(result.entries)} entries -> {result.output_path}")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

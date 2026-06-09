@@ -187,7 +187,10 @@ def cache_get_or_fetch(
         candidates = [stable_path] if stable_path.exists() else []
     else:
         candidates = _find_recent_date_stamped(
-            Path(cache_dir) / source, cache_hex, today, max_age_days,
+            Path(cache_dir) / source,
+            cache_hex,
+            today,
+            max_age_days,
         )
 
     # Try each candidate, newest first.  A corrupt or wrong-keyed file
@@ -199,14 +202,18 @@ def cache_get_or_fetch(
         except (json.JSONDecodeError, KeyError) as exc:
             logger.warning(
                 "Corrupted cache file %s (%s); trying next-older candidate.",
-                cand_path, exc,
+                cand_path,
+                exc,
             )
             continue
         if data.get("source") != source or data.get("key") != key:
             logger.warning(
                 "Cache key collision or metadata mismatch for %s/%s "
                 "(stored key=%r, stored source=%r); trying next-older candidate.",
-                source, cache_hex, data.get("key"), data.get("source"),
+                source,
+                cache_hex,
+                data.get("key"),
+                data.get("source"),
             )
             continue
         logger.debug("cache_hit source=%s key=%r path=%s", source, key, cand_path)

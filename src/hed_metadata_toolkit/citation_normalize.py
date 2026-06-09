@@ -97,6 +97,7 @@ def canonicalize_doi(doi: str) -> str:
 # Publisher URL → DOI synthesis (v2 §4.3)
 # ---------------------------------------------------------------------------
 
+
 def _synth_nature(url: str) -> str | None:
     """nature.com/articles/<suffix> → 10.1038/<suffix>"""
     m = re.search(r"nature\.com/articles/([^/?#\s]+)", url, re.IGNORECASE)
@@ -107,7 +108,8 @@ def _synth_springer(url: str) -> str | None:
     """link.springer.com/article/<DOI> — DOI is literal in the path."""
     m = re.search(
         r"link\.springer\.com/article/(10\.\d{4,9}/[^/?#\s]+)",
-        url, re.IGNORECASE,
+        url,
+        re.IGNORECASE,
     )
     return m.group(1) if m else None
 
@@ -116,7 +118,8 @@ def _synth_plos(url: str) -> str | None:
     """journals.plos.org/<journal>/article?id=<DOI>"""
     m = re.search(
         r"journals\.plos\.org/[^/]+/article\?id=(10\.\d{4,9}/[^&\s]+)",
-        url, re.IGNORECASE,
+        url,
+        re.IGNORECASE,
     )
     return m.group(1) if m else None
 
@@ -125,7 +128,8 @@ def _synth_tandfonline(url: str) -> str | None:
     """tandfonline.com/doi/(full|abs|epdf)/<DOI>"""
     m = re.search(
         r"tandfonline\.com/doi/(?:full|abs|epdf)/(10\.\d{4,9}/[^/?#\s]+)",
-        url, re.IGNORECASE,
+        url,
+        re.IGNORECASE,
     )
     return m.group(1) if m else None
 
@@ -134,7 +138,8 @@ def _synth_mit(url: str) -> str | None:
     """direct.mit.edu paths sometimes embed a literal DOI segment."""
     m = re.search(
         r"direct\.mit\.edu/.*?(10\.\d{4,9}/[^/?#\s]+)",
-        url, re.IGNORECASE,
+        url,
+        re.IGNORECASE,
     )
     return m.group(1) if m else None
 
@@ -143,7 +148,8 @@ def _synth_frontiers(url: str) -> str | None:
     """frontiersin.org/journals/<journal>/articles/10.3389/<id>/..."""
     m = re.search(
         r"frontiersin\.org/journals/[^/]+/articles/(10\.\d{4,9}/[^/?#\s]+)",
-        url, re.IGNORECASE,
+        url,
+        re.IGNORECASE,
     )
     return m.group(1) if m else None
 
@@ -177,6 +183,7 @@ def synthesise_doi_from_url(url: str) -> str | None:
 # ---------------------------------------------------------------------------
 # DOI extraction
 # ---------------------------------------------------------------------------
+
 
 def extract_doi(link: str) -> str | None:
     """Return the bare canonical DOI ('10.xxxx/yyy') if findable; else None.
@@ -225,7 +232,7 @@ def canonicalize_url(url: str) -> str:
         s = "https://" + s
 
     if s.lower().startswith("http://"):
-        s = "https://" + s[len("http://"):]
+        s = "https://" + s[len("http://") :]
 
     parts = urlsplit(s)
     scheme = parts.scheme.lower()
@@ -273,6 +280,7 @@ def is_junk_link(link: str, skip_patterns: list[str]) -> bool:
 # ---------------------------------------------------------------------------
 # Skip-list loader
 # ---------------------------------------------------------------------------
+
 
 def load_skip_list(path) -> list[str]:
     """Read citation_skip_list.txt and return the active patterns.

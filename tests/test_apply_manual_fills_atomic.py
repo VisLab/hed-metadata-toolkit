@@ -30,9 +30,18 @@ from hed_metadata_toolkit.citations.apply_manual_fills import (  # noqa: E402
 )
 
 COLUMNS = [
-    "citation_id", "doi", "url", "source_link", "pub_id",
-    "first_author_family", "year", "title",
-    "status", "metadata_source", "verified_on", "notes",
+    "citation_id",
+    "doi",
+    "url",
+    "source_link",
+    "pub_id",
+    "first_author_family",
+    "year",
+    "title",
+    "status",
+    "metadata_source",
+    "verified_on",
+    "notes",
 ]
 
 
@@ -62,8 +71,7 @@ def test_write_registry_preserves_full_row_count(tmp_path: Path):
     text = out_path.read_text(encoding="utf-8")
     nonempty_lines = [ln for ln in text.splitlines() if ln.strip()]
     assert len(nonempty_lines) == 201, (
-        f"Expected 1 header + 200 rows = 201 non-empty lines, "
-        f"got {len(nonempty_lines)}"
+        f"Expected 1 header + 200 rows = 201 non-empty lines, got {len(nonempty_lines)}"
     )
 
     # Last data row must be cit_000200 with the full status string.
@@ -112,10 +120,12 @@ def test_write_registry_atomic_on_failure(tmp_path: Path, monkeypatch):
     monkeypatch.setattr(csv.DictWriter, "writerow", boom)
 
     reg_v2 = {
-        "cit_000001": {**_empty_row("cit_000001"),
-                       "status": "manual", "doi": "10.1000/new"},
-        "cit_000002": {**_empty_row("cit_000002"),
-                       "status": "manual"},
+        "cit_000001": {
+            **_empty_row("cit_000001"),
+            "status": "manual",
+            "doi": "10.1000/new",
+        },
+        "cit_000002": {**_empty_row("cit_000002"), "status": "manual"},
     }
     with pytest.raises(OSError, match="simulated write failure"):
         write_registry(out_path, reg_v2, COLUMNS)

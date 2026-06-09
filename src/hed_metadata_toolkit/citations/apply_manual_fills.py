@@ -18,6 +18,7 @@ import datetime
 import json
 import os
 import re
+from dataclasses import dataclass
 from pathlib import Path
 
 
@@ -29,8 +30,14 @@ TERMINAL_STATUSES = {"rejected", "not_a_citation"}
 
 # JSON null-DOI statuses that map to registry "rejected"
 NULL_DOI_STATUSES = {
-    "rejected", "reject", "supplement", "unresolved",
-    "no_paper", "dataset", "preprint_only", "conference_proceeding",
+    "rejected",
+    "reject",
+    "supplement",
+    "unresolved",
+    "no_paper",
+    "dataset",
+    "preprint_only",
+    "conference_proceeding",
 }
 
 
@@ -46,6 +53,7 @@ def today_iso() -> str:
 # ---------------------------------------------------------------------------
 # Registry I/O
 # ---------------------------------------------------------------------------
+
 
 def load_registry(path: Path) -> tuple[dict[str, dict], list[str]]:
     """Load TSV into an ordered dict keyed by citation_id.
@@ -76,8 +84,11 @@ def write_registry(path: Path, rows: dict[str, dict], columns: list[str]) -> Non
     try:
         with tmp_path.open("w", newline="", encoding="utf-8") as fh:
             writer = csv.DictWriter(
-                fh, fieldnames=columns, delimiter="\t",
-                extrasaction="ignore", lineterminator="\n",
+                fh,
+                fieldnames=columns,
+                delimiter="\t",
+                extrasaction="ignore",
+                lineterminator="\n",
             )
             writer.writeheader()
             for row in rows.values():
@@ -101,6 +112,7 @@ def write_registry(path: Path, rows: dict[str, dict], columns: list[str]) -> Non
 # ---------------------------------------------------------------------------
 # Core algorithm
 # ---------------------------------------------------------------------------
+
 
 def _apply_manual_fill(
     cit: str,
@@ -177,13 +189,17 @@ def _apply_manual_fill(
         try:
             year_str = str(int(year_raw))
         except (TypeError, ValueError):
-            warnings_out.append(f"{cit}: manual_fill year={year_raw!r} is not an integer; skipping")
+            warnings_out.append(
+                f"{cit}: manual_fill year={year_raw!r} is not an integer; skipping"
+            )
             return
 
         # Idempotency: already applied in a prior run.
-        if (r.get("first_author_family", "").strip() == family
-                and r.get("year", "").strip() == year_str
-                and r.get("title", "").strip() == title):
+        if (
+            r.get("first_author_family", "").strip() == family
+            and r.get("year", "").strip() == year_str
+            and r.get("title", "").strip() == title
+        ):
             stats["skipped_already_resolved"].append(cit)
             return
 
@@ -351,6 +367,7 @@ def apply_fills(
 # Report
 # ---------------------------------------------------------------------------
 
+
 def format_report(
     stats: dict[str, list[str]],
     warnings_out: list[str],
@@ -391,10 +408,14 @@ def format_report(
 
     _section("Applied (DOI set, status=manual)", stats["applied_doi"])
     _section("Applied (rejected)", stats["applied_rejected"])
-    _section("Applied (manual_fill: family/year/title set for resolver Pass 1)",
-             stats.get("applied_manual_fill_meta", []))
-    _section("Deferred (status-only, no curator intent → resolver should attempt)",
-             stats["deferred_no_intent"])
+    _section(
+        "Applied (manual_fill: family/year/title set for resolver Pass 1)",
+        stats.get("applied_manual_fill_meta", []),
+    )
+    _section(
+        "Deferred (status-only, no curator intent → resolver should attempt)",
+        stats["deferred_no_intent"],
+    )
     _section("Skipped (already resolved)", stats["skipped_already_resolved"])
     _section("Skipped (cit_id not in registry)", stats["skipped_not_in_registry"])
     _section("Warnings", warnings_out)
@@ -406,18 +427,120 @@ def format_report(
 # CLI
 # ---------------------------------------------------------------------------
 
-def main(argv: list[str] | None = None) -> None:
+# ---------------------------------------------------------------------------
+# Library API
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class ApplyFillsResult:
+    """Outcome of :func:`run_apply_fills`."""
+
+    today: str
+    input_path: Path
+    registry_path: Path
+    write_back: bool
+    stats: dict
+    warnings: list[str]
+    registry: dict
+    report_text: str
+    report_path: Path | None = None
+
+
+def run_apply_fills(
+    *,
+    input_path: Path,
+    registry_path: Path,
+    write_back: bool = False,
+    report_path: Path | None = None,
+    today: str | None = None,
+) -> ApplyFillsResult:
+    """Apply curator-decision JSON entries to a citation registry.
+
+    Library entry point.
+
+    Parameters
+    ----------
+    input_path
+        Path to the curator JSON file (a ``manual_review_<date>.json``
+        with applied decisions, or an older ``resolved_references``
+        format).
+    registry_path
+        Path to ``citation_registry.tsv``.  Read on entry; written
+        back when ``write_back=True``.
+    write_back
+        Persist the modified registry to ``registry_path``.
+    report_path
+        Optional path to write the Markdown run report to.  ``None``
+        skips the file write.
+    today
+        ISO date stamped onto resolved rows and the report.  ``None``
+        → today's UTC.
+    """
+    if today is None:
+        today = today_iso()
+
+    with input_path.open(encoding="utf-8") as fh:
+        json_entries = json.load(fh)
+
+    registry, columns = load_registry(registry_path)
+    warnings_out: list[str] = []
+    stats = apply_fills(json_entries, registry, today, warnings_out)
+
+    report_text = format_report(
+        stats,
+        warnings_out,
+        today,
+        input_path,
+        registry_path,
+        write_back,
+    )
+
+    if write_back:
+        write_registry(registry_path, registry, columns)
+
+    if report_path is not None:
+        report_path.parent.mkdir(parents=True, exist_ok=True)
+        report_path.write_text(report_text, encoding="utf-8")
+
+    return ApplyFillsResult(
+        today=today,
+        input_path=input_path,
+        registry_path=registry_path,
+        write_back=write_back,
+        stats=stats,
+        warnings=warnings_out,
+        registry=registry,
+        report_text=report_text,
+        report_path=report_path,
+    )
+
+
+# ---------------------------------------------------------------------------
+# CLI
+# ---------------------------------------------------------------------------
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Argparse wrapper around :func:`run_apply_fills`."""
     parser = argparse.ArgumentParser(
         description="Apply curator JSON decisions to the citation registry."
     )
     parser.add_argument(
         "--input",
-        default=str(REPO_ROOT / "datasets" / "dataset_summaries" / "resolved_references_050526.json"),
+        default=str(
+            REPO_ROOT
+            / "datasets"
+            / "dataset_summaries"
+            / "resolved_references_050526.json"
+        ),
         help="Path to the curator JSON file (default: resolved_references_050526.json)",
     )
     parser.add_argument(
         "--registry",
-        default=str(REPO_ROOT / "datasets" / "dataset_summaries" / "citation_registry.tsv"),
+        default=str(
+            REPO_ROOT / "datasets" / "dataset_summaries" / "citation_registry.tsv"
+        ),
         help="Path to citation_registry.tsv",
     )
     parser.add_argument(
@@ -432,39 +555,30 @@ def main(argv: list[str] | None = None) -> None:
     )
     args = parser.parse_args(argv)
 
-    input_path = Path(args.input)
-    registry_path = Path(args.registry)
     today = today_iso()
-
     report_path = (
         Path(args.report)
         if args.report
         else REPO_ROOT / ".status" / f"apply_manual_fills_run_{today}.md"
     )
 
-    with input_path.open(encoding="utf-8") as fh:
-        json_entries = json.load(fh)
-
-    registry, columns = load_registry(registry_path)
-
-    warnings_out: list[str] = []
-    stats = apply_fills(json_entries, registry, today, warnings_out)
-
-    report_text = format_report(
-        stats, warnings_out, today, input_path, registry_path, args.write_back
+    result = run_apply_fills(
+        input_path=Path(args.input),
+        registry_path=Path(args.registry),
+        write_back=args.write_back,
+        report_path=report_path,
+        today=today,
     )
 
-    print(report_text)
+    print(result.report_text)
 
     if args.write_back:
-        write_registry(registry_path, registry, columns)
-        print(f"\nRegistry written: {registry_path}")
+        print(f"\nRegistry written: {result.registry_path}")
     else:
         print("\nDry-run.  Pass --write-back to commit changes.")
-
-    report_path.write_text(report_text, encoding="utf-8")
     print(f"Report: {report_path}")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

@@ -1,0 +1,14 @@
+{
+  "data": {
+    "type": "files",
+    "id": "abc123",
+    "relationships": {
+      "target": {
+        "data": {
+          "type": "nodes",
+          "id": "bxvhr"
+        }
+      }
+    }
+  }
+}

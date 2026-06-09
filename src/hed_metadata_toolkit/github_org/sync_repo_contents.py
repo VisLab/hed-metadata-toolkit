@@ -63,18 +63,21 @@ from dotenv import load_dotenv
 # ---------------------------------------------------------------------------
 GRAPHQL_URL = "https://api.github.com/graphql"
 ORGANIZATION = "OpenNeuroDatasets"
-BATCH_SIZE = 10          # repos per GraphQL request; large repos (many sub-* dirs) can
-                         # cause 502s with bigger batches — keep <=10 to stay under complexity limits
+BATCH_SIZE = 10  # repos per GraphQL request; large repos (many sub-* dirs) can
+# cause 502s with bigger batches — keep <=10 to stay under complexity limits
 RETRY_LIMIT = 4
-RETRY_BASE_DELAY = 5     # seconds; doubled on each retry (exponential backoff)
-MIN_BATCH_SIZE = 1       # floor when auto-halving a batch on 5xx errors
+RETRY_BASE_DELAY = 5  # seconds; doubled on each retry (exponential backoff)
+MIN_BATCH_SIZE = 1  # floor when auto-halving a batch on 5xx errors
 
 
 # ---------------------------------------------------------------------------
 # Windows-safe file replace
 # ---------------------------------------------------------------------------
 
-def _safe_replace(tmp_path: str, target_path: str, retries: int = 5, delay: float = 0.5) -> None:
+
+def _safe_replace(
+    tmp_path: str, target_path: str, retries: int = 5, delay: float = 0.5
+) -> None:
     """
     Replace target_path with tmp_path, retrying on Windows permission errors.
 
@@ -89,7 +92,9 @@ def _safe_replace(tmp_path: str, target_path: str, retries: int = 5, delay: floa
         except PermissionError:
             if attempt >= retries:
                 raise  # exhausted retries
-            print(f"    File locked, retrying in {delay}s... (attempt {attempt}/{retries})")
+            print(
+                f"    File locked, retrying in {delay}s... (attempt {attempt}/{retries})"
+            )
             time.sleep(delay)
             delay *= 2  # exponential backoff
 
@@ -97,6 +102,7 @@ def _safe_replace(tmp_path: str, target_path: str, retries: int = 5, delay: floa
 # ---------------------------------------------------------------------------
 # GraphQL helpers
 # ---------------------------------------------------------------------------
+
 
 def _build_graphql_query(repo_names: list[str], org: str) -> str:
     """Build a single GraphQL query that fetches the root tree for each repo."""
@@ -143,19 +149,23 @@ def _parse_graphql_response(payload: dict, repo_names: list[str]) -> dict:
             e_type = entry.get("type", "blob")
             if e_type == "blob":
                 obj = entry.get("object") or {}
-                entries.append({
-                    "name": e_name,
-                    "type": "blob",
-                    "size": obj.get("byteSize"),
-                    "sha":  obj.get("oid"),
-                })
+                entries.append(
+                    {
+                        "name": e_name,
+                        "type": "blob",
+                        "size": obj.get("byteSize"),
+                        "sha": obj.get("oid"),
+                    }
+                )
             else:
                 entries.append({"name": e_name, "type": "tree"})
         results[name] = entries
     return results
 
 
-def _fetch_batch_once(repo_names: list[str], org: str, headers: dict) -> tuple[dict | None, bool]:
+def _fetch_batch_once(
+    repo_names: list[str], org: str, headers: dict
+) -> tuple[dict | None, bool]:
     """
     Make a single GraphQL request for the given repos.
 
@@ -238,6 +248,7 @@ def fetch_batch(repo_names: list[str], org: str, headers: dict) -> dict:
 # Rate-limit awareness
 # ---------------------------------------------------------------------------
 
+
 def _is_rate_limited(response) -> bool:
     """Return True if the response indicates a GitHub rate-limit hit."""
     if response.status_code == 429:
@@ -277,9 +288,13 @@ def _check_rate_limit(headers: dict) -> None:
     """Print remaining GraphQL rate-limit points."""
     query = "{ rateLimit { remaining resetAt } }"
     try:
-        r = requests.post(GRAPHQL_URL, json={"query": query}, headers=headers, timeout=10)
+        r = requests.post(
+            GRAPHQL_URL, json={"query": query}, headers=headers, timeout=10
+        )
         rl = r.json().get("data", {}).get("rateLimit", {})
-        print(f"GraphQL rate limit: {rl.get('remaining')} points remaining, resets at {rl.get('resetAt')}")
+        print(
+            f"GraphQL rate limit: {rl.get('remaining')} points remaining, resets at {rl.get('resetAt')}"
+        )
     except Exception:
         pass
 
@@ -287,6 +302,7 @@ def _check_rate_limit(headers: dict) -> None:
 # ---------------------------------------------------------------------------
 # Main logic
 # ---------------------------------------------------------------------------
+
 
 def _failures_path(out_path: str) -> str:
     base = os.path.splitext(out_path)[0]
@@ -368,14 +384,19 @@ def sync_repo_contents(
     # ------------------------------------------------------------------
     fail_file = _failures_path(out_path)
     failures: dict = _load_failures(fail_file)
-    print(f"Failures dict: {len(failures)} repos ({sum(1 for v in failures.values() if v.get('skip'))} skipped permanently)")
+    print(
+        f"Failures dict: {len(failures)} repos ({sum(1 for v in failures.values() if v.get('skip'))} skipped permanently)"
+    )
 
     # Migrate any legacy status="failed" entries from repo_contents.json
     migrated = 0
     for name, entry in list(existing.items()):
         if entry.get("status") == "failed":
             if name not in failures:
-                failures[name] = {"reason": "empty_entries", "failed_at": entry.get("synced_at", now_iso)}
+                failures[name] = {
+                    "reason": "empty_entries",
+                    "failed_at": entry.get("synced_at", now_iso),
+                }
             # Remove status field; strip empty entry shell if no real entries kept
             entry.pop("status", None)
             if not entry.get("entries"):
@@ -443,7 +464,9 @@ def sync_repo_contents(
                 fetched += 1
             else:
                 errors += 1
-                print(f"  Warning: empty entries for {name} — recorded in failures dict")
+                print(
+                    f"  Warning: empty entries for {name} — recorded in failures dict"
+                )
                 failures[name] = {"reason": "empty_entries", "failed_at": now_iso}
                 # Keep any previously-fetched entries in repo_contents.json but
                 # do not update synced_at — the repo is effectively unchanged.
@@ -461,7 +484,7 @@ def sync_repo_contents(
     print(f"\nDone.  Fetched: {fetched}  |  Errors: {errors}  |  Skipped: {skipped}")
     if errors:
         print(f"Failures saved to: {fail_file}")
-        print("  Set \"skip\": true on any permanently inaccessible repos in that file.")
+        print('  Set "skip": true on any permanently inaccessible repos in that file.')
     _check_rate_limit(headers)
 
 
@@ -477,22 +500,56 @@ def _save_json(data: dict, path: str) -> None:
 # CLI
 # ---------------------------------------------------------------------------
 
-if __name__ == "__main__":
+
+def main(argv: "list[str] | None" = None) -> int:
+    """Argparse wrapper around :func:`sync_repo_contents`.
+
+    ``sync_repo_contents`` is already the library entry point;
+    consumers can call it directly with their own paths and config.
+    """
     load_dotenv()
 
-    parser = argparse.ArgumentParser(description="Sync OpenNeuroDatasets repo contents to repo_contents.json")
-    parser.add_argument("--force",        action="store_true", help="Re-fetch all repos ignoring synced_at")
-    parser.add_argument("--retry-failed", action="store_true", help="Re-attempt repos in the failures dict (repos with skip=true are always excluded)")
-    parser.add_argument("--repo",         default=None,        help="Only process this single repo name")
-    parser.add_argument("--tsv",    default="../datasets/dataset_summaries/datasets.tsv",
-                        help="Path to datasets.tsv (output of create_repo_list.py)")
-    parser.add_argument("--out",    default="../datasets/dataset_summaries/repo_contents.json",
-                        help="Path to output repo_contents.json")
-    args = parser.parse_args()
+    parser = argparse.ArgumentParser(
+        description="Sync repo contents from a GitHub organization to repo_contents.json",
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Re-fetch all repos ignoring synced_at",
+    )
+    parser.add_argument(
+        "--retry-failed",
+        action="store_true",
+        help="Re-attempt repos in the failures dict "
+        "(repos with skip=true are always excluded)",
+    )
+    parser.add_argument(
+        "--repo",
+        default=None,
+        help="Only process this single repo name",
+    )
+    parser.add_argument(
+        "--tsv",
+        default="datasets/dataset_summaries/datasets.tsv",
+        help="Path to datasets.tsv (output of fetch_repo_list)",
+    )
+    parser.add_argument(
+        "--out",
+        default="datasets/dataset_summaries/repo_contents.json",
+        help="Path to output repo_contents.json",
+    )
+    parser.add_argument(
+        "--token",
+        default=None,
+        help="GitHub PAT (defaults to $GITHUB_TOKEN).",
+    )
+    args = parser.parse_args(argv)
 
-    token = os.environ.get("GITHUB_TOKEN")
+    token = args.token or os.environ.get("GITHUB_TOKEN")
     if not token:
-        print("Warning: GITHUB_TOKEN not set. Unauthenticated GraphQL requests are not supported.")
+        print(
+            "Warning: GITHUB_TOKEN not set. Unauthenticated GraphQL requests are not supported."
+        )
 
     sync_repo_contents(
         tsv_path=args.tsv,
@@ -502,3 +559,8 @@ if __name__ == "__main__":
         retry_failed=args.retry_failed,
         test_repo=args.repo,
     )
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

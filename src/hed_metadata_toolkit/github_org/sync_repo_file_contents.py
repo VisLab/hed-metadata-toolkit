@@ -75,7 +75,10 @@ EVENTS_SUFFIXES = ("_events.tsv", "_events.json")
 # Windows-safe file replace
 # ---------------------------------------------------------------------------
 
-def _safe_replace(tmp_path: str, target_path: str, retries: int = 5, delay: float = 0.5) -> None:
+
+def _safe_replace(
+    tmp_path: str, target_path: str, retries: int = 5, delay: float = 0.5
+) -> None:
     """
     Replace target_path with tmp_path, retrying on Windows permission errors.
 
@@ -90,7 +93,9 @@ def _safe_replace(tmp_path: str, target_path: str, retries: int = 5, delay: floa
         except PermissionError:
             if attempt >= retries:
                 raise  # exhausted retries
-            print(f"    File locked, retrying in {delay}s... (attempt {attempt}/{retries})")
+            print(
+                f"    File locked, retrying in {delay}s... (attempt {attempt}/{retries})"
+            )
             time.sleep(delay)
             delay *= 2  # exponential backoff
 
@@ -98,6 +103,7 @@ def _safe_replace(tmp_path: str, target_path: str, retries: int = 5, delay: floa
 # ---------------------------------------------------------------------------
 # Rate-limit helpers  (shared pattern from sync_local_files.py)
 # ---------------------------------------------------------------------------
+
 
 def _is_rate_limited(response) -> bool:
     """Return True if the response indicates a GitHub rate-limit hit."""
@@ -162,6 +168,7 @@ def _save_sha_cache(repo_dir: str, cache: dict) -> None:
 # Failure tracking  (datasets/repo_file_contents_failures.json)
 # ---------------------------------------------------------------------------
 
+
 def _failures_path(out_path: str) -> str:
     return os.path.join(os.path.dirname(os.path.abspath(out_path)), FAILURES_FILENAME)
 
@@ -193,6 +200,7 @@ def _save_failures(failures: dict, out_path: str) -> None:
 # repo_file_contents.json  (main output artifact)
 # ---------------------------------------------------------------------------
 
+
 def _load_file_contents(out_path: str) -> dict:
     if os.path.exists(out_path):
         try:
@@ -213,6 +221,7 @@ def _save_file_contents(file_contents: dict, out_path: str) -> None:
 # ---------------------------------------------------------------------------
 # Participants TSV helpers
 # ---------------------------------------------------------------------------
+
 
 def _read_participant_ids(tsv_path: str) -> list[str]:
     """
@@ -238,7 +247,9 @@ def _read_participant_ids(tsv_path: str) -> list[str]:
         return []
 
 
-def _find_participant_dir(participant_ids: list[str], repo_entries: list[dict]) -> str | None:
+def _find_participant_dir(
+    participant_ids: list[str], repo_entries: list[dict]
+) -> str | None:
     """
     Return the first participant_id that has a matching top-level tree entry.
     """
@@ -252,6 +263,7 @@ def _find_participant_dir(participant_ids: list[str], repo_entries: list[dict]) 
 # ---------------------------------------------------------------------------
 # GitHub git-trees API helpers
 # ---------------------------------------------------------------------------
+
 
 def _fetch_root_tree(
     org: str, repo: str, headers: dict
@@ -339,6 +351,7 @@ def _fetch_recursive_tree(
 # Single-file download  (GitHub contents API)
 # ---------------------------------------------------------------------------
 
+
 def _download_file(
     org: str,
     repo: str,
@@ -407,6 +420,7 @@ def _download_file(
 # Per-repo sync
 # ---------------------------------------------------------------------------
 
+
 def sync_repo(
     repo_name: str,
     repo_entries: list[dict],
@@ -427,8 +441,11 @@ def sync_repo(
     """
     repo_dir = os.path.join(datasets_dir, repo_name)
     stats = {
-        "downloaded": 0, "skipped_sha": 0,
-        "skipped_failed": 0, "not_found": 0, "errors": 0,
+        "downloaded": 0,
+        "skipped_sha": 0,
+        "skipped_failed": 0,
+        "not_found": 0,
+        "errors": 0,
         "skipped_no_participants": False,
         "events_files": 0,
     }
@@ -478,13 +495,17 @@ def sync_repo(
             break
 
     if not participant_sha:
-        print(f"\n  Could not find tree SHA for '{participant_dir}' in root tree — skipping")
+        print(
+            f"\n  Could not find tree SHA for '{participant_dir}' in root tree — skipping"
+        )
         return stats, None
 
     # ------------------------------------------------------------------
     # 5. Fetch recursive file listing for the participant directory
     # ------------------------------------------------------------------
-    tree_entries, err = _fetch_recursive_tree(ORGANIZATION, repo_name, participant_sha, headers)
+    tree_entries, err = _fetch_recursive_tree(
+        ORGANIZATION, repo_name, participant_sha, headers
+    )
     if err:
         print(f"\n  Error fetching recursive tree: {err}")
         return stats, None
@@ -512,10 +533,7 @@ def sync_repo(
     # ------------------------------------------------------------------
     # 7. Filter to events files and download
     # ------------------------------------------------------------------
-    events_entries = [
-        e for e in blob_entries
-        if e["path"].endswith(EVENTS_SUFFIXES)
-    ]
+    events_entries = [e for e in blob_entries if e["path"].endswith(EVENTS_SUFFIXES)]
     stats["events_files"] = len(events_entries)
     print(f"{len(blob_entries)} files total, {len(events_entries)} events files")
 
@@ -525,9 +543,9 @@ def sync_repo(
     def handle_blob(entry: dict) -> None:
         nonlocal cache_dirty
 
-        rel_path = entry["path"]                       # relative to participant dir
-        full_rel = f"{participant_dir}/{rel_path}"     # relative to repo dir
-        key = f"{repo_name}/{full_rel}"                # failure-dict key
+        rel_path = entry["path"]  # relative to participant dir
+        full_rel = f"{participant_dir}/{rel_path}"  # relative to repo dir
+        key = f"{repo_name}/{full_rel}"  # failure-dict key
         remote_sha = entry.get("sha")
         local_path = os.path.join(repo_dir, participant_dir, *rel_path.split("/"))
         cache_key = full_rel
@@ -593,6 +611,7 @@ def sync_repo(
 # Main
 # ---------------------------------------------------------------------------
 
+
 def sync_all(
     contents_path: str,
     datasets_dir: str,
@@ -637,14 +656,16 @@ def sync_all(
     failures = _load_failures(out_path)
     perm_skipped = sum(1 for v in failures.values() if v.get("skip"))
     print(
-        f"Failures dict: {len(failures)} entries "
-        f"({perm_skipped} permanently skipped)"
+        f"Failures dict: {len(failures)} entries ({perm_skipped} permanently skipped)"
     )
 
     failures_lock = threading.Lock()
     totals = {
-        "downloaded": 0, "skipped_sha": 0,
-        "skipped_failed": 0, "not_found": 0, "errors": 0,
+        "downloaded": 0,
+        "skipped_sha": 0,
+        "skipped_failed": 0,
+        "not_found": 0,
+        "errors": 0,
         "skipped_no_participants": 0,
     }
 
@@ -679,7 +700,13 @@ def sync_all(
                 f"not_found={stats['not_found']}  "
                 f"errors={stats['errors']}"
             )
-            for k in ("downloaded", "skipped_sha", "skipped_failed", "not_found", "errors"):
+            for k in (
+                "downloaded",
+                "skipped_sha",
+                "skipped_failed",
+                "not_found",
+                "errors",
+            ):
                 totals[k] += stats[k]
 
         # Persist failures after each repo
@@ -703,29 +730,62 @@ def sync_all(
 # CLI
 # ---------------------------------------------------------------------------
 
-if __name__ == "__main__":
+
+def main(argv: "list[str] | None" = None) -> int:
+    """Argparse wrapper around :func:`sync_all`.
+
+    ``sync_all`` is the library entry point; consumers can call it
+    directly with their own paths and config.
+    """
     load_dotenv()
 
     parser = argparse.ArgumentParser(
-        description="Download events files for the first participant in each ds* repo"
+        description="Download per-participant event files for every dataset repo.",
     )
-    parser.add_argument("--repo",         default=None,
-                        help="Only sync this single repo")
-    parser.add_argument("--workers",      type=int, default=DEFAULT_WORKERS,
-                        help="Parallel download threads (default: 10)")
-    parser.add_argument("--force",        action="store_true",
-                        help="Re-download even if SHA matches")
-    parser.add_argument("--retry-failed", action="store_true",
-                        help="Re-attempt files in the failures dict (skip=true excluded)")
-    parser.add_argument("--contents",     default="../datasets/dataset_summaries/repo_contents.json",
-                        help="Path to repo_contents.json")
-    parser.add_argument("--datasets",     default="../datasets/dataset_repos",
-                        help="Root directory for local dataset folders")
-    parser.add_argument("--out",          default="../datasets/dataset_summaries/repo_file_contents.json",
-                        help="Path to repo_file_contents.json output file")
-    args = parser.parse_args()
+    parser.add_argument(
+        "--repo",
+        default=None,
+        help="Only sync this single repo",
+    )
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=DEFAULT_WORKERS,
+        help="Parallel download threads (default: 10)",
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Re-download even if SHA matches",
+    )
+    parser.add_argument(
+        "--retry-failed",
+        action="store_true",
+        help="Re-attempt files in the failures dict (skip=true excluded)",
+    )
+    parser.add_argument(
+        "--contents",
+        default="datasets/dataset_summaries/repo_contents.json",
+        help="Path to repo_contents.json",
+    )
+    parser.add_argument(
+        "--datasets",
+        default="datasets/dataset_repos",
+        help="Root directory for local dataset folders",
+    )
+    parser.add_argument(
+        "--out",
+        default="datasets/dataset_summaries/repo_file_contents.json",
+        help="Path to repo_file_contents.json output file",
+    )
+    parser.add_argument(
+        "--token",
+        default=None,
+        help="GitHub PAT (defaults to $GITHUB_TOKEN).",
+    )
+    args = parser.parse_args(argv)
 
-    token = os.environ.get("GITHUB_TOKEN")
+    token = args.token or os.environ.get("GITHUB_TOKEN")
     if not token:
         print("Warning: GITHUB_TOKEN not set. Downloads will be rate-limited.")
 
@@ -739,3 +799,8 @@ if __name__ == "__main__":
         force=args.force,
         retry_failed=args.retry_failed,
     )
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

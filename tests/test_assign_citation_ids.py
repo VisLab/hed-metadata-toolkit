@@ -31,10 +31,14 @@ from hed_metadata_toolkit.citations.assign_citation_ids import (  # noqa: E402
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _write_registry(path: Path, rows: list[dict]) -> None:
     with path.open("w", encoding="utf-8", newline="") as f:
         writer = csv.DictWriter(
-            f, fieldnames=REGISTRY_COLUMNS, delimiter="\t", lineterminator="\n",
+            f,
+            fieldnames=REGISTRY_COLUMNS,
+            delimiter="\t",
+            lineterminator="\n",
         )
         writer.writeheader()
         for row in rows:
@@ -44,7 +48,10 @@ def _write_registry(path: Path, rows: list[dict]) -> None:
 def _write_citations(path: Path, rows: list[dict]) -> None:
     with path.open("w", encoding="utf-8", newline="") as f:
         writer = csv.DictWriter(
-            f, fieldnames=MAPPING_COLUMNS, delimiter="\t", lineterminator="\n",
+            f,
+            fieldnames=MAPPING_COLUMNS,
+            delimiter="\t",
+            lineterminator="\n",
         )
         writer.writeheader()
         for row in rows:
@@ -59,6 +66,7 @@ def _write_skip_list(path: Path, patterns: list[str]) -> None:
 # Tests — status outcomes
 # ---------------------------------------------------------------------------
 
+
 def test_doi_link_gets_auto_status(tmp_path: Path) -> None:
     """A new DOI link gets cit_000001 with status=auto."""
     registry_path = tmp_path / "registry.tsv"
@@ -66,10 +74,17 @@ def test_doi_link_gets_auto_status(tmp_path: Path) -> None:
     skip_path = tmp_path / "skip.txt"
 
     _write_registry(registry_path, [])
-    _write_citations(citations_path, [
-        {"dataset_id": "ds001", "citation_id": "",
-         "raw_link": "https://doi.org/10.1234/xyz", "UnlinkedAck": "no"},
-    ])
+    _write_citations(
+        citations_path,
+        [
+            {
+                "dataset_id": "ds001",
+                "citation_id": "",
+                "raw_link": "https://doi.org/10.1234/xyz",
+                "UnlinkedAck": "no",
+            },
+        ],
+    )
     _write_skip_list(skip_path, [])
 
     registry, mapping, new_count = assign(registry_path, citations_path, skip_path)
@@ -90,10 +105,17 @@ def test_url_only_gets_needs_review(tmp_path: Path) -> None:
     skip_path = tmp_path / "skip.txt"
 
     _write_registry(registry_path, [])
-    _write_citations(citations_path, [
-        {"dataset_id": "ds001", "citation_id": "",
-         "raw_link": "https://example.com/some-paper", "UnlinkedAck": "no"},
-    ])
+    _write_citations(
+        citations_path,
+        [
+            {
+                "dataset_id": "ds001",
+                "citation_id": "",
+                "raw_link": "https://example.com/some-paper",
+                "UnlinkedAck": "no",
+            },
+        ],
+    )
     _write_skip_list(skip_path, [])
 
     registry, mapping, new_count = assign(registry_path, citations_path, skip_path)
@@ -112,11 +134,17 @@ def test_junk_link_gets_not_a_citation(tmp_path: Path) -> None:
     skip_path = tmp_path / "skip.txt"
 
     _write_registry(registry_path, [])
-    _write_citations(citations_path, [
-        {"dataset_id": "ds001", "citation_id": "",
-         "raw_link": "https://www.fil.ion.ucl.ac.uk/spm/software/spm12/",
-         "UnlinkedAck": "no"},
-    ])
+    _write_citations(
+        citations_path,
+        [
+            {
+                "dataset_id": "ds001",
+                "citation_id": "",
+                "raw_link": "https://www.fil.ion.ucl.ac.uk/spm/software/spm12/",
+                "UnlinkedAck": "no",
+            },
+        ],
+    )
     _write_skip_list(skip_path, ["fil.ion.ucl.ac.uk/spm"])
 
     registry, mapping, new_count = assign(registry_path, citations_path, skip_path)
@@ -130,24 +158,49 @@ def test_junk_link_gets_not_a_citation(tmp_path: Path) -> None:
 # Test — reuse of existing registry key
 # ---------------------------------------------------------------------------
 
+
 def test_existing_key_reused_no_new_assignment(tmp_path: Path) -> None:
     """Same paper from two datasets shares one cit_id; new_count stays 0."""
     registry_path = tmp_path / "registry.tsv"
     citations_path = tmp_path / "citations.tsv"
     skip_path = tmp_path / "skip.txt"
 
-    _write_registry(registry_path, [{
-        "citation_id": "cit_000001", "doi": "10.1234/xyz", "url": "",
-        "source_link": "https://doi.org/10.1234/xyz", "status": "auto",
-        "pub_id": "", "first_author_family": "", "year": "", "title": "",
-        "metadata_source": "", "verified_on": "", "notes": "",
-    }])
-    _write_citations(citations_path, [
-        {"dataset_id": "ds001", "citation_id": "",
-         "raw_link": "https://doi.org/10.1234/xyz", "UnlinkedAck": "no"},
-        {"dataset_id": "ds002", "citation_id": "",
-         "raw_link": "https://doi.org/10.1234/xyz", "UnlinkedAck": "no"},
-    ])
+    _write_registry(
+        registry_path,
+        [
+            {
+                "citation_id": "cit_000001",
+                "doi": "10.1234/xyz",
+                "url": "",
+                "source_link": "https://doi.org/10.1234/xyz",
+                "status": "auto",
+                "pub_id": "",
+                "first_author_family": "",
+                "year": "",
+                "title": "",
+                "metadata_source": "",
+                "verified_on": "",
+                "notes": "",
+            }
+        ],
+    )
+    _write_citations(
+        citations_path,
+        [
+            {
+                "dataset_id": "ds001",
+                "citation_id": "",
+                "raw_link": "https://doi.org/10.1234/xyz",
+                "UnlinkedAck": "no",
+            },
+            {
+                "dataset_id": "ds002",
+                "citation_id": "",
+                "raw_link": "https://doi.org/10.1234/xyz",
+                "UnlinkedAck": "no",
+            },
+        ],
+    )
     _write_skip_list(skip_path, [])
 
     registry, mapping, new_count = assign(registry_path, citations_path, skip_path)
@@ -161,6 +214,7 @@ def test_existing_key_reused_no_new_assignment(tmp_path: Path) -> None:
 # Test — idempotency
 # ---------------------------------------------------------------------------
 
+
 def test_idempotency(tmp_path: Path) -> None:
     """Running assign twice produces byte-identical registry and mapping files."""
     registry_path = tmp_path / "registry.tsv"
@@ -168,12 +222,23 @@ def test_idempotency(tmp_path: Path) -> None:
     skip_path = tmp_path / "skip.txt"
 
     _write_registry(registry_path, [])
-    _write_citations(citations_path, [
-        {"dataset_id": "ds001", "citation_id": "",
-         "raw_link": "https://doi.org/10.1234/xyz", "UnlinkedAck": "no"},
-        {"dataset_id": "ds002", "citation_id": "",
-         "raw_link": "https://example.com/paper", "UnlinkedAck": "no"},
-    ])
+    _write_citations(
+        citations_path,
+        [
+            {
+                "dataset_id": "ds001",
+                "citation_id": "",
+                "raw_link": "https://doi.org/10.1234/xyz",
+                "UnlinkedAck": "no",
+            },
+            {
+                "dataset_id": "ds002",
+                "citation_id": "",
+                "raw_link": "https://example.com/paper",
+                "UnlinkedAck": "no",
+            },
+        ],
+    )
     _write_skip_list(skip_path, [])
 
     # First run — assigns new IDs
@@ -206,22 +271,43 @@ def test_idempotency(tmp_path: Path) -> None:
 # Test — counter continues above existing max ID
 # ---------------------------------------------------------------------------
 
+
 def test_new_id_follows_existing_max(tmp_path: Path) -> None:
     """New assignment picks up from max existing cit_id + 1."""
     registry_path = tmp_path / "registry.tsv"
     citations_path = tmp_path / "citations.tsv"
     skip_path = tmp_path / "skip.txt"
 
-    _write_registry(registry_path, [{
-        "citation_id": "cit_000042", "doi": "10.1000/existing", "url": "",
-        "source_link": "https://doi.org/10.1000/existing", "status": "auto",
-        "pub_id": "", "first_author_family": "", "year": "", "title": "",
-        "metadata_source": "", "verified_on": "", "notes": "",
-    }])
-    _write_citations(citations_path, [
-        {"dataset_id": "ds001", "citation_id": "",
-         "raw_link": "https://doi.org/10.9999/new", "UnlinkedAck": "no"},
-    ])
+    _write_registry(
+        registry_path,
+        [
+            {
+                "citation_id": "cit_000042",
+                "doi": "10.1000/existing",
+                "url": "",
+                "source_link": "https://doi.org/10.1000/existing",
+                "status": "auto",
+                "pub_id": "",
+                "first_author_family": "",
+                "year": "",
+                "title": "",
+                "metadata_source": "",
+                "verified_on": "",
+                "notes": "",
+            }
+        ],
+    )
+    _write_citations(
+        citations_path,
+        [
+            {
+                "dataset_id": "ds001",
+                "citation_id": "",
+                "raw_link": "https://doi.org/10.9999/new",
+                "UnlinkedAck": "no",
+            },
+        ],
+    )
     _write_skip_list(skip_path, [])
 
     registry, mapping, new_count = assign(registry_path, citations_path, skip_path)
@@ -234,6 +320,7 @@ def test_new_id_follows_existing_max(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 # Test — source_link secondary index (Phase 2D DOI upgrade scenario)
 # ---------------------------------------------------------------------------
+
 
 def test_source_link_fallback_after_doi_upgrade(tmp_path: Path) -> None:
     """Registry entry upgraded from URL-only to DOI still matches original raw_link.
@@ -251,20 +338,37 @@ def test_source_link_fallback_after_doi_upgrade(tmp_path: Path) -> None:
 
     # Registry entry: doi added post-creation; url cleared; source_link is
     # the original raw URL that the mapping row still references.
-    _write_registry(registry_path, [{
-        "citation_id": "cit_000001",
-        "doi": "10.1234/xyz",
-        "url": "",
-        "source_link": "https://example.com/paper",
-        "status": "auto",
-        "pub_id": "", "first_author_family": "", "year": "", "title": "",
-        "metadata_source": "", "verified_on": "", "notes": "",
-    }])
+    _write_registry(
+        registry_path,
+        [
+            {
+                "citation_id": "cit_000001",
+                "doi": "10.1234/xyz",
+                "url": "",
+                "source_link": "https://example.com/paper",
+                "status": "auto",
+                "pub_id": "",
+                "first_author_family": "",
+                "year": "",
+                "title": "",
+                "metadata_source": "",
+                "verified_on": "",
+                "notes": "",
+            }
+        ],
+    )
     # Mapping row still has the original URL as raw_link.
-    _write_citations(citations_path, [
-        {"dataset_id": "ds001", "citation_id": "",
-         "raw_link": "https://example.com/paper", "UnlinkedAck": "no"},
-    ])
+    _write_citations(
+        citations_path,
+        [
+            {
+                "dataset_id": "ds001",
+                "citation_id": "",
+                "raw_link": "https://example.com/paper",
+                "UnlinkedAck": "no",
+            },
+        ],
+    )
     _write_skip_list(skip_path, [])
 
     registry, mapping, new_count = assign(registry_path, citations_path, skip_path)

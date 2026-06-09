@@ -131,8 +131,12 @@ def test_canonical_string_matches_upstream(
 
 def test_determinism() -> None:
     """build_pub_id is deterministic: same inputs always give same output."""
-    a = build_pub_id("Stroop", 1935, "Studies of interference in serial verbal reactions")
-    b = build_pub_id("Stroop", 1935, "Studies of interference in serial verbal reactions")
+    a = build_pub_id(
+        "Stroop", 1935, "Studies of interference in serial verbal reactions"
+    )
+    b = build_pub_id(
+        "Stroop", 1935, "Studies of interference in serial verbal reactions"
+    )
     assert a == b
 
 

@@ -3,6 +3,7 @@ import json
 import os
 from dotenv import load_dotenv
 
+
 def read_dataset_description(dataset_dir):
     """
     Read dataset_description.json from a dataset directory.
@@ -17,13 +18,14 @@ def read_dataset_description(dataset_dir):
 
     try:
         if os.path.exists(json_path):
-            with open(json_path, 'r', encoding='utf-8') as f:
+            with open(json_path, "r", encoding="utf-8") as f:
                 return json.load(f)
         else:
             return {}
     except Exception as e:
         print(f"    Error reading {json_path}: {e}")
         return {}
+
 
 def update_title_and_hed(summary_df, datasets_base_dir="../datasets/dataset_repos"):
     """
@@ -39,21 +41,21 @@ def update_title_and_hed(summary_df, datasets_base_dir="../datasets/dataset_repo
     updated_df = summary_df.copy()
 
     # Add HED column after readme column if it doesn't exist
-    if 'HED' not in updated_df.columns:
-        readme_idx = updated_df.columns.get_loc('readme')
+    if "HED" not in updated_df.columns:
+        readme_idx = updated_df.columns.get_loc("readme")
         # Insert HED column after readme
         cols = updated_df.columns.tolist()
-        cols.insert(readme_idx + 1, 'HED')
+        cols.insert(readme_idx + 1, "HED")
         updated_df = updated_df.reindex(columns=cols)
-        updated_df['HED'] = ''
+        updated_df["HED"] = ""
 
     # Ensure title column exists and is empty initially
-    if 'title' not in updated_df.columns:
-        updated_df['title'] = ''
+    if "title" not in updated_df.columns:
+        updated_df["title"] = ""
 
     # Convert string columns to object dtype to avoid pandas dtype errors
     # when assigning strings to columns that were inferred as numeric
-    for col in ['title', 'HED', 'tasks', 'modalities', 'contact', 'notes']:
+    for col in ["title", "HED", "tasks", "modalities", "contact", "notes"]:
         if col in updated_df.columns:
             updated_df[col] = updated_df[col].astype(object)
 
@@ -74,17 +76,17 @@ def update_title_and_hed(summary_df, datasets_base_dir="../datasets/dataset_repo
 
         if desc_data:
             # Update title from 'Name' field
-            if 'Name' in desc_data:
+            if "Name" in desc_data:
                 # Remove newlines and replace with spaces
-                title = desc_data['Name'].replace('\n', ' ').strip()
-                updated_df.at[idx, 'title'] = title
+                title = desc_data["Name"].replace("\n", " ").strip()
+                updated_df.at[idx, "title"] = title
                 print(f"    Title: {title}")
             else:
                 print("    No 'Name' field found in dataset_description.json")
 
             # Update HED from 'HEDVersion' field
-            if 'HEDVersion' in desc_data:
-                updated_df.at[idx, 'HED'] = desc_data['HEDVersion']
+            if "HEDVersion" in desc_data:
+                updated_df.at[idx, "HED"] = desc_data["HEDVersion"]
                 print(f"    HED Version: {desc_data['HEDVersion']}")
             else:
                 print("    No HEDVersion found")
@@ -92,6 +94,7 @@ def update_title_and_hed(summary_df, datasets_base_dir="../datasets/dataset_repo
             print("    No dataset_description.json found or error reading file")
 
     return updated_df
+
 
 def read_dataframes(summary_path, citations_path):
     """
@@ -106,11 +109,11 @@ def read_dataframes(summary_path, citations_path):
     """
     try:
         # Read dataset summary
-        summary_df = pd.read_csv(summary_path, sep='\t')
+        summary_df = pd.read_csv(summary_path, sep="\t")
         print(f"Loaded {len(summary_df)} entries from {summary_path}")
 
         # Read dataset citations
-        citations_df = pd.read_csv(citations_path, sep='\t')
+        citations_df = pd.read_csv(citations_path, sep="\t")
         print(f"Loaded {len(citations_df)} citations from {citations_path}")
 
         return summary_df, citations_df
@@ -118,6 +121,7 @@ def read_dataframes(summary_path, citations_path):
     except Exception as e:
         print(f"Error reading files: {e}")
         return None, None
+
 
 def sort_dataframes(summary_df, citations_df):
     """
@@ -134,16 +138,23 @@ def sort_dataframes(summary_df, citations_df):
     summary_first_col = summary_df.columns[0]
     citations_first_col = citations_df.columns[0]
 
-    print(f"Sorting by: {summary_first_col} (summary), {citations_first_col} (citations)")
+    print(
+        f"Sorting by: {summary_first_col} (summary), {citations_first_col} (citations)"
+    )
 
     # Sort both DataFrames in descending order
-    sorted_summary = summary_df.sort_values(by=summary_first_col, ascending=False).reset_index(drop=True)
-    sorted_citations = citations_df.sort_values(by=citations_first_col, ascending=False).reset_index(drop=True)
+    sorted_summary = summary_df.sort_values(
+        by=summary_first_col, ascending=False
+    ).reset_index(drop=True)
+    sorted_citations = citations_df.sort_values(
+        by=citations_first_col, ascending=False
+    ).reset_index(drop=True)
 
     print(f"Sorted summary: {len(sorted_summary)} entries")
     print(f"Sorted citations: {len(sorted_citations)} entries")
 
     return sorted_summary, sorted_citations
+
 
 def merge_citations_efficiently(summary_df, citations_df):
     """
@@ -179,10 +190,10 @@ def merge_citations_efficiently(summary_df, citations_df):
     updated_summary = summary_df.copy()
 
     # Ensure links column is integer type and fill any NaN with 0
-    if 'links' not in updated_summary.columns:
-        updated_summary['links'] = 0
+    if "links" not in updated_summary.columns:
+        updated_summary["links"] = 0
     else:
-        updated_summary['links'] = updated_summary['links'].fillna(0).astype(int)
+        updated_summary["links"] = updated_summary["links"].fillna(0).astype(int)
 
     links_updated = 0
 
@@ -192,15 +203,16 @@ def merge_citations_efficiently(summary_df, citations_df):
         if dataset_id in citations_dict:
             # Store the count of links instead of the actual links
             link_count = len(citations_dict[dataset_id])
-            updated_summary.at[idx, 'links'] = link_count
+            updated_summary.at[idx, "links"] = link_count
             links_updated += 1
             print(f"  Updated {dataset_id}: {link_count} links")
         else:
             # Ensure no links datasets have 0 instead of empty string
-            updated_summary.at[idx, 'links'] = 0
+            updated_summary.at[idx, "links"] = 0
 
     print(f"Updated links for {links_updated} datasets")
     return updated_summary
+
 
 def save_updated_summary(updated_df, output_path):
     """
@@ -211,20 +223,21 @@ def save_updated_summary(updated_df, output_path):
         output_path (str): Path to save the output file.
     """
     try:
-        updated_df.to_csv(output_path, sep='\t', index=False)
+        updated_df.to_csv(output_path, sep="\t", index=False)
         print(f"Updated summary saved to {output_path}")
     except Exception as e:
         print(f"Error saving file: {e}")
 
+
 def print_update_summary(original_df, updated_df):
     """Print a summary of the update process."""
-    print("\n" + "="*50)
+    print("\n" + "=" * 50)
     print("UPDATE SUMMARY")
-    print("="*50)
+    print("=" * 50)
 
     total_datasets = len(updated_df)
     # Check for datasets with links (count > 0)
-    datasets_with_links = len(updated_df[updated_df['links'] > 0])
+    datasets_with_links = len(updated_df[updated_df["links"] > 0])
     datasets_without_links = total_datasets - datasets_with_links
 
     print(f"Total datasets: {total_datasets}")
@@ -233,59 +246,123 @@ def print_update_summary(original_df, updated_df):
 
     if datasets_with_links > 0:
         print("\nSample datasets with links:")
-        sample_with_links = updated_df[updated_df['links'] > 0].head(3)
+        sample_with_links = updated_df[updated_df["links"] > 0].head(3)
         for _, row in sample_with_links.iterrows():
             dataset_name = row[updated_df.columns[0]]
-            num_links = row['links']
+            num_links = row["links"]
             print(f"  {dataset_name}: {num_links} link(s)")
 
-    print("="*50)
+    print("=" * 50)
 
-# --- Example Usage ---
-if __name__ == "__main__":
-    # Load environment variables from .env file
+
+# ---------------------------------------------------------------------------
+# Library API
+# ---------------------------------------------------------------------------
+
+
+def run_update(
+    *,
+    summary_path: "Path | str",
+    citations_path: "Path | str",
+    datasets_dir: "Path | str",
+    output_path: "Path | str",
+):
+    """Update the dataset summary with citation counts, titles, and HED info.
+
+    Library entry point.  Reads ``summary_path`` and ``citations_path``,
+    enriches the summary by walking each dataset's
+    ``dataset_description.json`` under ``datasets_dir``, merges the
+    citation counts, writes the result to ``output_path``, and
+    returns the final DataFrame.
+
+    Raises ``FileNotFoundError`` if either input is missing.
+    """
+    from pathlib import Path as _P
+
+    summary_path = _P(summary_path)
+    citations_path = _P(citations_path)
+    if not summary_path.exists():
+        raise FileNotFoundError(f"summary not found: {summary_path}")
+    if not citations_path.exists():
+        raise FileNotFoundError(f"citations not found: {citations_path}")
+
+    summary_df, citations_df = read_dataframes(str(summary_path), str(citations_path))
+    if summary_df is None or citations_df is None:
+        raise RuntimeError("failed to read input files")
+    sorted_summary, sorted_citations = sort_dataframes(summary_df, citations_df)
+    updated_summary = update_title_and_hed(sorted_summary, str(datasets_dir))
+    final_summary = merge_citations_efficiently(updated_summary, sorted_citations)
+    save_updated_summary(final_summary, str(output_path))
+    return final_summary
+
+
+# ---------------------------------------------------------------------------
+# CLI
+# ---------------------------------------------------------------------------
+
+
+def main(argv: "list[str] | None" = None) -> int:
+    """Argparse wrapper around :func:`run_update`."""
+    import argparse
+    from pathlib import Path as _P
+
     load_dotenv()
 
-    # Configuration
-    summary_path = "../datasets/dataset_summaries/dataset_summary.tsv"
-    citations_path = "../datasets/dataset_summaries/dataset_citations.tsv"
-    datasets_dir = "../datasets/dataset_repos"
-    output_path = "../datasets/dataset_summaries/dataset_summary_updated.tsv"
+    parser = argparse.ArgumentParser(
+        description="Update the dataset summary with citation links + HED metadata.",
+    )
+    parser.add_argument(
+        "--summary",
+        type=_P,
+        default=_P("datasets/dataset_summaries/dataset_summary.tsv"),
+    )
+    parser.add_argument(
+        "--citations",
+        type=_P,
+        default=_P("datasets/dataset_summaries/dataset_citations.tsv"),
+    )
+    parser.add_argument(
+        "--datasets-dir",
+        type=_P,
+        default=_P("datasets/dataset_repos"),
+    )
+    parser.add_argument(
+        "--output",
+        type=_P,
+        default=_P("datasets/dataset_summaries/dataset_summary_updated.tsv"),
+    )
+    args = parser.parse_args(argv)
 
     print("Updating dataset summary with citation links...")
-    print(f"Summary file: {os.path.abspath(summary_path)}")
-    print(f"Citations file: {os.path.abspath(citations_path)}")
-    print(f"Output file: {os.path.abspath(output_path)}")
+    print(f"Summary file:   {args.summary.resolve()}")
+    print(f"Citations file: {args.citations.resolve()}")
+    print(f"Output file:    {args.output.resolve()}")
 
-    # Check if input files exist
-    if not os.path.exists(summary_path):
-        print(f"Error: {summary_path} not found.")
-        exit(1)
+    # Capture original for the print summary.
+    if not args.summary.exists():
+        print(f"Error: {args.summary} not found.")
+        return 1
+    if not args.citations.exists():
+        print(f"Error: {args.citations} not found.")
+        return 1
 
-    if not os.path.exists(citations_path):
-        print(f"Error: {citations_path} not found.")
-        exit(1)
+    summary_df, _ = read_dataframes(str(args.summary), str(args.citations))
 
-    # Read the DataFrames
-    summary_df, citations_df = read_dataframes(summary_path, citations_path)
+    try:
+        final_summary = run_update(
+            summary_path=args.summary,
+            citations_path=args.citations,
+            datasets_dir=args.datasets_dir,
+            output_path=args.output,
+        )
+    except (FileNotFoundError, RuntimeError) as exc:
+        print(f"Error: {exc}")
+        return 1
 
-    if summary_df is None or citations_df is None:
-        print("Failed to read input files.")
-        exit(1)
-
-    # Sort the DataFrames
-    sorted_summary, sorted_citations = sort_dataframes(summary_df, citations_df)
-
-    # Update title and HED information from dataset_description.json files
-    updated_summary = update_title_and_hed(sorted_summary, datasets_dir)
-
-    # Merge citations efficiently
-    final_summary = merge_citations_efficiently(updated_summary, sorted_citations)
-
-    # Save the updated summary
-    save_updated_summary(final_summary, output_path)
-
-    # Print summary
     print_update_summary(summary_df, final_summary)
-
     print("\nDataset summary update complete!")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

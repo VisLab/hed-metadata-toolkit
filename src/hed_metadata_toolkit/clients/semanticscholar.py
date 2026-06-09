@@ -123,7 +123,9 @@ def _get(
         try:
             resp = requests.get(url, params=params, headers=req_headers, timeout=15)
         except requests.RequestException as exc:
-            logger.warning("semanticscholar network error (attempt %d): %s", attempt + 1, exc)
+            logger.warning(
+                "semanticscholar network error (attempt %d): %s", attempt + 1, exc
+            )
             if attempt < 2:
                 time.sleep(2)
                 continue
@@ -151,7 +153,9 @@ def _get(
         body_snippet = (resp.text or "")[:200].replace("\n", " ")
         logger.info(
             "semanticscholar %d for %s — body: %s",
-            status, url, body_snippet,
+            status,
+            url,
+            body_snippet,
         )
         return {}
     return None
@@ -174,7 +178,7 @@ def lookup_by_doi(
         source="semanticscholar",
         key=f"doi:{doi}",
         fetch=_fetch,
-        stable=True,   # DOI metadata is stable; skip date-stamping.
+        stable=True,  # DOI metadata is stable; skip date-stamping.
     )
     if not cached:
         logger.info("source=semanticscholar doi=%s status=not_found", doi)
@@ -254,8 +258,11 @@ def search(
             logger.info(
                 "semanticscholar search offset=%d page_count=%d total_so_far=%d "
                 "api_total=%s q=%r",
-                offset, len(results), len(collected),
-                data.get("total", "?"), query[:60],
+                offset,
+                len(results),
+                len(collected),
+                data.get("total", "?"),
+                query[:60],
             )
             # Fewer results than requested means no more pages available.
             if len(results) < page_limit:
@@ -265,8 +272,10 @@ def search(
         return {"results": collected}
 
     cached = cache_get_or_fetch(
-        cache_dir=cache_dir, source="semanticscholar",
-        key=cache_key, fetch=_fetch,
+        cache_dir=cache_dir,
+        source="semanticscholar",
+        key=cache_key,
+        fetch=_fetch,
     )
     return cached.get("results", [])
 
@@ -289,9 +298,9 @@ def fetch_citations(
     Returns [] on 404 or HTTP error (logged, not raised).
     Cache key: outputs/cache/semanticscholar/YYYY-MM-DD/cit_<sha1>.json
     """
-    cache_key = "cit_" + hashlib.sha1(
-        f"{paper_id}|{limit}|{fields}".encode()
-    ).hexdigest()
+    cache_key = (
+        "cit_" + hashlib.sha1(f"{paper_id}|{limit}|{fields}".encode()).hexdigest()
+    )
 
     def _fetch() -> dict | None:
         url = f"{_BASE}/paper/{paper_id}/citations"
@@ -312,12 +321,16 @@ def fetch_citations(
             )
             return {"data": []}
         results = data.get("data") or []
-        logger.info("semanticscholar citations paper_id=%s raw_count=%d", paper_id, len(results))
+        logger.info(
+            "semanticscholar citations paper_id=%s raw_count=%d", paper_id, len(results)
+        )
         return {"data": results[:limit]}
 
     cached = cache_get_or_fetch(
-        cache_dir=cache_dir, source="semanticscholar",
-        key=cache_key, fetch=_fetch,
+        cache_dir=cache_dir,
+        source="semanticscholar",
+        key=cache_key,
+        fetch=_fetch,
     )
     return cached.get("data", [])
 
@@ -335,9 +348,9 @@ def fetch_references(
     intents, isInfluential, citedPaper (not citingPaper).
     Currently unwired -- present for future backward-citation expansion.
     """
-    cache_key = "ref_" + hashlib.sha1(
-        f"{paper_id}|{limit}|{fields}".encode()
-    ).hexdigest()
+    cache_key = (
+        "ref_" + hashlib.sha1(f"{paper_id}|{limit}|{fields}".encode()).hexdigest()
+    )
 
     def _fetch() -> dict | None:
         url = f"{_BASE}/paper/{paper_id}/references"
@@ -357,7 +370,9 @@ def fetch_references(
         return {"data": results[:limit]}
 
     cached = cache_get_or_fetch(
-        cache_dir=cache_dir, source="semanticscholar",
-        key=cache_key, fetch=_fetch,
+        cache_dir=cache_dir,
+        source="semanticscholar",
+        key=cache_key,
+        fetch=_fetch,
     )
     return cached.get("data", [])

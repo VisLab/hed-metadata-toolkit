@@ -85,7 +85,7 @@ def lookup_by_doi(
         source="unpaywall",
         key=doi,
         fetch=_fetch,
-        stable=True,   # OA status is essentially fixed; skip date-stamping.
+        stable=True,  # OA status is essentially fixed; skip date-stamping.
     )
 
     if not cached:
@@ -98,6 +98,7 @@ def lookup_by_doi(
 
     logger.info(
         "source=unpaywall doi=%s is_oa=%s status=200",
-        doi, cached.get("is_oa"),
+        doi,
+        cached.get("is_oa"),
     )
     return cached

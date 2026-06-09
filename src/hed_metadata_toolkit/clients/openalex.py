@@ -124,16 +124,16 @@ def search_works(
     )
 
     params: dict = {
-        "sort":     "cited_by_count:desc",
+        "sort": "cited_by_count:desc",
         "per-page": min(max_results, 200),
-        "select":   select_fields,
-        "mailto":   email,
+        "select": select_fields,
+        "mailto": email,
     }
     if filter_parts:
         params["filter"] = ",".join(filter_parts)
 
     phrases_key = "|".join(sorted(phrases)) if phrases else (query or "")
-    topics_str  = "|".join(sorted(topic_ids)) if topic_ids else ""
+    topics_str = "|".join(sorted(topic_ids)) if topic_ids else ""
     effective_pub_type = pub_type or ("review" if is_review else None)
     cache_key = (
         f"search|phrases={phrases_key}|year_min={year_min}|year_max={year_max}"
@@ -145,13 +145,18 @@ def search_works(
         if data is None:
             return None
         results = data.get("results") or []
-        logger.info("openalex search raw_count=%d for phrases=%r",
-                    len(results), phrases_key[:60])
+        logger.info(
+            "openalex search raw_count=%d for phrases=%r",
+            len(results),
+            phrases_key[:60],
+        )
         return {"results": results[:max_results]}
 
     cached = cache_get_or_fetch(
-        cache_dir=cache_dir, source="openalex",
-        key=cache_key, fetch=_fetch,
+        cache_dir=cache_dir,
+        source="openalex",
+        key=cache_key,
+        fetch=_fetch,
     )
     return cached.get("results", [])
 
@@ -168,8 +173,11 @@ def lookup_by_doi(
         return _get(url, params={"mailto": email})
 
     cached = cache_get_or_fetch(
-        cache_dir=cache_dir, source="openalex", key=doi, fetch=_fetch,
-        stable=True,   # DOI metadata is stable; skip date-stamping.
+        cache_dir=cache_dir,
+        source="openalex",
+        key=doi,
+        fetch=_fetch,
+        stable=True,  # DOI metadata is stable; skip date-stamping.
     )
     if not cached:
         logger.info("source=openalex doi=%s status=not_found cached=True", doi)
@@ -177,5 +185,7 @@ def lookup_by_doi(
     cached["_source"] = "openalex"
     cached["_doi"] = doi
     cached["_fetched_on"] = cached.get("updated_date", "")
-    logger.info("source=openalex doi=%s status=%s cached=True", doi, cached.get("id", "unknown"))
+    logger.info(
+        "source=openalex doi=%s status=%s cached=True", doi, cached.get("id", "unknown")
+    )
     return cached

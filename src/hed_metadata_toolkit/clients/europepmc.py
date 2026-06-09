@@ -126,11 +126,11 @@ def search(
     full_query = " AND ".join(parts)
 
     params = {
-        "query":      full_query,
-        "format":     "json",
+        "query": full_query,
+        "format": "json",
         "resultType": "core",
-        "pageSize":   str(min(max_results, 1000)),
-        "sort":       "CITED desc",
+        "pageSize": str(min(max_results, 1000)),
+        "sort": "CITED desc",
     }
 
     phrases_key = "|".join(sorted(phrases)) if phrases else (query or "")
@@ -144,13 +144,18 @@ def search(
         if data is None:
             return None
         results = (data.get("resultList") or {}).get("result") or []
-        logger.info("europepmc search raw_count=%d for phrases=%r",
-                    len(results), phrases_key[:60])
+        logger.info(
+            "europepmc search raw_count=%d for phrases=%r",
+            len(results),
+            phrases_key[:60],
+        )
         return {"results": results[:max_results]}
 
     cached = cache_get_or_fetch(
-        cache_dir=cache_dir, source="europepmc",
-        key=cache_key, fetch=_fetch,
+        cache_dir=cache_dir,
+        source="europepmc",
+        key=cache_key,
+        fetch=_fetch,
     )
     return cached.get("results", [])
 
@@ -161,7 +166,12 @@ def lookup_by_doi(
     email: str = "hedannotation@gmail.com",
 ) -> dict | None:
     doi = doi.lower().strip()
-    params = {"query": f"DOI:{doi}", "format": "json", "resultType": "core", "pageSize": "1"}
+    params = {
+        "query": f"DOI:{doi}",
+        "format": "json",
+        "resultType": "core",
+        "pageSize": "1",
+    }
     cache_key = f"doi:{doi}"
 
     def _fetch() -> dict | None:
@@ -172,8 +182,11 @@ def lookup_by_doi(
         return hit or {}
 
     cached = cache_get_or_fetch(
-        cache_dir=cache_dir, source="europepmc", key=cache_key, fetch=_fetch,
-        stable=True,   # DOI metadata is stable; skip date-stamping.
+        cache_dir=cache_dir,
+        source="europepmc",
+        key=cache_key,
+        fetch=_fetch,
+        stable=True,  # DOI metadata is stable; skip date-stamping.
     )
     if not cached:
         logger.info("source=europepmc doi=%s status=not_found", doi)
@@ -193,7 +206,9 @@ def lookup_by_pmid(
     pmid = str(pmid).strip()
     params = {
         "query": f"EXT_ID:{pmid} AND SRC:MED",
-        "format": "json", "resultType": "core", "pageSize": "1",
+        "format": "json",
+        "resultType": "core",
+        "pageSize": "1",
     }
     cache_key = f"pmid:{pmid}"
 
@@ -205,8 +220,11 @@ def lookup_by_pmid(
         return hit or {}
 
     cached = cache_get_or_fetch(
-        cache_dir=cache_dir, source="europepmc", key=cache_key, fetch=_fetch,
-        stable=True,   # PMID metadata is stable; skip date-stamping.
+        cache_dir=cache_dir,
+        source="europepmc",
+        key=cache_key,
+        fetch=_fetch,
+        stable=True,  # PMID metadata is stable; skip date-stamping.
     )
     if not cached:
         logger.info("source=europepmc pmid=%s status=not_found", pmid)

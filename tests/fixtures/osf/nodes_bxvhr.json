@@ -1,0 +1,11 @@
+{
+  "data": {
+    "attributes": {
+      "category": "project",
+      "title": "Network Neuroscience dataset - Huskey et al.",
+      "description": "This dataset relates to 10.1093/joc/jqac025 and also 10.17605/OSF.IO/BXVHR"
+    },
+    "type": "nodes",
+    "id": "bxvhr"
+  }
+}

@@ -1,0 +1,46 @@
+# Citation Skip List
+# Patterns that indicate a URL is not a valid citation source
+# These are URLs that should be excluded from citation analysis
+
+# Data repositories and sharing platforms
+openneuro.org
+osf.io
+figshare.com
+zenodo.org
+dryad.org
+dataverse.org
+gbif.org
+data.mendeley.com
+huggingface.co
+kaggle.com
+
+# Code repositories
+github.com
+gitlab.com
+bitbucket.org
+sourceforge.net
+gitea.io
+gogs.io
+
+# License pages
+creativecommons.org
+opensource.org
+gnu.org
+apache.org
+mit.edu/license
+
+# Project pages and documentation
+readthedocs.org
+github.io
+gitlab.io
+netlify.com
+vercel.com
+docs.github.com
+
+# Archive and backup services
+archive.org
+wayback.machine
+web.archive.org
+
+# File extensions that indicate data/code not publications
+doi:10.18112/openneuro.

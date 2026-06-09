@@ -36,9 +36,18 @@ from hed_metadata_toolkit.citations.apply_manual_fills import (  # noqa: E402
 TODAY = "2026-05-06"
 
 COLUMNS = [
-    "citation_id", "doi", "url", "source_link", "pub_id",
-    "first_author_family", "year", "title",
-    "status", "metadata_source", "verified_on", "notes",
+    "citation_id",
+    "doi",
+    "url",
+    "source_link",
+    "pub_id",
+    "first_author_family",
+    "year",
+    "title",
+    "status",
+    "metadata_source",
+    "verified_on",
+    "notes",
 ]
 
 
@@ -46,14 +55,29 @@ COLUMNS = [
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _row(citation_id: str, *, doi: str = "", pub_id: str = "",
-         status: str = "auto", notes: str = "", verified_on: str = "") -> dict:
+
+def _row(
+    citation_id: str,
+    *,
+    doi: str = "",
+    pub_id: str = "",
+    status: str = "auto",
+    notes: str = "",
+    verified_on: str = "",
+) -> dict:
     return {
-        "citation_id": citation_id, "doi": doi, "url": "",
-        "source_link": "", "pub_id": pub_id,
-        "first_author_family": "", "year": "", "title": "",
-        "status": status, "metadata_source": "",
-        "verified_on": verified_on, "notes": notes,
+        "citation_id": citation_id,
+        "doi": doi,
+        "url": "",
+        "source_link": "",
+        "pub_id": pub_id,
+        "first_author_family": "",
+        "year": "",
+        "title": "",
+        "status": status,
+        "metadata_source": "",
+        "verified_on": verified_on,
+        "notes": notes,
     }
 
 
@@ -61,9 +85,14 @@ def _reg(*rows: dict) -> dict[str, dict]:
     return {r["citation_id"]: r for r in rows}
 
 
-def _entry(cit: str, *, status: str = "journal_article",
-           doi: str | None = None, resolved_url: str | None = None,
-           notes: str = "") -> dict:
+def _entry(
+    cit: str,
+    *,
+    status: str = "journal_article",
+    doi: str | None = None,
+    resolved_url: str | None = None,
+    notes: str = "",
+) -> dict:
     return {
         "citation_id": cit,
         "url": "https://osf.io/test",
@@ -77,6 +106,7 @@ def _entry(cit: str, *, status: str = "journal_article",
 # ---------------------------------------------------------------------------
 # Tests: DOI-bearing statuses → applied as manual
 # ---------------------------------------------------------------------------
+
 
 def test_journal_article_with_doi_applied():
     """journal_article with doi → status=manual, doi set, notes prefixed."""
@@ -98,7 +128,9 @@ def test_preprint_only_with_doi_applied_as_manual():
     warns: list[str] = []
     stats = apply_fills(
         [_entry("cit_000815", status="preprint_only", doi="10.31219/osf.io/j5v9b")],
-        reg, TODAY, warns,
+        reg,
+        TODAY,
+        warns,
     )
     r = reg["cit_000815"]
     assert r["doi"] == "10.31219/osf.io/j5v9b"
@@ -112,10 +144,17 @@ def test_valid_resolved_url_included_in_notes():
     reg = _reg(_row("cit_000187"))
     warns: list[str] = []
     apply_fills(
-        [_entry("cit_000187", doi="10.1073/pnas.1711571115",
+        [
+            _entry(
+                "cit_000187",
+                doi="10.1073/pnas.1711571115",
                 resolved_url="https://www.pnas.org/doi/10.1073/pnas.1711571115",
-                notes="Resolved to PNAS.")],
-        reg, TODAY, warns,
+                notes="Resolved to PNAS.",
+            )
+        ],
+        reg,
+        TODAY,
+        warns,
     )
     r = reg["cit_000187"]
     assert "resolved_url: https://www.pnas.org" in r["notes"]
@@ -131,13 +170,21 @@ def test_valid_resolved_url_included_in_notes():
 # the curator left some intent (notes or resolved_url).  See the audit-
 # triggered policy fix below for the no-intent (deferral) tests.
 
+
 def test_supplement_no_doi_rejected():
     reg = _reg(_row("cit_000002"))
     warns: list[str] = []
     stats = apply_fills(
-        [_entry("cit_000002", status="supplement",
-                notes="OSF repository, no associated paper found.")],
-        reg, TODAY, warns,
+        [
+            _entry(
+                "cit_000002",
+                status="supplement",
+                notes="OSF repository, no associated paper found.",
+            )
+        ],
+        reg,
+        TODAY,
+        warns,
     )
     assert reg["cit_000002"]["status"] == "rejected"
     assert "manual-reject: supplement" in reg["cit_000002"]["notes"]
@@ -148,9 +195,10 @@ def test_dataset_no_doi_rejected():
     reg = _reg(_row("cit_000003"))
     warns: list[str] = []
     apply_fills(
-        [_entry("cit_000003", status="dataset",
-                notes="OSF dataset only, no paper.")],
-        reg, TODAY, warns,
+        [_entry("cit_000003", status="dataset", notes="OSF dataset only, no paper.")],
+        reg,
+        TODAY,
+        warns,
     )
     assert reg["cit_000003"]["status"] == "rejected"
     assert "manual-reject: dataset" in reg["cit_000003"]["notes"]
@@ -160,9 +208,10 @@ def test_reject_no_doi_rejected():
     reg = _reg(_row("cit_000004"))
     warns: list[str] = []
     apply_fills(
-        [_entry("cit_000004", status="reject",
-                notes="duplicate of another entry.")],
-        reg, TODAY, warns,
+        [_entry("cit_000004", status="reject", notes="duplicate of another entry.")],
+        reg,
+        TODAY,
+        warns,
     )
     assert reg["cit_000004"]["status"] == "rejected"
 
@@ -171,9 +220,16 @@ def test_no_paper_no_doi_rejected():
     reg = _reg(_row("cit_000005"))
     warns: list[str] = []
     apply_fills(
-        [_entry("cit_000005", status="no_paper",
-                notes="OSF repository with no associated paper.")],
-        reg, TODAY, warns,
+        [
+            _entry(
+                "cit_000005",
+                status="no_paper",
+                notes="OSF repository with no associated paper.",
+            )
+        ],
+        reg,
+        TODAY,
+        warns,
     )
     assert reg["cit_000005"]["status"] == "rejected"
 
@@ -183,7 +239,9 @@ def test_unresolved_no_doi_rejected():
     warns: list[str] = []
     apply_fills(
         [_entry("cit_000777", status="unresolved", notes="Could not locate a paper.")],
-        reg, TODAY, warns,
+        reg,
+        TODAY,
+        warns,
     )
     r = reg["cit_000777"]
     assert r["status"] == "rejected"
@@ -194,9 +252,16 @@ def test_conference_proceeding_no_doi_rejected():
     reg = _reg(_row("cit_000732"))
     warns: list[str] = []
     apply_fills(
-        [_entry("cit_000732", status="conference_proceeding",
-                notes="Cognitive Science Society proceedings.")],
-        reg, TODAY, warns,
+        [
+            _entry(
+                "cit_000732",
+                status="conference_proceeding",
+                notes="Cognitive Science Society proceedings.",
+            )
+        ],
+        reg,
+        TODAY,
+        warns,
     )
     assert reg["cit_000732"]["status"] == "rejected"
     assert not warns  # known status, no spurious warning
@@ -207,9 +272,16 @@ def test_preprint_only_no_doi_rejected_with_notes():
     reg = _reg(_row("cit_000888"))
     warns: list[str] = []
     apply_fills(
-        [_entry("cit_000888", status="preprint_only",
-                notes="No journal version exists; checked Crossref and Google Scholar.")],
-        reg, TODAY, warns,
+        [
+            _entry(
+                "cit_000888",
+                status="preprint_only",
+                notes="No journal version exists; checked Crossref and Google Scholar.",
+            )
+        ],
+        reg,
+        TODAY,
+        warns,
     )
     assert reg["cit_000888"]["status"] == "rejected"
     assert "manual-reject: preprint_only" in reg["cit_000888"]["notes"]
@@ -225,6 +297,7 @@ def test_preprint_only_no_doi_rejected_with_notes():
 # resolver (which can extract preprint DOIs from PsyArXiv/bioRxiv URLs
 # via Path B), not auto-rejected.
 
+
 def test_status_only_preprint_only_deferred_to_resolver():
     """preprint_only with no notes, no doi, no resolved_url → deferred,
     NOT rejected.  Catches the 7 PsyArXiv/bioRxiv auto-stagers found
@@ -233,7 +306,9 @@ def test_status_only_preprint_only_deferred_to_resolver():
     warns: list[str] = []
     stats = apply_fills(
         [_entry("cit_000992", status="preprint_only")],
-        reg, TODAY, warns,
+        reg,
+        TODAY,
+        warns,
     )
     # Registry row left as-is; resolver will attempt this row later.
     r = reg["cit_000992"]
@@ -256,9 +331,16 @@ def test_status_only_with_resolved_url_is_real_rejection():
     reg = _reg(_row("cit_000777"))
     warns: list[str] = []
     apply_fills(
-        [_entry("cit_000777", status="unresolved",
-                resolved_url="https://example.com/page-i-checked")],
-        reg, TODAY, warns,
+        [
+            _entry(
+                "cit_000777",
+                status="unresolved",
+                resolved_url="https://example.com/page-i-checked",
+            )
+        ],
+        reg,
+        TODAY,
+        warns,
     )
     assert reg["cit_000777"]["status"] == "rejected"
 
@@ -267,16 +349,24 @@ def test_status_only_with_resolved_url_is_real_rejection():
 # Test: malformed resolved_url (cit_000445 case)
 # ---------------------------------------------------------------------------
 
+
 def test_malformed_resolved_url_warning_and_applied():
     """resolved_url that is a title, not a URL → warning + applied with prefix in notes."""
     reg = _reg(_row("cit_000445"))
     title = "Intersubject correlations in reward and mentalizing brain circuits"
     warns: list[str] = []
     stats = apply_fills(
-        [_entry("cit_000445", doi="10.1038/s41598-024-62341-3",
+        [
+            _entry(
+                "cit_000445",
+                doi="10.1038/s41598-024-62341-3",
                 resolved_url=title,
-                notes="Note: original URL was in error.")],
-        reg, TODAY, warns,
+                notes="Note: original URL was in error.",
+            )
+        ],
+        reg,
+        TODAY,
+        warns,
     )
     r = reg["cit_000445"]
     # DOI applied correctly
@@ -295,6 +385,7 @@ def test_malformed_resolved_url_warning_and_applied():
 # Test: cit_id not in registry
 # ---------------------------------------------------------------------------
 
+
 def test_cit_not_in_registry_warns_and_skips():
     reg = _reg(_row("cit_000001"))
     warns: list[str] = []
@@ -309,6 +400,7 @@ def test_cit_not_in_registry_warns_and_skips():
 # Test: idempotency
 # ---------------------------------------------------------------------------
 
+
 def test_idempotency_two_runs_identical():
     """Running apply_fills twice on the same input leaves the registry unchanged."""
     reg = _reg(
@@ -317,12 +409,14 @@ def test_idempotency_two_runs_identical():
         _row("cit_000003"),
     )
     entries = [
-        _entry("cit_000001", doi="10.1000/abc",
-               resolved_url="https://example.com/abc", notes="Some note."),
-        _entry("cit_000002", status="supplement",
-               notes="OSF supplement, no paper."),
-        _entry("cit_000003", status="unresolved",
-               notes="Could not find a paper."),
+        _entry(
+            "cit_000001",
+            doi="10.1000/abc",
+            resolved_url="https://example.com/abc",
+            notes="Some note.",
+        ),
+        _entry("cit_000002", status="supplement", notes="OSF supplement, no paper."),
+        _entry("cit_000003", status="unresolved", notes="Could not find a paper."),
     ]
 
     # First run
@@ -344,6 +438,7 @@ def test_idempotency_two_runs_identical():
 # Test: conflicting DOI (JSON wins)
 # ---------------------------------------------------------------------------
 
+
 def test_conflicting_doi_json_wins():
     """When registry has doi=X and JSON has doi=Y, warn and prefer JSON."""
     reg = _reg(_row("cit_000001", doi="10.1000/old"))
@@ -359,12 +454,15 @@ def test_conflicting_doi_json_wins():
 # Test: already-resolved row (pub_id set) → skipped
 # ---------------------------------------------------------------------------
 
+
 def test_already_resolved_pub_id_skipped():
     """Row with pub_id set is never overwritten."""
     reg = _reg(_row("cit_000001", pub_id="pub_abc12345", doi="10.1000/existing"))
     original = copy.deepcopy(reg["cit_000001"])
     warns: list[str] = []
-    stats = apply_fills([_entry("cit_000001", doi="10.1000/existing")], reg, TODAY, warns)
+    stats = apply_fills(
+        [_entry("cit_000001", doi="10.1000/existing")], reg, TODAY, warns
+    )
     assert reg["cit_000001"] == original
     assert "cit_000001" in stats["skipped_already_resolved"]
 
@@ -373,7 +471,9 @@ def test_already_resolved_pub_id_conflicting_doi_warns():
     """Resolved row with mismatched doi in JSON → warning, still skipped."""
     reg = _reg(_row("cit_000001", pub_id="pub_abc12345", doi="10.1000/old"))
     warns: list[str] = []
-    stats = apply_fills([_entry("cit_000001", doi="10.1000/different")], reg, TODAY, warns)
+    stats = apply_fills(
+        [_entry("cit_000001", doi="10.1000/different")], reg, TODAY, warns
+    )
     assert reg["cit_000001"]["doi"] == "10.1000/old"  # unchanged
     assert "cit_000001" in stats["skipped_already_resolved"]
     assert any("cit_000001" in w for w in warns)
@@ -382,6 +482,7 @@ def test_already_resolved_pub_id_conflicting_doi_warns():
 # ---------------------------------------------------------------------------
 # Test: is_url_shaped
 # ---------------------------------------------------------------------------
+
 
 def test_is_url_shaped_valid():
     assert is_url_shaped("https://example.com") is True
@@ -407,8 +508,14 @@ def test_is_url_shaped_invalid():
 # These test the new manual_fill field that generate_review_queue.py emits.
 # When manual_fill is not None, it takes precedence over top-level fields.
 
-def _mf_entry(cit: str, manual_fill: dict | None, *, doi: str | None = None,
-               status: str = "needs_review") -> dict:
+
+def _mf_entry(
+    cit: str,
+    manual_fill: dict | None,
+    *,
+    doi: str | None = None,
+    status: str = "needs_review",
+) -> dict:
     """Build a review-queue-style entry with a manual_fill sub-object."""
     return {
         "citation_id": cit,
@@ -427,7 +534,9 @@ def test_manual_fill_doi_sets_doi_and_status_manual():
     warns: list[str] = []
     stats = apply_fills(
         [_mf_entry("cit_000001", {"doi": "10.1000/mftest"})],
-        reg, TODAY, warns,
+        reg,
+        TODAY,
+        warns,
     )
     r = reg["cit_000001"]
     assert r["doi"] == "10.1000/mftest"
@@ -446,7 +555,7 @@ def test_manual_fill_doi_overrides_top_level_doi():
         "citation_id": "cit_000001",
         "url": "https://example.com",
         "status": "needs_review",
-        "doi": "10.1000/old",      # top-level (pre-filled from registry)
+        "doi": "10.1000/old",  # top-level (pre-filled from registry)
         "resolved_url": None,
         "notes": "",
         "manual_fill": {"doi": "10.1000/new"},
@@ -460,9 +569,15 @@ def test_manual_fill_family_year_title_sets_metadata_fields():
     reg = _reg(_row("cit_000001"))
     warns: list[str] = []
     stats = apply_fills(
-        [_mf_entry("cit_000001", {"family": "Smith", "year": 2021,
-                                   "title": "A Study of Memory"})],
-        reg, TODAY, warns,
+        [
+            _mf_entry(
+                "cit_000001",
+                {"family": "Smith", "year": 2021, "title": "A Study of Memory"},
+            )
+        ],
+        reg,
+        TODAY,
+        warns,
     )
     r = reg["cit_000001"]
     assert r["first_author_family"] == "Smith"
@@ -482,7 +597,9 @@ def test_manual_fill_rejected_sets_status_and_notes():
     warns: list[str] = []
     stats = apply_fills(
         [_mf_entry("cit_000001", {"rejected": "no associated paper found"})],
-        reg, TODAY, warns,
+        reg,
+        TODAY,
+        warns,
     )
     r = reg["cit_000001"]
     assert r["status"] == "rejected"
@@ -497,9 +614,10 @@ def test_manual_fill_none_falls_through_to_legacy_logic():
     reg = _reg(_row("cit_000001"))
     warns: list[str] = []
     stats = apply_fills(
-        [_mf_entry("cit_000001", None, doi="10.1000/legacy",
-                   status="journal_article")],
-        reg, TODAY, warns,
+        [_mf_entry("cit_000001", None, doi="10.1000/legacy", status="journal_article")],
+        reg,
+        TODAY,
+        warns,
     )
     # Legacy path: top-level doi is used
     assert reg["cit_000001"]["doi"] == "10.1000/legacy"
@@ -513,7 +631,9 @@ def test_manual_fill_multiple_keys_warns_and_applies_priority():
     warns: list[str] = []
     stats = apply_fills(
         [_mf_entry("cit_000001", {"doi": "10.1000/win", "rejected": "reason"})],
-        reg, TODAY, warns,
+        reg,
+        TODAY,
+        warns,
     )
     # doi wins over rejected
     assert reg["cit_000001"]["doi"] == "10.1000/win"
@@ -531,6 +651,7 @@ def test_manual_fill_doi_idempotency():
 
     apply_fills([entry], reg, TODAY, [])
     import copy
+
     snap1 = copy.deepcopy(reg["cit_000001"])
 
     apply_fills([entry], reg, TODAY, [])
@@ -542,10 +663,12 @@ def test_manual_fill_doi_idempotency():
 def test_manual_fill_family_idempotency():
     """Applying manual_fill family/year/title twice leaves the registry unchanged."""
     reg = _reg(_row("cit_000001"))
-    entry = _mf_entry("cit_000001", {"family": "Jones", "year": 2020,
-                                      "title": "Test Title"})
+    entry = _mf_entry(
+        "cit_000001", {"family": "Jones", "year": 2020, "title": "Test Title"}
+    )
     apply_fills([entry], reg, TODAY, [])
     import copy
+
     snap1 = copy.deepcopy(reg["cit_000001"])
     apply_fills([entry], reg, TODAY, [])
     assert reg["cit_000001"] == snap1
@@ -557,7 +680,9 @@ def test_manual_fill_family_incomplete_warns_and_skips():
     warns: list[str] = []
     apply_fills(
         [_mf_entry("cit_000001", {"family": "Jones", "title": "Some Title"})],
-        reg, TODAY, warns,
+        reg,
+        TODAY,
+        warns,
     )
     # Row unchanged
     assert reg["cit_000001"]["first_author_family"] == ""

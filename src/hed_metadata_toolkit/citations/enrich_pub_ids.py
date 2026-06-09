@@ -35,7 +35,9 @@ import os
 import re
 import sys
 import unicodedata
+from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Iterable
 
 # ---------------------------------------------------------------------------
 # Path setup — must happen before any src.* imports
@@ -62,9 +64,7 @@ TERMINAL_STATUSES = {"rejected", "not_a_citation"}
 PREPRINT_PREFIXES = ("10.1101/", "10.31234/", "10.31219/")
 
 _DEFAULT_CACHE_DIR = _ROOT / "outputs" / "cache"
-_REGISTRY_DEFAULT = (
-    _ROOT / "datasets" / "dataset_summaries" / "citation_registry.tsv"
-)
+_REGISTRY_DEFAULT = _ROOT / "datasets" / "dataset_summaries" / "citation_registry.tsv"
 
 # ---------------------------------------------------------------------------
 # Compiled patterns
@@ -96,6 +96,7 @@ _OSF_URL_RE = re.compile(
 # Utility helpers
 # ---------------------------------------------------------------------------
 
+
 def today_iso() -> str:
     return datetime.date.today().isoformat()
 
@@ -107,6 +108,7 @@ def _ascii_fold_lower(s: str) -> str:
 
 def _title_token_overlap(t1: str, t2: str) -> float:
     """Jaccard coefficient of lowercased alphanumeric title tokens."""
+
     def tokens(t: str) -> set[str]:
         folded = _ascii_fold_lower(t)
         return set(re.sub(r"[^a-z0-9]", " ", folded).split())
@@ -131,15 +133,19 @@ def _sanity_check(preprint_meta: dict, journal_meta: dict) -> bool:
     j_fam = _ascii_fold_lower(journal_meta.get("family") or "")
     if p_fam and j_fam and p_fam == j_fam:
         return True
-    return _title_token_overlap(
-        preprint_meta.get("title") or "",
-        journal_meta.get("title") or "",
-    ) >= 0.5
+    return (
+        _title_token_overlap(
+            preprint_meta.get("title") or "",
+            journal_meta.get("title") or "",
+        )
+        >= 0.5
+    )
 
 
 # ---------------------------------------------------------------------------
 # Metadata extraction from API responses
 # ---------------------------------------------------------------------------
+
 
 def _meta_from_crossref(data: dict) -> dict:
     """Extract (family, year, title) from a Crossref work dict."""
@@ -220,6 +226,7 @@ def _meta_from_europepmc(data: dict) -> dict:
 # Relation extraction from Crossref / OpenAlex
 # ---------------------------------------------------------------------------
 
+
 def _extract_relation_doi(cr_data: dict) -> tuple[str | None, str]:
     """Return (journal_doi, chase_via) from Crossref relation fields.
 
@@ -232,7 +239,7 @@ def _extract_relation_doi(cr_data: dict) -> tuple[str | None, str]:
         ("is-preprint-of", "crossref-is-preprint-of"),
         ("has-version", "crossref-has-version"),
     ]:
-        for item in (relation.get(key) or []):
+        for item in relation.get(key) or []:
             if item.get("id-type") == "doi" and item.get("id"):
                 doi = item["id"].strip().lower()
                 if doi and not osf.is_osf_project_doi(doi):
@@ -243,7 +250,7 @@ def _extract_relation_doi(cr_data: dict) -> tuple[str | None, str]:
 
 def _extract_journal_doi_from_openalex(oa_data: dict) -> str | None:
     """Find the published-version DOI from an OpenAlex work's locations array."""
-    for loc in (oa_data.get("locations") or []):
+    for loc in oa_data.get("locations") or []:
         version = loc.get("version", "")
         source_type = (loc.get("source") or {}).get("type", "")
         if version == "publishedVersion" or source_type == "journal":
@@ -260,13 +267,13 @@ def _extract_journal_doi_from_openalex(oa_data: dict) -> str | None:
 # ---------------------------------------------------------------------------
 
 _DOI_SUFFIX_PATS = [
-    re.compile(r'\.full\.pdf$', re.IGNORECASE),
-    re.compile(r'/full$', re.IGNORECASE),
-    re.compile(r'/meta$', re.IGNORECASE),
-    re.compile(r'/abstract$', re.IGNORECASE),
-    re.compile(r'v\d+(\.\w+)?$', re.IGNORECASE),
+    re.compile(r"\.full\.pdf$", re.IGNORECASE),
+    re.compile(r"/full$", re.IGNORECASE),
+    re.compile(r"/meta$", re.IGNORECASE),
+    re.compile(r"/abstract$", re.IGNORECASE),
+    re.compile(r"v\d+(\.\w+)?$", re.IGNORECASE),
 ]
-_SDATA_RE = re.compile(r'^10\.1038/sdata(\d{4})(\d+)$')
+_SDATA_RE = re.compile(r"^10\.1038/sdata(\d{4})(\d+)$")
 
 
 def _canonicalise_doi(doi: str) -> str:
@@ -286,18 +293,19 @@ def _canonicalise_doi(doi: str) -> str:
     while changed:
         changed = False
         for pat in _DOI_SUFFIX_PATS:
-            stripped = pat.sub('', doi)
+            stripped = pat.sub("", doi)
             if stripped != doi:
                 doi = stripped
                 changed = True
                 break
-    doi = _SDATA_RE.sub(r'10.1038/sdata.\1.\2', doi)
+    doi = _SDATA_RE.sub(r"10.1038/sdata.\1.\2", doi)
     return doi
 
 
 # ---------------------------------------------------------------------------
 # URL → DOI synthesis (new Path B patterns)
 # ---------------------------------------------------------------------------
+
 
 def _synth_psyarxiv(url: str) -> str | None:
     """psyarxiv.{com,org}/<guid> → 10.31234/osf.io/<guid>"""
@@ -341,6 +349,7 @@ def _try_synth(url: str) -> str | None:
 # OSF URL parsing
 # ---------------------------------------------------------------------------
 
+
 def _parse_osf_url(url: str) -> str | None:
     """Extract the GUID from an OSF URL; returns None if not an OSF URL."""
     m = _OSF_URL_RE.match(url)
@@ -360,6 +369,7 @@ def _parse_osf_url(url: str) -> str | None:
 # ---------------------------------------------------------------------------
 # Path A — DOI resolution with optional preprint→journal chase
 # ---------------------------------------------------------------------------
+
 
 def _resolve_path_a(
     doi: str,
@@ -399,7 +409,13 @@ def _resolve_path_a(
 
     # One hop only — no relation chase on the journal version.
     if _depth > 0:
-        return {**meta, "metadata_source": source, "notes": "", "_chase_via": "", "_canon_doi": doi}
+        return {
+            **meta,
+            "metadata_source": source,
+            "notes": "",
+            "_chase_via": "",
+            "_canon_doi": doi,
+        }
 
     # --- Relation chase ---
     journal_doi: str | None = None
@@ -443,8 +459,7 @@ def _resolve_path_a(
     notes = ""
     if is_preprint_doi and not journal_doi:
         notes = (
-            "preprint-only resolved "
-            "(no chase candidate found in Crossref or OpenAlex)"
+            "preprint-only resolved (no chase candidate found in Crossref or OpenAlex)"
         )
     elif is_preprint_doi and journal_doi and not chase_succeeded:
         notes = (
@@ -452,12 +467,19 @@ def _resolve_path_a(
             f"(chase to {journal_doi} via {chase_via} failed sanity check)"
         )
 
-    return {**meta, "metadata_source": source, "notes": notes, "_chase_via": "", "_canon_doi": doi}
+    return {
+        **meta,
+        "metadata_source": source,
+        "notes": notes,
+        "_chase_via": "",
+        "_canon_doi": doi,
+    }
 
 
 # ---------------------------------------------------------------------------
 # Apply resolved metadata to a registry row
 # ---------------------------------------------------------------------------
+
 
 def _apply_resolution(row: dict, result: dict, today: str) -> bool:
     """Write resolved metadata into a registry row in-place.
@@ -492,6 +514,7 @@ def _apply_resolution(row: dict, result: dict, today: str) -> bool:
 # Stats classification helper
 # ---------------------------------------------------------------------------
 
+
 def _classify_path_a(stats: dict[str, list], cit_id: str, result: dict) -> None:
     chase_via = result.get("_chase_via", "")
     notes = result.get("notes", "")
@@ -510,6 +533,7 @@ def _classify_path_a(stats: dict[str, list], cit_id: str, result: dict) -> None:
 # ---------------------------------------------------------------------------
 # Pass 1 — offline hand-filled rows
 # ---------------------------------------------------------------------------
+
 
 def _process_pass1(
     registry: dict[str, dict],
@@ -544,6 +568,7 @@ def _process_pass1(
 # ---------------------------------------------------------------------------
 # Path D — OSF URL handler
 # ---------------------------------------------------------------------------
+
 
 def _resolve_path_d(
     row: dict,
@@ -595,7 +620,11 @@ def _resolve_path_d(
                 return _resolve_path_d(
                     row,
                     f"https://osf.io/{parent_id}",
-                    cache_dir, today, warnings, stats, cit_id,
+                    cache_dir,
+                    today,
+                    warnings,
+                    stats,
+                    cit_id,
                     _depth=1,
                 )
         return False
@@ -623,6 +652,7 @@ def _resolve_path_d(
 # ---------------------------------------------------------------------------
 # Pass 2 — network resolution
 # ---------------------------------------------------------------------------
+
 
 def _process_pass2(
     registry: dict[str, dict],
@@ -728,6 +758,7 @@ def _process_pass2(
 # Registry I/O (atomic write mirroring apply_manual_fills.py)
 # ---------------------------------------------------------------------------
 
+
 def load_registry(path: Path) -> tuple[dict[str, dict], list[str]]:
     with path.open(newline="", encoding="utf-8") as fh:
         reader = csv.DictReader(fh, delimiter="\t")
@@ -744,8 +775,11 @@ def write_registry(path: Path, rows: dict[str, dict], columns: list[str]) -> Non
     try:
         with tmp_path.open("w", newline="", encoding="utf-8") as fh:
             writer = csv.DictWriter(
-                fh, fieldnames=columns, delimiter="\t",
-                extrasaction="ignore", lineterminator="\n",
+                fh,
+                fieldnames=columns,
+                delimiter="\t",
+                extrasaction="ignore",
+                lineterminator="\n",
             )
             writer.writeheader()
             for row in rows.values():
@@ -764,6 +798,7 @@ def write_registry(path: Path, rows: dict[str, dict], columns: list[str]) -> Non
 # ---------------------------------------------------------------------------
 # Report formatter
 # ---------------------------------------------------------------------------
+
 
 def _host_of(url: str) -> str:
     m = re.match(r"^https?://([^/]+)", url)
@@ -865,16 +900,232 @@ def format_report(
 
 
 # ---------------------------------------------------------------------------
-# CLI
+# Library API
 # ---------------------------------------------------------------------------
 
 WATCHED_IDS = [
-    "cit_000992", "cit_001056", "cit_001110",
-    "cit_001238", "cit_001239", "cit_001643", "cit_001646",
+    "cit_000992",
+    "cit_001056",
+    "cit_001110",
+    "cit_001238",
+    "cit_001239",
+    "cit_001643",
+    "cit_001646",
 ]
 
+_RESOLVED_STAT_KEYS = (
+    "pass1_resolved",
+    "path_a_direct",
+    "path_a_is_preprint_of",
+    "path_a_has_version",
+    "path_a_openalex",
+    "path_a_preprint_only",
+    "path_b",
+    "path_c",
+    "path_d_preprint",
+)
 
-def main(argv: list[str] | None = None) -> None:
+_ALL_STAT_KEYS = _RESOLVED_STAT_KEYS + (
+    "path_d_node",
+    "skipped_already",
+    "skipped_terminal",
+    "still_pending",
+)
+
+
+@dataclass
+class EnrichmentResult:
+    """Structured outcome of :func:`enrich_registry`.
+
+    ``stats`` keys (lists of cit_ids):
+        ``pass1_resolved`` — resolved offline from manual metadata.
+        ``path_a_direct``  — DOI looked up directly via Crossref/OpenAlex.
+        ``path_a_is_preprint_of`` — DOI chased through is-preprint-of.
+        ``path_a_has_version``    — DOI chased through has-version.
+        ``path_a_openalex``       — DOI chased through OpenAlex locations.
+        ``path_a_preprint_only``  — preprint DOI, no journal counterpart.
+        ``path_b``                — URL synthesised into a DOI then Path A.
+        ``path_c``                — PubMed URL → Europe PMC → DOI.
+        ``path_d_preprint``       — OSF preprint resolved.
+        ``path_d_node``           — OSF node/registration cached for review.
+        ``skipped_already``       — row had pub_id already.
+        ``skipped_terminal``      — row in a terminal status.
+        ``still_pending``         — no resolution attempt succeeded.
+    """
+
+    today: str
+    registry_path: Path
+    cache_dir: Path
+    paths_enabled: set[str]
+    write_back: bool
+    stats: dict[str, list[str]]
+    warnings: list[str]
+    registry: dict[str, dict]
+    report_text: str
+    report_path: Path | None = None
+
+    @property
+    def total_resolved(self) -> int:
+        return sum(len(self.stats[k]) for k in _RESOLVED_STAT_KEYS)
+
+    @property
+    def pass1_count(self) -> int:
+        return len(self.stats["pass1_resolved"])
+
+    @property
+    def pass2_count(self) -> int:
+        return self.total_resolved - self.pass1_count
+
+
+def enrich_registry(
+    *,
+    registry_path: Path,
+    cache_dir: Path,
+    write_back: bool = False,
+    paths_enabled: Iterable[str] = ("A", "B", "C", "D"),
+    limit: int | None = None,
+    report_path: Path | None = None,
+    watched_ids: list[str] | None = None,
+    today: str | None = None,
+) -> EnrichmentResult:
+    """Enrich a citation registry with ``pub_id`` values.
+
+    Runs two passes over ``registry_path``:
+
+      Pass 1 (offline)
+          Rows that already carry ``first_author_family + year + title``
+          get a deterministic ``pub_id`` computed locally via
+          :func:`citation_identity.build_pub_id`.  No network.
+
+      Pass 2 (network)
+          Rows still unresolved are walked through paths A–D
+          (Crossref, OpenAlex, Europe PMC, OSF) per
+          ``paths_enabled``.  Cached responses live under
+          ``cache_dir``.
+
+    This is the **library entry point**; callers from consumer repos
+    (or test fixtures) construct paths themselves and pass them in.
+    For a command-line driver see :func:`main`.
+
+    Parameters
+    ----------
+    registry_path
+        Path to ``citation_registry.tsv``.  Read on entry; written
+        back when ``write_back=True``.
+    cache_dir
+        Cache root for API responses.  Caller resolves the
+        ``--cache-dir`` / ``$HED_CACHE_DIR`` / fallback precedence
+        before calling.
+    write_back
+        Persist the modified registry to ``registry_path``.  Default
+        is dry-run.
+    paths_enabled
+        Subset of ``("A", "B", "C", "D")``.  Case-insensitive.
+    limit
+        Cap on the number of Pass-2 rows processed.  ``None`` = no
+        cap.
+    report_path
+        Optional path to write the Markdown run report to.  ``None``
+        skips the file write but the rendered text still appears on
+        the returned :class:`EnrichmentResult`.
+    watched_ids
+        Optional list of cit_ids to feature in the report's "watched"
+        section.  ``None`` omits the section.
+    today
+        ISO-8601 date stamped on resolved rows and the report.
+        ``None`` → today's UTC date.  Override for deterministic
+        tests.
+
+    Returns
+    -------
+    EnrichmentResult
+        Carries ``stats``, ``warnings``, the final in-memory
+        registry, and the rendered report text.
+    """
+    if today is None:
+        today = today_iso()
+
+    paths_set = {p.strip().upper() for p in paths_enabled}
+    watched = list(watched_ids) if watched_ids else []
+
+    registry, columns = load_registry(registry_path)
+
+    stats: dict[str, list[str]] = {k: [] for k in _ALL_STAT_KEYS}
+    warnings_out: list[str] = []
+
+    _process_pass1(registry, today, stats)
+    _process_pass2(
+        registry,
+        today,
+        paths_set,
+        cache_dir,
+        limit,
+        warnings_out,
+        stats,
+    )
+
+    report_text = format_report(
+        stats,
+        warnings_out,
+        today,
+        registry_path,
+        cache_dir,
+        paths_set,
+        write_back,
+        registry,
+        watched,
+    )
+
+    if write_back:
+        write_registry(registry_path, registry, columns)
+
+    if report_path is not None:
+        report_path.parent.mkdir(parents=True, exist_ok=True)
+        report_path.write_text(report_text, encoding="utf-8")
+
+    return EnrichmentResult(
+        today=today,
+        registry_path=registry_path,
+        cache_dir=cache_dir,
+        paths_enabled=paths_set,
+        write_back=write_back,
+        stats=stats,
+        warnings=warnings_out,
+        registry=registry,
+        report_text=report_text,
+        report_path=report_path,
+    )
+
+
+# ---------------------------------------------------------------------------
+# CLI
+# ---------------------------------------------------------------------------
+
+
+def _resolve_cli_cache_dir(arg_value: str | None) -> Path:
+    """``--cache-dir`` > ``$HED_CACHE_DIR`` > module default.
+
+    Lifted out of ``main()`` so the precedence is testable.
+    """
+    if arg_value:
+        return Path(arg_value)
+    env_val = os.environ.get("HED_CACHE_DIR")
+    if env_val:
+        return Path(env_val)
+    return _DEFAULT_CACHE_DIR
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Argparse wrapper around :func:`enrich_registry`.
+
+    Reads command-line flags, resolves their values into a call to
+    :func:`enrich_registry`, then prints a one-screen summary of the
+    returned result.  Exits ``0`` on success.
+
+    Consumer drivers that want different argument shapes (a TOML
+    config, a Python dict, etc.) should NOT call ``main`` — call
+    :func:`enrich_registry` directly with explicit arguments.
+    """
     parser = argparse.ArgumentParser(
         description="Enrich citation registry rows with pub_ids."
     )
@@ -884,120 +1135,83 @@ def main(argv: list[str] | None = None) -> None:
         help="Path to citation_registry.tsv",
     )
     parser.add_argument(
-        "--write-back", action="store_true",
+        "--write-back",
+        action="store_true",
         help="Write changes to the registry (default: dry-run)",
     )
     parser.add_argument(
-        "--dry-run", action="store_true",
+        "--dry-run",
+        action="store_true",
         help="Explicit dry-run (takes precedence over --write-back if both given)",
     )
     parser.add_argument(
-        "--limit", type=int, default=None,
+        "--limit",
+        type=int,
+        default=None,
         help="Limit the number of rows processed in Pass 2 (for smoke testing)",
     )
     parser.add_argument(
-        "--cache-dir", default=None,
+        "--cache-dir",
+        default=None,
         help=(
             "Cache directory root.  Checked in order: this arg, $HED_CACHE_DIR, "
             "outputs/cache/ (repo-relative default)."
         ),
     )
     parser.add_argument(
-        "--paths", default="A,B,C,D",
+        "--paths",
+        default="A,B,C,D",
         help="Comma-separated list of paths to run (default: A,B,C,D)",
     )
     parser.add_argument(
-        "--report", default=None,
+        "--report",
+        default=None,
         help="Path for the Markdown run report",
     )
     args = parser.parse_args(argv)
-
-    # Resolve write mode
-    write_back = args.write_back and not args.dry_run
-
-    # Resolve cache dir
-    if args.cache_dir:
-        cache_dir = Path(args.cache_dir)
-    elif "HED_CACHE_DIR" in os.environ:
-        cache_dir = Path(os.environ["HED_CACHE_DIR"])
-    else:
-        cache_dir = _DEFAULT_CACHE_DIR
-
-    paths_enabled = {p.strip().upper() for p in args.paths.split(",")}
-
-    registry_path = Path(args.registry)
-    today = today_iso()
-
-    report_path = (
-        Path(args.report)
-        if args.report
-        else _ROOT / ".status" / f"enrich_pub_ids_run_{today}.md"
-    )
 
     logging.basicConfig(
         level=logging.INFO,
         format="%(levelname)s %(name)s: %(message)s",
     )
 
-    # Load registry
-    registry, columns = load_registry(registry_path)
-
-    stats: dict[str, list] = {
-        "pass1_resolved": [],
-        "path_a_direct": [],
-        "path_a_is_preprint_of": [],
-        "path_a_has_version": [],
-        "path_a_openalex": [],
-        "path_a_preprint_only": [],
-        "path_b": [],
-        "path_c": [],
-        "path_d_preprint": [],
-        "path_d_node": [],
-        "skipped_already": [],
-        "skipped_terminal": [],
-        "still_pending": [],
-    }
-    warnings_out: list[str] = []
-
-    # Pass 1 — offline
-    _process_pass1(registry, today, stats)
-    print(f"Pass 1 complete: {len(stats['pass1_resolved'])} rows resolved offline.")
-
-    # Pass 2 — network
-    _process_pass2(
-        registry, today, paths_enabled, cache_dir,
-        args.limit, warnings_out, stats,
+    write_back = args.write_back and not args.dry_run
+    registry_path = Path(args.registry)
+    cache_dir = _resolve_cli_cache_dir(args.cache_dir)
+    paths_enabled = [p.strip().upper() for p in args.paths.split(",")]
+    today = today_iso()
+    report_path = (
+        Path(args.report)
+        if args.report
+        else _ROOT / ".status" / f"enrich_pub_ids_run_{today}.md"
     )
-    total_resolved = (
-        len(stats["pass1_resolved"])
-        + sum(len(stats[k]) for k in (
-            "path_a_direct", "path_a_is_preprint_of", "path_a_has_version",
-            "path_a_openalex", "path_a_preprint_only",
-            "path_b", "path_c", "path_d_preprint",
-        ))
-    )
-    print(f"Pass 2 complete: {total_resolved - len(stats['pass1_resolved'])} rows "
-          f"resolved via network paths.")
-    print(f"Total resolved this run: {total_resolved}")
-    print(f"OSF nodes cached for review (2.5D): {len(stats['path_d_node'])}")
-    print(f"Still pending: {len(stats['still_pending'])}")
 
-    report_text = format_report(
-        stats, warnings_out, today,
-        registry_path, cache_dir, paths_enabled,
-        write_back, registry, WATCHED_IDS,
+    result = enrich_registry(
+        registry_path=registry_path,
+        cache_dir=cache_dir,
+        write_back=write_back,
+        paths_enabled=paths_enabled,
+        limit=args.limit,
+        report_path=report_path,
+        watched_ids=WATCHED_IDS,
+        today=today,
     )
+
+    # CLI summary
+    print(f"Pass 1 complete: {result.pass1_count} rows resolved offline.")
+    print(f"Pass 2 complete: {result.pass2_count} rows resolved via network paths.")
+    print(f"Total resolved this run: {result.total_resolved}")
+    print(f"OSF nodes cached for review (2.5D): {len(result.stats['path_d_node'])}")
+    print(f"Still pending: {len(result.stats['still_pending'])}")
 
     if write_back:
-        write_registry(registry_path, registry, columns)
         print(f"\nRegistry written: {registry_path}")
     else:
         print("\nDry-run.  Pass --write-back to commit changes.")
-
-    report_path.parent.mkdir(parents=True, exist_ok=True)
-    report_path.write_text(report_text, encoding="utf-8")
     print(f"Report: {report_path}")
+
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

@@ -42,8 +42,9 @@ def _throttle(host: str) -> None:
     _last_call[host] = time.monotonic()
 
 
-def _get(url: str, headers: dict | None = None,
-         params: dict | None = None) -> dict | None:
+def _get(
+    url: str, headers: dict | None = None, params: dict | None = None
+) -> dict | None:
     host = "api.crossref.org"
     for attempt in range(3):
         _throttle(host)
@@ -98,7 +99,7 @@ def lookup_by_doi(
         source="crossref",
         key=doi,
         fetch=_fetch,
-        stable=True,   # DOI metadata is stable; skip date-stamping.
+        stable=True,  # DOI metadata is stable; skip date-stamping.
     )
 
     if not cached:
@@ -161,14 +162,20 @@ def lookup_by_query(
     )
 
     if not raw:
-        logger.info("source=crossref query author=%s year=%d status=not_found",
-                    author_family, year)
+        logger.info(
+            "source=crossref query author=%s year=%d status=not_found",
+            author_family,
+            year,
+        )
         return None
 
     items = raw.get("message", {}).get("items", [])
     if not items:
-        logger.info("source=crossref query author=%s year=%d status=empty_items",
-                    author_family, year)
+        logger.info(
+            "source=crossref query author=%s year=%d status=empty_items",
+            author_family,
+            year,
+        )
         return None
 
     item = items[0]
@@ -180,12 +187,17 @@ def lookup_by_query(
         if author_lc not in cr_family and cr_family not in author_lc:
             logger.info(
                 "source=crossref query: author mismatch expected=%s got=%s",
-                author_lc, cr_family,
+                author_lc,
+                cr_family,
             )
             return None
 
     item["_source"] = "crossref_query"
     item["_cache_key"] = cache_key
-    logger.info("source=crossref query author=%s year=%d status=found doi=%s",
-                author_family, year, item.get("DOI", ""))
+    logger.info(
+        "source=crossref query author=%s year=%d status=found doi=%s",
+        author_family,
+        year,
+        item.get("DOI", ""),
+    )
     return item

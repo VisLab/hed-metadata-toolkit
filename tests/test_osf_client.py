@@ -37,6 +37,7 @@ def _load(filename: str) -> dict:
 def _stub(fixture: dict):
     def _fn(*args, **kwargs):
         return fixture
+
     return _fn
 
 
@@ -44,11 +45,13 @@ def _stub(fixture: dict):
 # is_osf_project_doi — safety-critical filter rule
 # ---------------------------------------------------------------------------
 
+
 class TestIsOsfProjectDoi:
     """Pins the OSF project DOI detection rule from thinking doc §2.1."""
 
     def setup_method(self):
         from hed_metadata_toolkit.clients.osf import is_osf_project_doi
+
         self.fn = is_osf_project_doi
 
     def test_uppercase_prefix_true(self):
@@ -80,38 +83,50 @@ class TestIsOsfProjectDoi:
 # lookup_guid
 # ---------------------------------------------------------------------------
 
-class TestLookupGuid:
 
+class TestLookupGuid:
     def test_returns_fixture_dict(self, tmp_path):
         guid_response = {
             "data": {
                 "relationships": {
                     "referent": {
                         "data": {"id": "bxvhr", "type": "nodes"},
-                        "links": {"related": {"href": "https://api.osf.io/v2/nodes/bxvhr/"}}
+                        "links": {
+                            "related": {"href": "https://api.osf.io/v2/nodes/bxvhr/"}
+                        },
                     }
                 },
                 "attributes": {},
                 "type": "guids",
-                "id": "bxvhr"
+                "id": "bxvhr",
             }
         }
-        with patch("hed_metadata_toolkit.clients.osf.cache_get_or_fetch", side_effect=_stub(guid_response)):
+        with patch(
+            "hed_metadata_toolkit.clients.osf.cache_get_or_fetch",
+            side_effect=_stub(guid_response),
+        ):
             from hed_metadata_toolkit.clients.osf import lookup_guid
+
             result = lookup_guid("bxvhr", cache_dir=tmp_path)
         assert result["data"]["relationships"]["referent"]["data"]["type"] == "nodes"
         assert result["data"]["relationships"]["referent"]["data"]["id"] == "bxvhr"
 
     def test_private_project_returns_empty(self, tmp_path):
         """401 private project → cache returns {} → lookup_guid returns {}."""
-        with patch("hed_metadata_toolkit.clients.osf.cache_get_or_fetch", side_effect=_stub({})):
+        with patch(
+            "hed_metadata_toolkit.clients.osf.cache_get_or_fetch", side_effect=_stub({})
+        ):
             from hed_metadata_toolkit.clients.osf import lookup_guid
+
             result = lookup_guid("er5u7", cache_dir=tmp_path)
         assert result == {}
 
     def test_not_found_returns_empty(self, tmp_path):
-        with patch("hed_metadata_toolkit.clients.osf.cache_get_or_fetch", side_effect=_stub({})):
+        with patch(
+            "hed_metadata_toolkit.clients.osf.cache_get_or_fetch", side_effect=_stub({})
+        ):
             from hed_metadata_toolkit.clients.osf import lookup_guid
+
             result = lookup_guid("zzzzz", cache_dir=tmp_path)
         assert result == {}
 
@@ -120,11 +135,13 @@ class TestLookupGuid:
 # extract_publication_metadata — fixture case 1: nodes with description DOI
 # ---------------------------------------------------------------------------
 
+
 class TestExtractMetadataNodesWithDoi:
     """bxvhr: nodes type, description contains a real DOI and an OSF project DOI."""
 
     def setup_method(self):
         from hed_metadata_toolkit.clients.osf import extract_publication_metadata
+
         self._fn = extract_publication_metadata
         self._fixture = _load("nodes_bxvhr.json")
 
@@ -152,6 +169,7 @@ class TestExtractMetadataNodesWithDoi:
         # OSF project DOI must be absent
         for doi in candidates:
             from hed_metadata_toolkit.clients.osf import is_osf_project_doi
+
             assert not is_osf_project_doi(doi), f"Project DOI leaked: {doi}"
 
     def test_description_excerpt_populated(self):
@@ -164,11 +182,13 @@ class TestExtractMetadataNodesWithDoi:
 # extract_publication_metadata — fixture case 2: nodes without description DOI
 # ---------------------------------------------------------------------------
 
+
 class TestExtractMetadataNodesNoDoi:
     """8pg7x: nodes type, description has no DOIs."""
 
     def setup_method(self):
         from hed_metadata_toolkit.clients.osf import extract_publication_metadata
+
         self._fn = extract_publication_metadata
         self._fixture = _load("nodes_8pg7x.json")
 
@@ -193,11 +213,13 @@ class TestExtractMetadataNodesNoDoi:
 # extract_publication_metadata — fixture case 3: preprints with attrs.doi
 # ---------------------------------------------------------------------------
 
+
 class TestExtractMetadataPreprint:
     """j5v9b: preprints type with a populated doi attribute."""
 
     def setup_method(self):
         from hed_metadata_toolkit.clients.osf import extract_publication_metadata
+
         self._fn = extract_publication_metadata
         self._fixture = _load("preprints_j5v9b.json")
 
@@ -215,6 +237,7 @@ class TestExtractMetadataPreprint:
 
     def test_publication_doi_not_osf_project_doi(self):
         from hed_metadata_toolkit.clients.osf import is_osf_project_doi
+
         meta = self._fn(self._fixture)
         assert not is_osf_project_doi(meta["publication_doi"])
 
@@ -223,11 +246,13 @@ class TestExtractMetadataPreprint:
 # extract_publication_metadata — fixture case 4: files type
 # ---------------------------------------------------------------------------
 
+
 class TestExtractMetadataFiles:
     """files type: not a publication, has no description-DOIs."""
 
     def setup_method(self):
         from hed_metadata_toolkit.clients.osf import extract_publication_metadata
+
         self._fn = extract_publication_metadata
         self._fixture = _load("files_abc123.json")
 
@@ -256,11 +281,13 @@ class TestExtractMetadataFiles:
 # extract_publication_metadata — fixture case 5: empty dict (private / 404)
 # ---------------------------------------------------------------------------
 
+
 class TestExtractMetadataEmpty:
     """Empty dict (private project or 404) → all-None/False/empty result."""
 
     def setup_method(self):
         from hed_metadata_toolkit.clients.osf import extract_publication_metadata
+
         self._fn = extract_publication_metadata
 
     def test_type_none(self):

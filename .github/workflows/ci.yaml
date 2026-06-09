@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+    branches: ["*"]
+  pull_request:
+    branches: ["*"]
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  determine_version:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - id: set-matrix
+        run: |
+          if [[ "${{ github.event_name }}" == 'push' && "${{ github.ref }}" == 'refs/heads/main' ]]; then
+            # Push to main branch
+            echo 'matrix=["3.10", "3.11", "3.12", "3.13", "3.14"]' >> $GITHUB_OUTPUT
+          elif [[ "${{ github.event_name }}" == 'pull_request' && "${{ github.event.pull_request.base.ref }}" == 'main' ]]; then
+            # PR to main branch
+            echo 'matrix=[ "3.10", "3.14"]' >> $GITHUB_OUTPUT
+          else
+            echo 'matrix=["3.10", "3.13"]' >> $GITHUB_OUTPUT
+          fi
+
+  build:
+    needs: determine_version
+    strategy:
+      matrix:
+        platform: [ubuntu-latest]
+        python-version: ${{fromJson(needs.determine_version.outputs.matrix)}}
+
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          submodules: true
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
+        with:
+          python-version: ${{ matrix.python-version }}
+          enable-cache: true
+          cache-dependency-glob: "**/pyproject.toml"
+
+      - name: Create virtual environment
+        run: |
+          uv venv --clear .venv
+          echo "$GITHUB_WORKSPACE/.venv/bin" >> $GITHUB_PATH
+
+      # Install dependencies
+      - name: Install dependencies
+        run: uv pip install -e ".[docs,test]"
+
+      # Run spec tests without coverage for non Python 3.10
+      - name: Run spec_test
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        continue-on-error: true
+        run: |
+          python -m pytest spec_tests -v
+
+      # Run pytest
+      - name: Test with pytest
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          python -m pytest tests -v

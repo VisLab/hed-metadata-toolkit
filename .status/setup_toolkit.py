@@ -59,10 +59,10 @@ from shutil import copy2
 # Source / destination roots — edit if your layout differs
 # ---------------------------------------------------------------------------
 
-TASK_RESEARCH  = Path("H:/Research/task-research")
+TASK_RESEARCH = Path("H:/Research/task-research")
 OPENNEURO_META = Path("I:/RepositoryMetadata/openneuro-metadata")
-TOOLKIT        = Path(__file__).resolve().parent.parent  # repo root
-PKG            = TOOLKIT / "src" / "hed_metadata_toolkit"
+TOOLKIT = Path(__file__).resolve().parent.parent  # repo root
+PKG = TOOLKIT / "src" / "hed_metadata_toolkit"
 
 
 # ---------------------------------------------------------------------------
@@ -71,159 +71,197 @@ PKG            = TOOLKIT / "src" / "hed_metadata_toolkit"
 
 COPIES: list[tuple[Path, Path, str]] = [
     # ---- Core shared modules
-    (TASK_RESEARCH / "Claude-research/code/literature_search/cache.py",
-     PKG / "cache.py",
-     "task-research (upstream)"),
-
-    (TASK_RESEARCH / "Claude-research/code/literature_search/identity.py",
-     PKG / "citation_identity.py",
-     "task-research identity.py (renamed)"),
-
-    (OPENNEURO_META / "src/citation_normalize.py",
-     PKG / "citation_normalize.py",
-     "openneuro-metadata"),
-
+    (
+        TASK_RESEARCH / "Claude-research/code/literature_search/cache.py",
+        PKG / "cache.py",
+        "task-research (upstream)",
+    ),
+    (
+        TASK_RESEARCH / "Claude-research/code/literature_search/identity.py",
+        PKG / "citation_identity.py",
+        "task-research identity.py (renamed)",
+    ),
+    (
+        OPENNEURO_META / "src/citation_normalize.py",
+        PKG / "citation_normalize.py",
+        "openneuro-metadata",
+    ),
     # ---- API clients
     # task-research carries the broadest set (pmc/semanticscholar/unpaywall);
     # openneuro-metadata is the source for the OSF client.
-    (OPENNEURO_META / "src/clients/crossref.py",
-     PKG / "clients/crossref.py",
-     "openneuro-metadata (mirror of task-research)"),
-
-    (TASK_RESEARCH / "Claude-research/code/literature_search/clients/europepmc.py",
-     PKG / "clients/europepmc.py",
-     "task-research"),
-
-    (TASK_RESEARCH / "Claude-research/code/literature_search/clients/openalex.py",
-     PKG / "clients/openalex.py",
-     "task-research"),
-
-    (OPENNEURO_META / "src/clients/osf.py",
-     PKG / "clients/osf.py",
-     "openneuro-metadata"),
-
-    (TASK_RESEARCH / "Claude-research/code/literature_search/clients/pmc.py",
-     PKG / "clients/pmc.py",
-     "task-research"),
-
-    (TASK_RESEARCH / "Claude-research/code/literature_search/clients/semanticscholar.py",
-     PKG / "clients/semanticscholar.py",
-     "task-research"),
-
-    (TASK_RESEARCH / "Claude-research/code/literature_search/clients/unpaywall.py",
-     PKG / "clients/unpaywall.py",
-     "task-research"),
-
+    (
+        OPENNEURO_META / "src/clients/crossref.py",
+        PKG / "clients/crossref.py",
+        "openneuro-metadata (mirror of task-research)",
+    ),
+    (
+        TASK_RESEARCH / "Claude-research/code/literature_search/clients/europepmc.py",
+        PKG / "clients/europepmc.py",
+        "task-research",
+    ),
+    (
+        TASK_RESEARCH / "Claude-research/code/literature_search/clients/openalex.py",
+        PKG / "clients/openalex.py",
+        "task-research",
+    ),
+    (
+        OPENNEURO_META / "src/clients/osf.py",
+        PKG / "clients/osf.py",
+        "openneuro-metadata",
+    ),
+    (
+        TASK_RESEARCH / "Claude-research/code/literature_search/clients/pmc.py",
+        PKG / "clients/pmc.py",
+        "task-research",
+    ),
+    (
+        TASK_RESEARCH
+        / "Claude-research/code/literature_search/clients/semanticscholar.py",
+        PKG / "clients/semanticscholar.py",
+        "task-research",
+    ),
+    (
+        TASK_RESEARCH / "Claude-research/code/literature_search/clients/unpaywall.py",
+        PKG / "clients/unpaywall.py",
+        "task-research",
+    ),
     # ---- GitHub-org pipeline (README Steps 1–4)
-    (OPENNEURO_META / "src/create_repo_list.py",
-     PKG / "github_org/fetch_repo_list.py",
-     "openneuro-metadata create_repo_list.py (renamed)"),
-
-    (OPENNEURO_META / "src/sync_repo_contents.py",
-     PKG / "github_org/sync_repo_contents.py",
-     "openneuro-metadata"),
-
-    (OPENNEURO_META / "src/sync_local_files.py",
-     PKG / "github_org/sync_local_files.py",
-     "openneuro-metadata"),
-
-    (OPENNEURO_META / "src/sync_repo_file_contents.py",
-     PKG / "github_org/sync_repo_file_contents.py",
-     "openneuro-metadata"),
-
+    (
+        OPENNEURO_META / "src/create_repo_list.py",
+        PKG / "github_org/fetch_repo_list.py",
+        "openneuro-metadata create_repo_list.py (renamed)",
+    ),
+    (
+        OPENNEURO_META / "src/sync_repo_contents.py",
+        PKG / "github_org/sync_repo_contents.py",
+        "openneuro-metadata",
+    ),
+    (
+        OPENNEURO_META / "src/sync_local_files.py",
+        PKG / "github_org/sync_local_files.py",
+        "openneuro-metadata",
+    ),
+    (
+        OPENNEURO_META / "src/sync_repo_file_contents.py",
+        PKG / "github_org/sync_repo_file_contents.py",
+        "openneuro-metadata",
+    ),
     # ---- Dataset summary builders (README Steps 5–7)
-    (OPENNEURO_META / "src/extract_summary_info.py",
-     PKG / "dataset_summary/extract_summary_info.py",
-     "openneuro-metadata"),
-
-    (OPENNEURO_META / "src/update_summary.py",
-     PKG / "dataset_summary/update_summary.py",
-     "openneuro-metadata"),
-
-    (OPENNEURO_META / "src/sort_datasets.py",
-     PKG / "dataset_summary/sort_datasets.py",
-     "openneuro-metadata"),
-
+    (
+        OPENNEURO_META / "src/extract_summary_info.py",
+        PKG / "dataset_summary/extract_summary_info.py",
+        "openneuro-metadata",
+    ),
+    (
+        OPENNEURO_META / "src/update_summary.py",
+        PKG / "dataset_summary/update_summary.py",
+        "openneuro-metadata",
+    ),
+    (
+        OPENNEURO_META / "src/sort_datasets.py",
+        PKG / "dataset_summary/sort_datasets.py",
+        "openneuro-metadata",
+    ),
     # ---- Citation pipeline (README Steps 8–9)
-    (OPENNEURO_META / "src/collect_citations.py",
-     PKG / "citations/collect_citations.py",
-     "openneuro-metadata"),
-
-    (OPENNEURO_META / "src/assign_citation_ids.py",
-     PKG / "citations/assign_citation_ids.py",
-     "openneuro-metadata"),
-
-    (OPENNEURO_META / "src/generate_review_queue.py",
-     PKG / "citations/generate_review_queue.py",
-     "openneuro-metadata"),
-
-    (OPENNEURO_META / "src/apply_manual_fills.py",
-     PKG / "citations/apply_manual_fills.py",
-     "openneuro-metadata"),
-
-    (OPENNEURO_META / "src/enrich_pub_ids.py",
-     PKG / "citations/enrich_pub_ids.py",
-     "openneuro-metadata"),
-
+    (
+        OPENNEURO_META / "src/collect_citations.py",
+        PKG / "citations/collect_citations.py",
+        "openneuro-metadata",
+    ),
+    (
+        OPENNEURO_META / "src/assign_citation_ids.py",
+        PKG / "citations/assign_citation_ids.py",
+        "openneuro-metadata",
+    ),
+    (
+        OPENNEURO_META / "src/generate_review_queue.py",
+        PKG / "citations/generate_review_queue.py",
+        "openneuro-metadata",
+    ),
+    (
+        OPENNEURO_META / "src/apply_manual_fills.py",
+        PKG / "citations/apply_manual_fills.py",
+        "openneuro-metadata",
+    ),
+    (
+        OPENNEURO_META / "src/enrich_pub_ids.py",
+        PKG / "citations/enrich_pub_ids.py",
+        "openneuro-metadata",
+    ),
     # ---- Tests
     # task-research-side tests for the modules whose canonical source
     # is task-research.
-    (TASK_RESEARCH / "Claude-research/code/literature_search/test_cache.py",
-     TOOLKIT / "tests/test_cache.py",
-     "task-research"),
-
-    (TASK_RESEARCH / "Claude-research/code/literature_search/test_identity.py",
-     TOOLKIT / "tests/test_citation_identity.py",
-     "task-research test_identity.py (renamed)"),
-
-    (TASK_RESEARCH / "Claude-research/code/literature_search/clients/test_pmc.py",
-     TOOLKIT / "tests/test_pmc_client.py",
-     "task-research (renamed for clarity)"),
-
+    (
+        TASK_RESEARCH / "Claude-research/code/literature_search/test_cache.py",
+        TOOLKIT / "tests/test_cache.py",
+        "task-research",
+    ),
+    (
+        TASK_RESEARCH / "Claude-research/code/literature_search/test_identity.py",
+        TOOLKIT / "tests/test_citation_identity.py",
+        "task-research test_identity.py (renamed)",
+    ),
+    (
+        TASK_RESEARCH / "Claude-research/code/literature_search/clients/test_pmc.py",
+        TOOLKIT / "tests/test_pmc_client.py",
+        "task-research (renamed for clarity)",
+    ),
     # openneuro-side tests for everything else.
-    (OPENNEURO_META / "tests/test_citation_normalize.py",
-     TOOLKIT / "tests/test_citation_normalize.py",
-     "openneuro-metadata"),
-
-    (OPENNEURO_META / "tests/test_citation_identity.py",
-     TOOLKIT / "tests/test_citation_identity_pinned.py",
-     "openneuro-metadata (renamed — pinned cross-repo determinism checks)"),
-
-    (OPENNEURO_META / "tests/test_doi_canon.py",
-     TOOLKIT / "tests/test_doi_canon.py",
-     "openneuro-metadata"),
-
-    (OPENNEURO_META / "tests/test_url_synthesisers.py",
-     TOOLKIT / "tests/test_url_synthesisers.py",
-     "openneuro-metadata"),
-
-    (OPENNEURO_META / "tests/test_osf_client.py",
-     TOOLKIT / "tests/test_osf_client.py",
-     "openneuro-metadata"),
-
-    (OPENNEURO_META / "tests/test_clients_drift.py",
-     TOOLKIT / "tests/test_clients_drift.py",
-     "openneuro-metadata (can delete after consumer refactor)"),
-
-    (OPENNEURO_META / "tests/test_enrich_pub_ids.py",
-     TOOLKIT / "tests/test_enrich_pub_ids.py",
-     "openneuro-metadata"),
-
-    (OPENNEURO_META / "tests/test_apply_manual_fills.py",
-     TOOLKIT / "tests/test_apply_manual_fills.py",
-     "openneuro-metadata"),
-
-    (OPENNEURO_META / "tests/test_apply_manual_fills_atomic.py",
-     TOOLKIT / "tests/test_apply_manual_fills_atomic.py",
-     "openneuro-metadata"),
-
-    (OPENNEURO_META / "tests/test_assign_citation_ids.py",
-     TOOLKIT / "tests/test_assign_citation_ids.py",
-     "openneuro-metadata"),
-
-    (OPENNEURO_META / "tests/test_generate_review_queue.py",
-     TOOLKIT / "tests/test_generate_review_queue.py",
-     "openneuro-metadata"),
+    (
+        OPENNEURO_META / "tests/test_citation_normalize.py",
+        TOOLKIT / "tests/test_citation_normalize.py",
+        "openneuro-metadata",
+    ),
+    (
+        OPENNEURO_META / "tests/test_citation_identity.py",
+        TOOLKIT / "tests/test_citation_identity_pinned.py",
+        "openneuro-metadata (renamed — pinned cross-repo determinism checks)",
+    ),
+    (
+        OPENNEURO_META / "tests/test_doi_canon.py",
+        TOOLKIT / "tests/test_doi_canon.py",
+        "openneuro-metadata",
+    ),
+    (
+        OPENNEURO_META / "tests/test_url_synthesisers.py",
+        TOOLKIT / "tests/test_url_synthesisers.py",
+        "openneuro-metadata",
+    ),
+    (
+        OPENNEURO_META / "tests/test_osf_client.py",
+        TOOLKIT / "tests/test_osf_client.py",
+        "openneuro-metadata",
+    ),
+    (
+        OPENNEURO_META / "tests/test_clients_drift.py",
+        TOOLKIT / "tests/test_clients_drift.py",
+        "openneuro-metadata (can delete after consumer refactor)",
+    ),
+    (
+        OPENNEURO_META / "tests/test_enrich_pub_ids.py",
+        TOOLKIT / "tests/test_enrich_pub_ids.py",
+        "openneuro-metadata",
+    ),
+    (
+        OPENNEURO_META / "tests/test_apply_manual_fills.py",
+        TOOLKIT / "tests/test_apply_manual_fills.py",
+        "openneuro-metadata",
+    ),
+    (
+        OPENNEURO_META / "tests/test_apply_manual_fills_atomic.py",
+        TOOLKIT / "tests/test_apply_manual_fills_atomic.py",
+        "openneuro-metadata",
+    ),
+    (
+        OPENNEURO_META / "tests/test_assign_citation_ids.py",
+        TOOLKIT / "tests/test_assign_citation_ids.py",
+        "openneuro-metadata",
+    ),
+    (
+        OPENNEURO_META / "tests/test_generate_review_queue.py",
+        TOOLKIT / "tests/test_generate_review_queue.py",
+        "openneuro-metadata",
+    ),
 ]
 
 
@@ -366,6 +404,7 @@ TEMPLATES: list[tuple[Path, str, str]] = [
 # Action helpers
 # ---------------------------------------------------------------------------
 
+
 def _rel(path: Path) -> str:
     try:
         return str(path.relative_to(TOOLKIT))
@@ -398,8 +437,9 @@ def make_init(path: Path, *, execute: bool, force: bool) -> bool:
     return True
 
 
-def make_template(path: Path, content: str, label: str,
-                  *, execute: bool, force: bool) -> bool:
+def make_template(
+    path: Path, content: str, label: str, *, execute: bool, force: bool
+) -> bool:
     if path.exists() and not force:
         _print("SKIP", path, f"already exists ({label})")
         return False
@@ -410,8 +450,9 @@ def make_template(path: Path, content: str, label: str,
     return True
 
 
-def copy_one(src: Path, dst: Path, label: str,
-             *, execute: bool, force: bool) -> tuple[bool, bool]:
+def copy_one(
+    src: Path, dst: Path, label: str, *, execute: bool, force: bool
+) -> tuple[bool, bool]:
     """Returns (copy_planned, source_missing)."""
     if not src.exists():
         _print("MISS", dst, f"source not found: {src}")
@@ -430,23 +471,31 @@ def copy_one(src: Path, dst: Path, label: str,
 # Main
 # ---------------------------------------------------------------------------
 
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    p.add_argument("--execute", action="store_true",
-                   help="Actually create files.  Default is dry-run.")
-    p.add_argument("--force", action="store_true",
-                   help="Overwrite destination files that already exist.")
+    p.add_argument(
+        "--execute",
+        action="store_true",
+        help="Actually create files.  Default is dry-run.",
+    )
+    p.add_argument(
+        "--force",
+        action="store_true",
+        help="Overwrite destination files that already exist.",
+    )
     args = p.parse_args(argv)
 
     # Pre-flight: source roots must exist.
-    for label, root in (("task-research", TASK_RESEARCH),
-                        ("openneuro-metadata", OPENNEURO_META)):
+    for label, root in (
+        ("task-research", TASK_RESEARCH),
+        ("openneuro-metadata", OPENNEURO_META),
+    ):
         if not root.exists():
-            print(f"ERROR: source root not found ({label}): {root}",
-                  file=sys.stderr)
+            print(f"ERROR: source root not found ({label}): {root}", file=sys.stderr)
             return 2
     if not TOOLKIT.exists():
         print(f"ERROR: toolkit root not found: {TOOLKIT}", file=sys.stderr)
@@ -472,8 +521,11 @@ def main(argv: list[str] | None = None) -> int:
     # ---- 1. Directories
     print("=== Directories ===")
     dirs = [
-        PKG, PKG / "clients", PKG / "github_org",
-        PKG / "dataset_summary", PKG / "citations",
+        PKG,
+        PKG / "clients",
+        PKG / "github_org",
+        PKG / "dataset_summary",
+        PKG / "citations",
         TOOLKIT / "tests",
     ]
     for d in dirs:
@@ -489,8 +541,7 @@ def main(argv: list[str] | None = None) -> int:
     # ---- 3. Template files
     print("=== Template files (pyproject / README / .gitignore) ===")
     for path, content, label in TEMPLATES:
-        make_template(path, content, label,
-                      execute=args.execute, force=args.force)
+        make_template(path, content, label, execute=args.execute, force=args.force)
     print()
 
     # ---- 4. Source copies
@@ -499,8 +550,9 @@ def main(argv: list[str] | None = None) -> int:
     n_missing = 0
     n_skipped = 0
     for src, dst, label in COPIES:
-        planned, missing = copy_one(src, dst, label,
-                                    execute=args.execute, force=args.force)
+        planned, missing = copy_one(
+            src, dst, label, execute=args.execute, force=args.force
+        )
         if planned:
             n_copied += 1
         elif missing:
@@ -521,8 +573,12 @@ def main(argv: list[str] | None = None) -> int:
     print("  1.  Review the new layout under src/hed_metadata_toolkit/.")
     print("  2.  Rewrite import statements inside the copied files so")
     print("      they use the hed_metadata_toolkit.* namespace, e.g.:")
-    print("           from cache import ...        ->   from hed_metadata_toolkit.cache import ...")
-    print("           from clients import crossref ->   from hed_metadata_toolkit.clients import crossref")
+    print(
+        "           from cache import ...        ->   from hed_metadata_toolkit.cache import ..."
+    )
+    print(
+        "           from clients import crossref ->   from hed_metadata_toolkit.clients import crossref"
+    )
     print("      `ruff check --fix --select=F401,I` will not do this for")
     print("      you — but a single sed/grep pass plus `pytest tests/`")
     print("      will close the loop.")

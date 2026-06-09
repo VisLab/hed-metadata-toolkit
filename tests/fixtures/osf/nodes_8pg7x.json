@@ -1,0 +1,11 @@
+{
+  "data": {
+    "attributes": {
+      "category": "project",
+      "title": "Resting state fMRI dataset",
+      "description": "A dataset for resting state analysis"
+    },
+    "type": "nodes",
+    "id": "8pg7x"
+  }
+}

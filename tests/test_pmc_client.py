@@ -41,12 +41,10 @@ PMCID_DIGITS = "4097944"
 GR1 = "fnhum-08-00443-g0001.jpg"
 GR2 = "fnhum-08-00443-g0002.jpg"
 CDN_GR1 = (
-    f"https://cdn.ncbi.nlm.nih.gov/pmc/blobs/b194/{PMCID_DIGITS}"
-    f"/aa45e06da37a/{GR1}"
+    f"https://cdn.ncbi.nlm.nih.gov/pmc/blobs/b194/{PMCID_DIGITS}/aa45e06da37a/{GR1}"
 )
 CDN_GR2 = (
-    f"https://cdn.ncbi.nlm.nih.gov/pmc/blobs/b194/{PMCID_DIGITS}"
-    f"/4b981b33c3d2/{GR2}"
+    f"https://cdn.ncbi.nlm.nih.gov/pmc/blobs/b194/{PMCID_DIGITS}/4b981b33c3d2/{GR2}"
 )
 
 JPG_BYTES1 = b"\xff\xd8\xff\xe0\x00\x10JFIF" + b"\x01" * 64
@@ -56,6 +54,7 @@ JPG_BYTES2 = b"\xff\xd8\xff\xe0\x00\x10JFIF" + b"\x02" * 64
 # ---------------------------------------------------------------------------
 # Fake response + session
 # ---------------------------------------------------------------------------
+
 
 class FakeResp:
     """Minimal stand-in for a ``requests.Response``."""
@@ -113,12 +112,10 @@ class FakeSession:
     def get(self, url: str, **kwargs):
         self.calls.append({"url": url, **kwargs})
         if self._raise_exc is not None:
-            if self._raise_exc_after is None or \
-                    len(self.calls) > self._raise_exc_after:
+            if self._raise_exc_after is None or len(self.calls) > self._raise_exc_after:
                 raise self._raise_exc
         if not self._responses:
-            raise AssertionError(
-                f"FakeSession.get called more than queued ({url})")
+            raise AssertionError(f"FakeSession.get called more than queued ({url})")
         return self._responses.pop(0)
 
 
@@ -141,6 +138,7 @@ def _reset_state():
 # Builders
 # ---------------------------------------------------------------------------
 
+
 def _landing_html(*figures: tuple[str, str], off_host: bool = False) -> bytes:
     """Build a minimal landing page HTML containing ``<img>`` tags.
 
@@ -148,12 +146,9 @@ def _landing_html(*figures: tuple[str, str], off_host: bool = False) -> bytes:
     given CDN URL.  ``off_host=True`` also injects an ``<img>`` from
     ``example.com`` so the host-filter test can confirm it's excluded.
     """
-    figure_tags = "".join(
-        f'<img alt="Fig" src="{url}"/>' for _name, url in figures
-    )
+    figure_tags = "".join(f'<img alt="Fig" src="{url}"/>' for _name, url in figures)
     extra = (
-        '<img alt="off-host" src="https://example.com/foo.png"/>'
-        if off_host else ""
+        '<img alt="off-host" src="https://example.com/foo.png"/>' if off_host else ""
     )
     html = (
         "<html><head><title>Test</title></head><body>"
@@ -164,19 +159,23 @@ def _landing_html(*figures: tuple[str, str], off_host: bool = False) -> bytes:
     return html.encode("utf-8")
 
 
-def _landing_resp(*figures: tuple[str, str],
-                  status: int = 200,
-                  off_host: bool = False) -> FakeResp:
+def _landing_resp(
+    *figures: tuple[str, str], status: int = 200, off_host: bool = False
+) -> FakeResp:
     return FakeResp(
         status=status,
         headers={"Content-Type": "text/html; charset=utf-8"},
-        body=(_landing_html(*figures, off_host=off_host)
-              if status == 200 else b"<html>err</html>"),
+        body=(
+            _landing_html(*figures, off_host=off_host)
+            if status == 200
+            else b"<html>err</html>"
+        ),
     )
 
 
-def _image_resp(body: bytes = JPG_BYTES1, status: int = 200,
-                content_type: str = "image/jpeg") -> FakeResp:
+def _image_resp(
+    body: bytes = JPG_BYTES1, status: int = 200, content_type: str = "image/jpeg"
+) -> FakeResp:
     return FakeResp(
         status=status,
         headers={"Content-Type": content_type},
@@ -188,20 +187,21 @@ def _image_resp(body: bytes = JPG_BYTES1, status: int = 200,
 # Landing-page URL map parser  (_fetch_image_url_map + _IMG_SRC_RE)
 # ---------------------------------------------------------------------------
 
-class TestFetchImageUrlMap:
 
+class TestFetchImageUrlMap:
     def test_parses_cdn_img_srcs(self) -> None:
-        sess = FakeSession(responses=[_landing_resp((GR1, CDN_GR1),
-                                                    (GR2, CDN_GR2))])
+        sess = FakeSession(responses=[_landing_resp((GR1, CDN_GR1), (GR2, CDN_GR2))])
         url_map = P._fetch_image_url_map(PMCID, session=sess)
         assert url_map == {GR1: CDN_GR1, GR2: CDN_GR2}
 
     def test_filters_out_non_cdn_hosts(self) -> None:
         # Landing page carries an off-host PNG alongside a cdn
         # figure.  Only the cdn figure should appear in the map.
-        sess = FakeSession(responses=[
-            _landing_resp((GR1, CDN_GR1), off_host=True),
-        ])
+        sess = FakeSession(
+            responses=[
+                _landing_resp((GR1, CDN_GR1), off_host=True),
+            ]
+        )
         url_map = P._fetch_image_url_map(PMCID, session=sess)
         assert url_map == {GR1: CDN_GR1}
         for url in url_map.values():
@@ -209,11 +209,15 @@ class TestFetchImageUrlMap:
 
     def test_returns_empty_dict_when_no_figures(self) -> None:
         # 200 with HTML that has no matching <img> tags.
-        sess = FakeSession(responses=[FakeResp(
-            status=200,
-            headers={"Content-Type": "text/html"},
-            body=b"<html><body><p>nothing here</p></body></html>",
-        )])
+        sess = FakeSession(
+            responses=[
+                FakeResp(
+                    status=200,
+                    headers={"Content-Type": "text/html"},
+                    body=b"<html><body><p>nothing here</p></body></html>",
+                )
+            ]
+        )
         url_map = P._fetch_image_url_map(PMCID, session=sess)
         assert url_map == {}
 
@@ -244,11 +248,16 @@ class TestFetchImageUrlMap:
 
     def test_oversize_returns_none(self) -> None:
         big = b"<html>" + b"\x00" * 6000 + b"</html>"
-        sess = FakeSession(responses=[FakeResp(
-            status=200,
-            headers={"Content-Type": "text/html"},
-            body=big, chunk_size=1024,
-        )])
+        sess = FakeSession(
+            responses=[
+                FakeResp(
+                    status=200,
+                    headers={"Content-Type": "text/html"},
+                    body=big,
+                    chunk_size=1024,
+                )
+            ]
+        )
         url_map = P._fetch_image_url_map(PMCID, session=sess, max_bytes=2048)
         assert url_map is None
 
@@ -274,60 +283,75 @@ class TestFetchImageUrlMap:
 # Happy paths through fetch_image
 # ---------------------------------------------------------------------------
 
-class TestFetchImageSuccess:
 
+class TestFetchImageSuccess:
     def test_two_stage_fetch_returns_bytes(self) -> None:
-        sess = FakeSession(responses=[
-            _landing_resp((GR1, CDN_GR1)),
-            _image_resp(JPG_BYTES1),
-        ])
+        sess = FakeSession(
+            responses=[
+                _landing_resp((GR1, CDN_GR1)),
+                _image_resp(JPG_BYTES1),
+            ]
+        )
         r = P.fetch_image(PMCID, GR1, session=sess)
         assert r == JPG_BYTES1
 
     def test_image_url_comes_from_landing_page(self) -> None:
-        sess = FakeSession(responses=[
-            _landing_resp((GR1, CDN_GR1)),
-            _image_resp(JPG_BYTES1),
-        ])
+        sess = FakeSession(
+            responses=[
+                _landing_resp((GR1, CDN_GR1)),
+                _image_resp(JPG_BYTES1),
+            ]
+        )
         P.fetch_image(PMCID, GR1, session=sess)
         # Call 1: landing page on new pmc subdomain.  Call 2: CDN.
         assert sess.calls[0]["url"] == f"https://pmc.ncbi.nlm.nih.gov/articles/{PMCID}/"
         assert sess.calls[1]["url"] == CDN_GR1
 
     def test_content_type_parameters_stripped_on_image(self) -> None:
-        sess = FakeSession(responses=[
-            _landing_resp((GR1, CDN_GR1)),
-            FakeResp(status=200,
-                     headers={"Content-Type": "image/jpeg; charset=binary"},
-                     body=JPG_BYTES1),
-        ])
+        sess = FakeSession(
+            responses=[
+                _landing_resp((GR1, CDN_GR1)),
+                FakeResp(
+                    status=200,
+                    headers={"Content-Type": "image/jpeg; charset=binary"},
+                    body=JPG_BYTES1,
+                ),
+            ]
+        )
         assert P.fetch_image(PMCID, GR1, session=sess) == JPG_BYTES1
 
     def test_second_figure_reuses_cached_landing(self) -> None:
         # First call: 2 HTTPs (landing + image).  Second call for a
         # different figure on the same PMCID: 1 HTTP (image only)
         # because the landing-page parse is cached.
-        sess = FakeSession(responses=[
-            _landing_resp((GR1, CDN_GR1), (GR2, CDN_GR2)),
-            _image_resp(JPG_BYTES1),
-            _image_resp(JPG_BYTES2),
-        ])
+        sess = FakeSession(
+            responses=[
+                _landing_resp((GR1, CDN_GR1), (GR2, CDN_GR2)),
+                _image_resp(JPG_BYTES1),
+                _image_resp(JPG_BYTES2),
+            ]
+        )
         assert P.fetch_image(PMCID, GR1, session=sess) == JPG_BYTES1
         assert P.fetch_image(PMCID, GR2, session=sess) == JPG_BYTES2
         # Three total calls: landing once + two images.
         assert len(sess.calls) == 3
         urls = [c["url"] for c in sess.calls]
-        assert urls == [f"https://pmc.ncbi.nlm.nih.gov/articles/{PMCID}/",
-                        CDN_GR1, CDN_GR2]
+        assert urls == [
+            f"https://pmc.ncbi.nlm.nih.gov/articles/{PMCID}/",
+            CDN_GR1,
+            CDN_GR2,
+        ]
 
     def test_canonicalises_pmcid_for_lookup(self) -> None:
         # Non-canonical input should still produce a successful
         # fetch — the landing URL gets canonicalised inside
         # _fetch_image_url_map.
-        sess = FakeSession(responses=[
-            _landing_resp((GR1, CDN_GR1)),
-            _image_resp(JPG_BYTES1),
-        ])
+        sess = FakeSession(
+            responses=[
+                _landing_resp((GR1, CDN_GR1)),
+                _image_resp(JPG_BYTES1),
+            ]
+        )
         assert P.fetch_image("4097944", GR1, session=sess) == JPG_BYTES1
 
 
@@ -335,8 +359,8 @@ class TestFetchImageSuccess:
 # Failure shapes — all return None
 # ---------------------------------------------------------------------------
 
-class TestFetchImageFailures:
 
+class TestFetchImageFailures:
     def test_invalid_pmcid_short_circuits_no_request(self) -> None:
         sess = FakeSession()
         assert P.fetch_image("not-a-pmcid", GR1, session=sess) is None
@@ -375,39 +399,50 @@ class TestFetchImageFailures:
         assert len(sess.calls) == 1
 
     def test_image_404_returns_none(self) -> None:
-        sess = FakeSession(responses=[
-            _landing_resp((GR1, CDN_GR1)),
-            _image_resp(status=404, content_type="text/html",
-                        body=b"not found"),
-        ])
+        sess = FakeSession(
+            responses=[
+                _landing_resp((GR1, CDN_GR1)),
+                _image_resp(status=404, content_type="text/html", body=b"not found"),
+            ]
+        )
         assert P.fetch_image(PMCID, GR1, session=sess) is None
 
     def test_image_non_image_content_type_returns_none(self) -> None:
-        sess = FakeSession(responses=[
-            _landing_resp((GR1, CDN_GR1)),
-            _image_resp(status=200, content_type="text/html",
-                        body=b"<html>err</html>"),
-        ])
+        sess = FakeSession(
+            responses=[
+                _landing_resp((GR1, CDN_GR1)),
+                _image_resp(
+                    status=200, content_type="text/html", body=b"<html>err</html>"
+                ),
+            ]
+        )
         assert P.fetch_image(PMCID, GR1, session=sess) is None
 
     def test_image_octet_stream_returns_none(self) -> None:
-        sess = FakeSession(responses=[
-            _landing_resp((GR1, CDN_GR1)),
-            _image_resp(status=200, content_type="application/octet-stream",
-                        body=JPG_BYTES1),
-        ])
+        sess = FakeSession(
+            responses=[
+                _landing_resp((GR1, CDN_GR1)),
+                _image_resp(
+                    status=200, content_type="application/octet-stream", body=JPG_BYTES1
+                ),
+            ]
+        )
         assert P.fetch_image(PMCID, GR1, session=sess) is None
 
     def test_image_oversize_returns_none(self) -> None:
         big = b"\x00" * 4096
-        sess = FakeSession(responses=[
-            _landing_resp((GR1, CDN_GR1)),
-            FakeResp(status=200,
-                     headers={"Content-Type": "image/jpeg"},
-                     body=big, chunk_size=1024),
-        ])
-        assert P.fetch_image(PMCID, GR1, session=sess,
-                             max_bytes=2048) is None
+        sess = FakeSession(
+            responses=[
+                _landing_resp((GR1, CDN_GR1)),
+                FakeResp(
+                    status=200,
+                    headers={"Content-Type": "image/jpeg"},
+                    body=big,
+                    chunk_size=1024,
+                ),
+            ]
+        )
+        assert P.fetch_image(PMCID, GR1, session=sess, max_bytes=2048) is None
 
     def test_image_network_error_returns_none(self) -> None:
         # First call (landing) succeeds; second call (image) raises.
@@ -420,19 +455,24 @@ class TestFetchImageFailures:
         assert P.fetch_image(PMCID, GR1, session=sess) is None
 
     def test_image_stream_exception_returns_none(self) -> None:
-        sess = FakeSession(responses=[
-            _landing_resp((GR1, CDN_GR1)),
-            FakeResp(status=200,
-                     headers={"Content-Type": "image/jpeg"},
-                     body=b"x",
-                     stream_error=requests.ConnectionError("reset mid-stream")),
-        ])
+        sess = FakeSession(
+            responses=[
+                _landing_resp((GR1, CDN_GR1)),
+                FakeResp(
+                    status=200,
+                    headers={"Content-Type": "image/jpeg"},
+                    body=b"x",
+                    stream_error=requests.ConnectionError("reset mid-stream"),
+                ),
+            ]
+        )
         assert P.fetch_image(PMCID, GR1, session=sess) is None
 
 
 # ---------------------------------------------------------------------------
 # Throttle sharing with lookup_by_pmcid
 # ---------------------------------------------------------------------------
+
 
 class TestThrottleSharing:
     """``fetch_image`` shares the per-host throttle map with
@@ -442,10 +482,12 @@ class TestThrottleSharing:
     only records once for the image."""
 
     def test_records_host_timestamp(self) -> None:
-        sess = FakeSession(responses=[
-            _landing_resp((GR1, CDN_GR1)),
-            _image_resp(JPG_BYTES1),
-        ])
+        sess = FakeSession(
+            responses=[
+                _landing_resp((GR1, CDN_GR1)),
+                _image_resp(JPG_BYTES1),
+            ]
+        )
         P.fetch_image(PMCID, GR1, session=sess)
         assert "ncbi.nlm.nih.gov" in P._last_call
 
@@ -453,22 +495,25 @@ class TestThrottleSharing:
         # Two fetch_image calls for the same PMCID.  Cache hits on
         # the second landing fetch, so only 3 throttle events total:
         # landing(t=10.0), image(t=10.1), image(t=10.34).
-        sess = FakeSession(responses=[
-            _landing_resp((GR1, CDN_GR1), (GR2, CDN_GR2)),
-            _image_resp(JPG_BYTES1),
-            _image_resp(JPG_BYTES2),
-        ])
+        sess = FakeSession(
+            responses=[
+                _landing_resp((GR1, CDN_GR1), (GR2, CDN_GR2)),
+                _image_resp(JPG_BYTES1),
+                _image_resp(JPG_BYTES2),
+            ]
+        )
 
         # monotonic() is called twice inside _throttle per call.
         # Three calls × 2 reads = 6 monotonic readings needed; the
         # first reading at t=10.0 sees gap=10.0 (no sleep, records
         # 10.0), second at 10.1 sees gap=0.1 (sleeps 0.24 to reach
         # 0.34), third at 10.34 sees gap=0.24 (sleeps 0.10).
-        with patch.object(P.time, "sleep") as fake_sleep, \
-             patch.object(P.time, "monotonic",
-                          side_effect=[10.0, 10.0,
-                                       10.1, 10.34,
-                                       10.34, 10.44]):
+        with (
+            patch.object(P.time, "sleep") as fake_sleep,
+            patch.object(
+                P.time, "monotonic", side_effect=[10.0, 10.0, 10.1, 10.34, 10.34, 10.44]
+            ),
+        ):
             P.fetch_image(PMCID, GR1, session=sess)
             P.fetch_image(PMCID, GR2, session=sess)
 
@@ -514,11 +559,11 @@ OA_XML_PDF_MISSING = """\
 
 
 class TestNormaliseOaHref:
-
     def test_ftp_scheme_promoted_to_https(self):
-        assert P._normalise_oa_href(
-            "ftp://ftp.ncbi.nlm.nih.gov/pub/pmc/oa_pdf/x/y/z.pdf"
-        ) == "https://ftp.ncbi.nlm.nih.gov/pub/pmc/oa_pdf/x/y/z.pdf"
+        assert (
+            P._normalise_oa_href("ftp://ftp.ncbi.nlm.nih.gov/pub/pmc/oa_pdf/x/y/z.pdf")
+            == "https://ftp.ncbi.nlm.nih.gov/pub/pmc/oa_pdf/x/y/z.pdf"
+        )
 
     def test_https_passes_through(self):
         assert P._normalise_oa_href("https://x/y.pdf") == "https://x/y.pdf"
@@ -533,6 +578,7 @@ def _stub_requests_get(monkeypatch, *, text: str, status: int = 200):
     a FakeResp-shaped object exposing the attributes lookup_oa_pdf_url
     relies on (status_code, text).
     """
+
     class _Resp:
         def __init__(self) -> None:
             self.status_code = status
@@ -549,7 +595,6 @@ def _stub_requests_get(monkeypatch, *, text: str, status: int = 200):
 
 
 class TestLookupOaPdfUrl:
-
     def test_oa_hit_returns_https_pdf_url(self, tmp_path: Path, monkeypatch):
         _stub_requests_get(monkeypatch, text=OA_XML_PDF_OK)
         out = P.lookup_oa_pdf_url("PMC4097944", tmp_path)
@@ -561,9 +606,9 @@ class TestLookupOaPdfUrl:
         _stub_requests_get(monkeypatch, text=OA_XML_NOT_OA)
         assert P.lookup_oa_pdf_url("PMC4598943", tmp_path) is None
 
-    def test_oa_response_without_pdf_link_returns_none(self,
-                                                       tmp_path: Path,
-                                                       monkeypatch):
+    def test_oa_response_without_pdf_link_returns_none(
+        self, tmp_path: Path, monkeypatch
+    ):
         _stub_requests_get(monkeypatch, text=OA_XML_PDF_MISSING)
         assert P.lookup_oa_pdf_url("PMC0000000", tmp_path) is None
 
@@ -586,11 +631,12 @@ class TestLookupOaPdfUrl:
         P.lookup_oa_pdf_url("PMC4097944", tmp_path)
         assert len(calls) == 1
 
-    def test_network_error_returns_none_and_does_not_cache(self,
-                                                            tmp_path: Path,
-                                                            monkeypatch):
+    def test_network_error_returns_none_and_does_not_cache(
+        self, tmp_path: Path, monkeypatch
+    ):
         def fake_get(url, **kwargs):
             raise requests.ConnectionError("DNS failure")
+
         monkeypatch.setattr(P.requests, "get", fake_get)
         assert P.lookup_oa_pdf_url("PMC4097944", tmp_path) is None
         # Now swap to a working stub — the second call should hit

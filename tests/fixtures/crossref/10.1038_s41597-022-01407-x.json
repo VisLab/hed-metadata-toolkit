@@ -1,0 +1,15 @@
+{
+  "author": [
+    {
+      "family": "Markiewicz",
+      "given": "Christopher J."
+    }
+  ],
+  "title": ["OpenNeuro: An open resource for sharing of neuroimaging data"],
+  "published": {
+    "date-parts": [[2021, 5, 24]]
+  },
+  "published-print": {
+    "date-parts": [[2021, 5, 24]]
+  }
+}

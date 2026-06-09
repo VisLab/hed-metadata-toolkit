@@ -21,6 +21,7 @@ import argparse
 import csv
 import re
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 
 _SRC = Path(__file__).resolve().parent
@@ -35,9 +36,18 @@ from hed_metadata_toolkit.citation_normalize import (  # noqa: E402
 
 
 REGISTRY_COLUMNS = [
-    "citation_id", "doi", "url", "source_link",
-    "pub_id", "first_author_family", "year", "title",
-    "status", "metadata_source", "verified_on", "notes",
+    "citation_id",
+    "doi",
+    "url",
+    "source_link",
+    "pub_id",
+    "first_author_family",
+    "year",
+    "title",
+    "status",
+    "metadata_source",
+    "verified_on",
+    "notes",
 ]
 
 MAPPING_COLUMNS = ["dataset_id", "citation_id", "raw_link", "UnlinkedAck"]
@@ -76,7 +86,10 @@ def read_tsv(path: Path) -> list[dict]:
 def write_tsv(path: Path, rows: list[dict], columns: list[str]) -> None:
     with path.open("w", encoding="utf-8", newline="") as f:
         writer = csv.DictWriter(
-            f, fieldnames=columns, delimiter="\t", lineterminator="\n",
+            f,
+            fieldnames=columns,
+            delimiter="\t",
+            lineterminator="\n",
         )
         writer.writeheader()
         for row in rows:
@@ -126,7 +139,8 @@ def assign(
     # so neither the primary key (doi) nor the secondary key (source_link URL)
     # can be recovered from the registry row alone.
     valid_cit_ids: set[str] = {
-        r["citation_id"] for r in registry_rows
+        r["citation_id"]
+        for r in registry_rows
         if _CIT_ID_RE.match(r.get("citation_id", ""))
     }
 
@@ -192,6 +206,66 @@ def assign(
     return registry_rows, mapping_rows, new_count
 
 
+# ---------------------------------------------------------------------------
+# Library API
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class AssignmentResult:
+    """Outcome of :func:`run_assignment`."""
+
+    registry: list[dict]
+    mapping: list[dict]
+    new_count: int
+    written: bool
+
+
+def run_assignment(
+    *,
+    registry_path: Path,
+    citations_path: Path,
+    skip_list_path: Path,
+    write_back: bool = False,
+) -> AssignmentResult:
+    """Idempotently assign ``cit_######`` IDs to new registry rows.
+
+    Library entry point.  Loads both files, runs the assigner, and
+    optionally writes the results back to disk.
+
+    Parameters
+    ----------
+    registry_path
+        Path to ``citation_registry.tsv``.
+    citations_path
+        Path to ``dataset_citations.tsv`` (the mapping file).
+    skip_list_path
+        Path to ``citation_skip_list.txt``.
+    write_back
+        If True, persist the updated registry + mapping to their
+        respective paths.
+    """
+    registry, mapping, new_count = assign(
+        registry_path,
+        citations_path,
+        skip_list_path,
+    )
+    if write_back:
+        write_tsv(registry_path, registry, REGISTRY_COLUMNS)
+        write_tsv(citations_path, mapping, MAPPING_COLUMNS)
+    return AssignmentResult(
+        registry=registry,
+        mapping=mapping,
+        new_count=new_count,
+        written=write_back,
+    )
+
+
+# ---------------------------------------------------------------------------
+# CLI
+# ---------------------------------------------------------------------------
+
+
 def parse_args() -> argparse.Namespace:
     repo_root = Path(__file__).resolve().parent.parent
     parser = argparse.ArgumentParser(
@@ -199,49 +273,61 @@ def parse_args() -> argparse.Namespace:
     )
     group = parser.add_mutually_exclusive_group()
     group.add_argument(
-        "--dry-run", action="store_true", default=False,
+        "--dry-run",
+        action="store_true",
+        default=False,
         help="Show what would happen without writing files (default).",
     )
     group.add_argument(
-        "--write-back", action="store_true", default=False,
+        "--write-back",
+        action="store_true",
+        default=False,
         help="Write updated registry and mapping file.",
     )
     parser.add_argument(
-        "--registry", type=Path,
-        default=(repo_root / "datasets" / "dataset_summaries"
-                 / "citation_registry.tsv"),
+        "--registry",
+        type=Path,
+        default=(
+            repo_root / "datasets" / "dataset_summaries" / "citation_registry.tsv"
+        ),
     )
     parser.add_argument(
-        "--citations", type=Path,
-        default=(repo_root / "datasets" / "dataset_summaries"
-                 / "dataset_citations.tsv"),
+        "--citations",
+        type=Path,
+        default=(
+            repo_root / "datasets" / "dataset_summaries" / "dataset_citations.tsv"
+        ),
     )
     parser.add_argument(
-        "--skip-list", type=Path,
+        "--skip-list",
+        type=Path,
         default=repo_root / "config" / "citation_skip_list.txt",
     )
     return parser.parse_args()
 
 
 def main() -> int:
+    """Argparse wrapper around :func:`run_assignment`."""
     args = parse_args()
-    write = args.write_back
 
     print(f"Registry:  {args.registry}")
     print(f"Citations: {args.citations}")
     print(f"Skip-list: {args.skip_list}")
-    print(f"Mode:      {'WRITE-BACK' if write else 'DRY-RUN'}")
+    print(f"Mode:      {'WRITE-BACK' if args.write_back else 'DRY-RUN'}")
     print()
 
-    registry, mapping, new_count = assign(args.registry, args.citations, args.skip_list)
+    result = run_assignment(
+        registry_path=args.registry,
+        citations_path=args.citations,
+        skip_list_path=args.skip_list,
+        write_back=args.write_back,
+    )
 
-    print(f"New IDs assigned:  {new_count}")
-    print(f"Registry rows:     {len(registry)}")
-    print(f"Mapping rows:      {len(mapping)}")
+    print(f"New IDs assigned:  {result.new_count}")
+    print(f"Registry rows:     {len(result.registry)}")
+    print(f"Mapping rows:      {len(result.mapping)}")
 
-    if write:
-        write_tsv(args.registry, registry, REGISTRY_COLUMNS)
-        write_tsv(args.citations, mapping, MAPPING_COLUMNS)
+    if result.written:
         print(f"\nWrote {args.registry}")
         print(f"Wrote {args.citations}")
     else:
@@ -251,4 +337,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    raise SystemExit(main())

@@ -36,15 +36,25 @@ TODAY = "2026-05-11"
 EMAIL = "hedannotation@gmail.com"
 
 COLUMNS = [
-    "citation_id", "doi", "url", "source_link", "pub_id",
-    "first_author_family", "year", "title",
-    "status", "metadata_source", "verified_on", "notes",
+    "citation_id",
+    "doi",
+    "url",
+    "source_link",
+    "pub_id",
+    "first_author_family",
+    "year",
+    "title",
+    "status",
+    "metadata_source",
+    "verified_on",
+    "notes",
 ]
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _row(
     cit: str,
@@ -137,14 +147,24 @@ def _cr_item(doi: str, title: str, family: str, year: int) -> dict:
 # Tests: JSON shape
 # ---------------------------------------------------------------------------
 
+
 def test_entry_has_eight_required_fields(tmp_path):
     """Every emitted entry must have the 8 required fields."""
     reg = _reg(_row("cit_000001", url="https://example.com"))
-    entries = generate_queue(reg, tmp_path, TODAY, include_hints=False, limit=None, email=EMAIL)
+    entries = generate_queue(
+        reg, tmp_path, TODAY, include_hints=False, limit=None, email=EMAIL
+    )
     assert len(entries) == 1
     e = entries[0]
-    for field in ("citation_id", "url", "status", "doi", "resolved_url",
-                  "notes", "manual_fill"):
+    for field in (
+        "citation_id",
+        "url",
+        "status",
+        "doi",
+        "resolved_url",
+        "notes",
+        "manual_fill",
+    ):
         assert field in e, f"Field {field!r} missing from entry"
     assert e["citation_id"] == "cit_000001"
     assert e["status"] == "needs_review"
@@ -155,7 +175,9 @@ def test_entry_has_eight_required_fields(tmp_path):
 def test_url_field_falls_back_to_doi_prefix(tmp_path):
     """When url is empty but doi is set, url field is 'doi:<doi>'."""
     reg = _reg(_row("cit_000002", doi="10.1000/test"))
-    entries = generate_queue(reg, tmp_path, TODAY, include_hints=False, limit=None, email=EMAIL)
+    entries = generate_queue(
+        reg, tmp_path, TODAY, include_hints=False, limit=None, email=EMAIL
+    )
     assert entries[0]["url"] == "doi:10.1000/test"
     assert entries[0]["doi"] == "10.1000/test"
 
@@ -163,7 +185,9 @@ def test_url_field_falls_back_to_doi_prefix(tmp_path):
 def test_doi_field_is_null_when_empty(tmp_path):
     """doi field is None (not empty string) when no doi in registry."""
     reg = _reg(_row("cit_000003", url="https://example.com"))
-    entries = generate_queue(reg, tmp_path, TODAY, include_hints=False, limit=None, email=EMAIL)
+    entries = generate_queue(
+        reg, tmp_path, TODAY, include_hints=False, limit=None, email=EMAIL
+    )
     assert entries[0]["doi"] is None
 
 
@@ -171,13 +195,16 @@ def test_doi_field_is_null_when_empty(tmp_path):
 # Tests: row filtering
 # ---------------------------------------------------------------------------
 
+
 def test_pub_id_set_row_excluded(tmp_path):
     """Rows with pub_id non-empty are excluded from the queue."""
     reg = _reg(
         _row("cit_000001", url="https://example.com", pub_id="pub_abc12345"),
         _row("cit_000002", url="https://example.com"),
     )
-    entries = generate_queue(reg, tmp_path, TODAY, include_hints=False, limit=None, email=EMAIL)
+    entries = generate_queue(
+        reg, tmp_path, TODAY, include_hints=False, limit=None, email=EMAIL
+    )
     assert len(entries) == 1
     assert entries[0]["citation_id"] == "cit_000002"
 
@@ -188,7 +215,9 @@ def test_rejected_row_excluded(tmp_path):
         _row("cit_000001", url="https://example.com", status="rejected"),
         _row("cit_000002", url="https://example.com"),
     )
-    entries = generate_queue(reg, tmp_path, TODAY, include_hints=False, limit=None, email=EMAIL)
+    entries = generate_queue(
+        reg, tmp_path, TODAY, include_hints=False, limit=None, email=EMAIL
+    )
     assert len(entries) == 1
     assert entries[0]["citation_id"] == "cit_000002"
 
@@ -199,7 +228,9 @@ def test_not_a_citation_row_excluded(tmp_path):
         _row("cit_000001", url="https://example.com", status="not_a_citation"),
         _row("cit_000002", url="https://example.com"),
     )
-    entries = generate_queue(reg, tmp_path, TODAY, include_hints=False, limit=None, email=EMAIL)
+    entries = generate_queue(
+        reg, tmp_path, TODAY, include_hints=False, limit=None, email=EMAIL
+    )
     assert len(entries) == 1
     assert entries[0]["citation_id"] == "cit_000002"
 
@@ -210,7 +241,9 @@ def test_resolved_row_excluded(tmp_path):
         _row("cit_000001", url="https://example.com", status="resolved"),
         _row("cit_000002", url="https://example.com"),
     )
-    entries = generate_queue(reg, tmp_path, TODAY, include_hints=False, limit=None, email=EMAIL)
+    entries = generate_queue(
+        reg, tmp_path, TODAY, include_hints=False, limit=None, email=EMAIL
+    )
     assert len(entries) == 1
     assert entries[0]["citation_id"] == "cit_000002"
 
@@ -221,7 +254,9 @@ def test_row_without_url_or_doi_excluded(tmp_path):
         _row("cit_000001"),  # no url, no doi
         _row("cit_000002", url="https://example.com"),
     )
-    entries = generate_queue(reg, tmp_path, TODAY, include_hints=False, limit=None, email=EMAIL)
+    entries = generate_queue(
+        reg, tmp_path, TODAY, include_hints=False, limit=None, email=EMAIL
+    )
     assert len(entries) == 1
     assert entries[0]["citation_id"] == "cit_000002"
 
@@ -229,6 +264,7 @@ def test_row_without_url_or_doi_excluded(tmp_path):
 # ---------------------------------------------------------------------------
 # Tests: --limit
 # ---------------------------------------------------------------------------
+
 
 def test_limit_truncates_output(tmp_path):
     """--limit N stops after N entries."""
@@ -239,13 +275,17 @@ def test_limit_truncates_output(tmp_path):
         _row("cit_000004", url="https://d.com"),
         _row("cit_000005", url="https://e.com"),
     )
-    entries = generate_queue(reg, tmp_path, TODAY, include_hints=False, limit=3, email=EMAIL)
+    entries = generate_queue(
+        reg, tmp_path, TODAY, include_hints=False, limit=3, email=EMAIL
+    )
     assert len(entries) == 3
 
 
 def test_limit_zero_gives_empty(tmp_path):
     reg = _reg(_row("cit_000001", url="https://a.com"))
-    entries = generate_queue(reg, tmp_path, TODAY, include_hints=False, limit=0, email=EMAIL)
+    entries = generate_queue(
+        reg, tmp_path, TODAY, include_hints=False, limit=0, email=EMAIL
+    )
     assert entries == []
 
 
@@ -253,16 +293,20 @@ def test_limit_zero_gives_empty(tmp_path):
 # Tests: hints absent when include_hints=False
 # ---------------------------------------------------------------------------
 
+
 def test_hints_absent_when_disabled(tmp_path):
     """No 'hints' key when include_hints=False."""
     reg = _reg(_row("cit_000001", url="https://osf.io/abc12"))
-    entries = generate_queue(reg, tmp_path, TODAY, include_hints=False, limit=None, email=EMAIL)
+    entries = generate_queue(
+        reg, tmp_path, TODAY, include_hints=False, limit=None, email=EMAIL
+    )
     assert "hints" not in entries[0]
 
 
 # ---------------------------------------------------------------------------
 # Tests: OSF hints (mocked cache)
 # ---------------------------------------------------------------------------
+
 
 def test_osf_hints_populated_from_cache(tmp_path):
     """OSF hints are populated when a node response is in the stable cache."""
@@ -276,13 +320,17 @@ def test_osf_hints_populated_from_cache(tmp_path):
 
     # Write a fake Crossref title-search cache
     title_key = f"crossref_title_search|{title.lower()}"
-    cr_response = _cr_search_response([
-        _cr_item("10.1038/s41597-021-01234-5", title, "Smith", 2021),
-    ])
+    cr_response = _cr_search_response(
+        [
+            _cr_item("10.1038/s41597-021-01234-5", title, "Smith", 2021),
+        ]
+    )
     _write_dated_cache(tmp_path, "crossref", title_key, cr_response, TODAY)
 
     reg = _reg(_row("cit_000001", url=f"https://osf.io/{guid}"))
-    entries = generate_queue(reg, tmp_path, TODAY, include_hints=True, limit=None, email=EMAIL)
+    entries = generate_queue(
+        reg, tmp_path, TODAY, include_hints=True, limit=None, email=EMAIL
+    )
 
     assert len(entries) == 1
     e = entries[0]
@@ -302,14 +350,25 @@ def test_osf_hints_crossref_candidates_filtered(tmp_path):
     _write_stable_cache(tmp_path, "osf", f"guid:{guid}", node_response)
 
     # One relevant item (high overlap), one irrelevant
-    relevant = _cr_item("10.1000/good", "Memory consolidation during sleep", "Jones", 2020)
-    irrelevant = _cr_item("10.1000/bad", "Completely unrelated paper on cats", "Baker", 2019)
+    relevant = _cr_item(
+        "10.1000/good", "Memory consolidation during sleep", "Jones", 2020
+    )
+    irrelevant = _cr_item(
+        "10.1000/bad", "Completely unrelated paper on cats", "Baker", 2019
+    )
     title_key = f"crossref_title_search|{title.lower()}"
-    _write_dated_cache(tmp_path, "crossref", title_key,
-                       _cr_search_response([relevant, irrelevant]), TODAY)
+    _write_dated_cache(
+        tmp_path,
+        "crossref",
+        title_key,
+        _cr_search_response([relevant, irrelevant]),
+        TODAY,
+    )
 
     reg = _reg(_row("cit_000001", url=f"https://osf.io/{guid}"))
-    entries = generate_queue(reg, tmp_path, TODAY, include_hints=True, limit=None, email=EMAIL)
+    entries = generate_queue(
+        reg, tmp_path, TODAY, include_hints=True, limit=None, email=EMAIL
+    )
     cands = entries[0].get("hints", {}).get("crossref_candidates", [])
     dois = [c["doi"] for c in cands]
     assert "10.1000/good" in dois
@@ -323,7 +382,9 @@ def test_osf_private_hint_for_cached_empty_guid(tmp_path):
     _write_stable_cache(tmp_path, "osf", f"guid:{guid}", {})
 
     reg = _reg(_row("cit_000001", url=f"https://osf.io/{guid}"))
-    entries = generate_queue(reg, tmp_path, TODAY, include_hints=True, limit=None, email=EMAIL)
+    entries = generate_queue(
+        reg, tmp_path, TODAY, include_hints=True, limit=None, email=EMAIL
+    )
     h = entries[0].get("hints", {})
     assert h.get("osf_private") is True
 
@@ -331,7 +392,9 @@ def test_osf_private_hint_for_cached_empty_guid(tmp_path):
 def test_no_osf_hints_when_not_in_cache(tmp_path):
     """No osf_ hints when the GUID has no cache entry (cache miss)."""
     reg = _reg(_row("cit_000001", url="https://osf.io/zzzzz"))
-    entries = generate_queue(reg, tmp_path, TODAY, include_hints=True, limit=None, email=EMAIL)
+    entries = generate_queue(
+        reg, tmp_path, TODAY, include_hints=True, limit=None, email=EMAIL
+    )
     h = entries[0].get("hints", {})
     # May have crossref_candidates if title is set, but no osf_* keys
     for key in ("osf_type", "osf_title", "osf_private", "osf_contributors"):
@@ -342,6 +405,7 @@ def test_no_osf_hints_when_not_in_cache(tmp_path):
 # Tests: date-stamped output filename
 # ---------------------------------------------------------------------------
 
+
 def test_date_stamped_output_filename(tmp_path, monkeypatch):
     """main() writes manual_review_<today>.json."""
     import generate_review_queue as grq  # noqa: PLC0415
@@ -350,18 +414,38 @@ def test_date_stamped_output_filename(tmp_path, monkeypatch):
     reg_path = tmp_path / "registry.tsv"
     with reg_path.open("w", encoding="utf-8") as fh:
         fh.write("\t".join(COLUMNS) + "\n")
-        fh.write("\t".join([
-            "cit_000001", "", "https://example.com", "", "", "", "", "",
-            "needs_review", "", "", "",
-        ]) + "\n")
+        fh.write(
+            "\t".join(
+                [
+                    "cit_000001",
+                    "",
+                    "https://example.com",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "needs_review",
+                    "",
+                    "",
+                    "",
+                ]
+            )
+            + "\n"
+        )
 
     out_path = tmp_path / f"manual_review_{TODAY}.json"
-    grq.main([
-        "--registry", str(reg_path),
-        "--output", str(out_path),
-        "--no-hints",
-        "--cache-dir", str(tmp_path),
-    ])
+    grq.main(
+        [
+            "--registry",
+            str(reg_path),
+            "--output",
+            str(out_path),
+            "--no-hints",
+            "--cache-dir",
+            str(tmp_path),
+        ]
+    )
 
     assert out_path.exists()
     data = json.loads(out_path.read_text())
@@ -372,6 +456,7 @@ def test_date_stamped_output_filename(tmp_path, monkeypatch):
 # ---------------------------------------------------------------------------
 # Tests: write_json_atomic round-trip
 # ---------------------------------------------------------------------------
+
 
 def test_write_json_atomic_round_trip(tmp_path):
     data = [{"citation_id": "cit_000001", "status": "needs_review"}]
@@ -385,6 +470,7 @@ def test_write_json_atomic_round_trip(tmp_path):
 # ---------------------------------------------------------------------------
 # Tests: _parse_osf_guid edge cases
 # ---------------------------------------------------------------------------
+
 
 def test_parse_osf_guid_simple():
     assert _parse_osf_guid("https://osf.io/abc12") == "abc12"
@@ -406,14 +492,30 @@ def test_parse_osf_guid_non_osf():
 # Tests: load_registry (smoke test)
 # ---------------------------------------------------------------------------
 
+
 def test_load_registry_reads_pending_row(tmp_path):
     reg_path = tmp_path / "registry.tsv"
     with reg_path.open("w", encoding="utf-8") as fh:
         fh.write("\t".join(COLUMNS) + "\n")
-        fh.write("\t".join([
-            "cit_000001", "10.1000/test", "", "", "", "", "", "",
-            "needs_review", "", "", "some note",
-        ]) + "\n")
+        fh.write(
+            "\t".join(
+                [
+                    "cit_000001",
+                    "10.1000/test",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "needs_review",
+                    "",
+                    "",
+                    "some note",
+                ]
+            )
+            + "\n"
+        )
     reg, cols = load_registry(reg_path)
     assert "cit_000001" in reg
     assert reg["cit_000001"]["doi"] == "10.1000/test"
