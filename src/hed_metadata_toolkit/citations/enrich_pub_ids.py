@@ -35,7 +35,7 @@ import os
 import re
 import sys
 import unicodedata
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 

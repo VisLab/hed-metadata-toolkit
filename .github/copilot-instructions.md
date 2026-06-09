@@ -5,6 +5,7 @@
 - Google-style docstrings; use `Parameters:` not `Args:`
 - Line length: 120 characters (configured in `pyproject.toml`)
 - Markdown headers use sentence case: capitalize only the first word (and proper nouns/acronyms)
+- **All imports must be at the module level** — no local imports inside functions. Place all imports at the top of the file
 
 ## Project overview
 

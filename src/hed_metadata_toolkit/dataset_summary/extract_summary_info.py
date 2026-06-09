@@ -38,8 +38,10 @@ The script expects repo_contents.json to exist. If you have not yet run
 sync_repo_contents.py, this script will exit with an error.
 """
 
+import argparse
 import json
-import os
+from pathlib import Path
+
 import pandas as pd
 from dotenv import load_dotenv
 
@@ -284,13 +286,11 @@ def run_extraction(
 
     Raises ``FileNotFoundError`` if neither candidate path exists.
     """
-    from pathlib import Path as _P
-
     if input_path is None:
-        if repo_contents_path and _P(repo_contents_path).exists():
-            input_path = _P(repo_contents_path)
-        elif legacy_repo_files_path and _P(legacy_repo_files_path).exists():
-            input_path = _P(legacy_repo_files_path)
+        if repo_contents_path and Path(repo_contents_path).exists():
+            input_path = Path(repo_contents_path)
+        elif legacy_repo_files_path and Path(legacy_repo_files_path).exists():
+            input_path = Path(legacy_repo_files_path)
         else:
             raise FileNotFoundError(
                 f"neither repo_contents path nor legacy fallback was found "
@@ -310,9 +310,6 @@ def run_extraction(
 
 def main(argv: "list[str] | None" = None) -> int:
     """Argparse wrapper around :func:`run_extraction`."""
-    import argparse
-    from pathlib import Path as _P
-
     load_dotenv()
 
     parser = argparse.ArgumentParser(
@@ -320,20 +317,20 @@ def main(argv: "list[str] | None" = None) -> int:
     )
     parser.add_argument(
         "--repo-contents",
-        type=_P,
-        default=_P("datasets/dataset_summaries/repo_contents.json"),
+        type=Path,
+        default=Path("datasets/dataset_summaries/repo_contents.json"),
         help="Path to the current-pipeline repo_contents.json.",
     )
     parser.add_argument(
         "--legacy-repo-files",
-        type=_P,
-        default=_P("datasets/dataset_summaries/repo_files.json"),
+        type=Path,
+        default=Path("datasets/dataset_summaries/repo_files.json"),
         help="Fallback path to the legacy repo_files.json.",
     )
     parser.add_argument(
         "--output",
-        type=_P,
-        default=_P("datasets/dataset_summaries/dataset_summary.tsv"),
+        type=Path,
+        default=Path("datasets/dataset_summaries/dataset_summary.tsv"),
         help="Destination path for the dataset summary TSV.",
     )
     args = parser.parse_args(argv)

@@ -1,5 +1,7 @@
+import argparse
+from pathlib import Path
+
 import pandas as pd
-import os
 from dotenv import load_dotenv
 
 
@@ -138,10 +140,8 @@ def run_sort(*, input_path: "Path | str", output_path: "Path | str") -> int:
     written.  Raises ``FileNotFoundError`` if ``input_path`` does
     not exist.
     """
-    from pathlib import Path as _P  # local import to avoid touching top imports
-
-    input_path = _P(input_path)
-    output_path = _P(output_path)
+    input_path = Path(input_path)
+    output_path = Path(output_path)
     if not input_path.exists():
         raise FileNotFoundError(f"input not found: {input_path}")
     dataset_df = read_dataset_summary(str(input_path))
@@ -159,9 +159,6 @@ def run_sort(*, input_path: "Path | str", output_path: "Path | str") -> int:
 
 def main(argv: "list[str] | None" = None) -> int:
     """Argparse wrapper around :func:`run_sort`."""
-    import argparse
-    from pathlib import Path as _P
-
     load_dotenv()
 
     parser = argparse.ArgumentParser(
@@ -169,14 +166,14 @@ def main(argv: "list[str] | None" = None) -> int:
     )
     parser.add_argument(
         "--input",
-        type=_P,
-        default=_P("datasets/dataset_summaries/dataset_summary_updated.tsv"),
-        help="Path to the updated dataset summary TSV.",
+        type=Path,
+        default=Path("datasets/dataset_summaries/dataset_summary.tsv"),
+        help="Path to the dataset_summary.tsv file.",
     )
     parser.add_argument(
         "--output",
-        type=_P,
-        default=_P("datasets/dataset_summaries/dataset_summary_sorted.tsv"),
+        type=Path,
+        default=Path("datasets/dataset_summaries/dataset_summary_sorted.tsv"),
         help="Destination path for the sorted TSV.",
     )
     args = parser.parse_args(argv)

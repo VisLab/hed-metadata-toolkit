@@ -1,6 +1,10 @@
-import pandas as pd
+import argparse
+from pathlib import Path
+
 import json
 import os
+
+import pandas as pd
 from dotenv import load_dotenv
 
 
@@ -277,10 +281,8 @@ def run_update(
 
     Raises ``FileNotFoundError`` if either input is missing.
     """
-    from pathlib import Path as _P
-
-    summary_path = _P(summary_path)
-    citations_path = _P(citations_path)
+    summary_path = Path(summary_path)
+    citations_path = Path(citations_path)
     if not summary_path.exists():
         raise FileNotFoundError(f"summary not found: {summary_path}")
     if not citations_path.exists():
@@ -303,9 +305,6 @@ def run_update(
 
 def main(argv: "list[str] | None" = None) -> int:
     """Argparse wrapper around :func:`run_update`."""
-    import argparse
-    from pathlib import Path as _P
-
     load_dotenv()
 
     parser = argparse.ArgumentParser(
@@ -313,23 +312,23 @@ def main(argv: "list[str] | None" = None) -> int:
     )
     parser.add_argument(
         "--summary",
-        type=_P,
-        default=_P("datasets/dataset_summaries/dataset_summary.tsv"),
+        type=Path,
+        default=Path("datasets/dataset_summaries/dataset_summary.tsv"),
     )
     parser.add_argument(
         "--citations",
-        type=_P,
-        default=_P("datasets/dataset_summaries/dataset_citations.tsv"),
+        type=Path,
+        default=Path("datasets/dataset_summaries/dataset_citations.tsv"),
     )
     parser.add_argument(
         "--datasets-dir",
-        type=_P,
-        default=_P("datasets/dataset_repos"),
+        type=Path,
+        default=Path("datasets/dataset_repos"),
     )
     parser.add_argument(
         "--output",
-        type=_P,
-        default=_P("datasets/dataset_summaries/dataset_summary_updated.tsv"),
+        type=Path,
+        default=Path("datasets/dataset_summaries/dataset_summary_updated.tsv"),
     )
     args = parser.parse_args(argv)
 

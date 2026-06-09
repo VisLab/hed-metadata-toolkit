@@ -1,7 +1,11 @@
-import requests
-import pandas as pd
-import time
+import argparse
+from pathlib import Path
+
 import os
+import time
+
+import pandas as pd
+import requests
 from dotenv import load_dotenv
 
 
@@ -92,15 +96,13 @@ def run_fetch(
         Optional GitHub personal-access token.  Falls back to
         ``$GITHUB_TOKEN`` if ``None``.
     """
-    from pathlib import Path as _P
-
     if token is None:
         token = os.environ.get("GITHUB_TOKEN")
     repos = get_github_organization_repositories(org_name, token=token)
     if not repos:
         return 0
     df = pd.DataFrame(repos, columns=["name", "updated_at"])
-    output_path = _P(output_path)
+    output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(output_path, sep="\t", index=False)
     return len(repos)
@@ -113,9 +115,6 @@ def run_fetch(
 
 def main(argv: "list[str] | None" = None) -> int:
     """Argparse wrapper around :func:`run_fetch`."""
-    import argparse
-    from pathlib import Path as _P
-
     load_dotenv()
 
     parser = argparse.ArgumentParser(
@@ -128,8 +127,8 @@ def main(argv: "list[str] | None" = None) -> int:
     )
     parser.add_argument(
         "--output",
-        type=_P,
-        default=_P("datasets/dataset_summaries/datasets.tsv"),
+        type=Path,
+        default=Path("datasets/dataset_summaries/datasets.tsv"),
         help="Destination TSV.",
     )
     parser.add_argument(

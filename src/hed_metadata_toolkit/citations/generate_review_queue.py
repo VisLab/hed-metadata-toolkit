@@ -43,9 +43,10 @@ import json
 import logging
 import os
 import re
-from dataclasses import dataclass
 import sys
+import time
 import unicodedata
+from dataclasses import dataclass
 from pathlib import Path
 
 # ---------------------------------------------------------------------------
@@ -61,6 +62,11 @@ if str(_SRC) not in sys.path:
 
 from hed_metadata_toolkit.cache import cache_get_or_fetch  # noqa: E402
 from hed_metadata_toolkit.clients.osf import extract_publication_metadata  # noqa: E402
+
+try:
+    import requests
+except ImportError as err:
+    raise ImportError("'requests' is required: pip install requests") from err
 
 logger = logging.getLogger(__name__)
 
@@ -215,8 +221,6 @@ def _build_osf_hints(url: str, cache_dir: Path) -> dict:
 
 
 def _throttle_crossref() -> None:
-    import time
-
     now = time.monotonic()
     gap = now - _cr_last[0]
     if gap < _CR_RATE_SEC:
@@ -240,13 +244,7 @@ def _crossref_title_search_items(
 
     def _fetch() -> dict | None:
         try:
-            import requests  # noqa: PLC0415  (local import to stay testable)
-        except ImportError:
-            logger.warning("'requests' not installed; cannot do Crossref title search")
-            return None
-
-        _throttle_crossref()
-        try:
+            _throttle_crossref()
             resp = requests.get(
                 f"{_CR_API_BASE}/works",
                 headers={"User-Agent": f"hed-task/1.0 (mailto:{email})"},
