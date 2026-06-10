@@ -98,7 +98,7 @@ src/hed_metadata_toolkit/
 │   ├── semanticscholar.py
 │   └── unpaywall.py
 │
-├── github_org/               # GitHub-organization dataset discovery
+├── github/               # GitHub-organization dataset discovery
 │   ├── fetch_repo_list.py    # list every ds* repo in the org
 │   ├── sync_repo_contents.py # GraphQL batch of top-level file listings
 │   ├── sync_local_files.py   # SHA-based download of top-level blobs

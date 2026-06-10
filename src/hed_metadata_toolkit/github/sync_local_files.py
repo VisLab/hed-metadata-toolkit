@@ -51,7 +51,6 @@ from dotenv import load_dotenv
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
-ORGANIZATION = "OpenNeuroDatasets"
 REST_URL = "https://api.github.com/repos/{org}/{repo}/contents/{path}"
 DEFAULT_WORKERS = 10
 DEFAULT_MAX_SIZE = 512 * 1024  # 512 KB
@@ -279,6 +278,7 @@ def sync_repo(
     failures_lock: threading.Lock,
     retry_failed: bool,
     workers: int,
+    organization: str = "OpenNeuroDatasets",
 ) -> dict:
     """Sync all blob entries for one repository. Returns stats dict."""
     repo_dir = os.path.join(datasets_dir, repo_name)
@@ -329,7 +329,7 @@ def sync_repo(
             return
 
         success, returned_sha, err = _download_file(
-            ORGANIZATION, repo_name, name, local_path, remote_sha, headers
+            organization, repo_name, name, local_path, remote_sha, headers
         )
 
         if success:
@@ -377,6 +377,7 @@ def sync_all(
     contents_path: str,
     datasets_dir: str,
     token: str | None,
+    organization: str = "OpenNeuroDatasets",
     test_repo: str | None = None,
     workers: int = DEFAULT_WORKERS,
     max_size: int = DEFAULT_MAX_SIZE,
@@ -525,6 +526,11 @@ def main(argv: "list[str] | None" = None) -> int:
         default=None,
         help="GitHub PAT (defaults to $GITHUB_TOKEN).",
     )
+    parser.add_argument(
+        "--org",
+        default="OpenNeuroDatasets",
+        help="GitHub organization name (default: OpenNeuroDatasets).",
+    )
     args = parser.parse_args(argv)
 
     token = args.token or os.environ.get("GITHUB_TOKEN")
@@ -535,6 +541,7 @@ def main(argv: "list[str] | None" = None) -> int:
         contents_path=args.contents,
         datasets_dir=args.datasets,
         token=token,
+        organization=args.org,
         test_repo=args.repo,
         workers=args.workers,
         max_size=args.max_size,

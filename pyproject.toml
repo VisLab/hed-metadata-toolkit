@@ -16,6 +16,7 @@ requires-python = ">=3.10"
 dependencies = [
     "requests>=2.28.0",
     "python-dotenv>=1.0.0",
+    "pandas>=1.5.0",
 ]
 
 [project.optional-dependencies]
@@ -34,9 +35,24 @@ dev = [
 ]
 
 [project.scripts]
-# CLI entry point — populate src/hed_metadata_toolkit/cli.py with the
-# subcommand dispatcher in a follow-up PR.
-# hed-metadata = "hed_metadata_toolkit.cli:main"
+# Pipeline steps, exposed as console commands so consumer repos
+# (openneuro-metadata, task-research, nemar-metadata) invoke the shared
+# implementation directly instead of vendoring wrapper scripts.
+# GitHub-org pipeline
+hed-fetch-repo-list        = "hed_metadata_toolkit.github.fetch_repo_list:main"
+hed-sync-repo-contents     = "hed_metadata_toolkit.github.sync_repo_contents:main"
+hed-sync-local-files       = "hed_metadata_toolkit.github.sync_local_files:main"
+hed-sync-repo-file-contents = "hed_metadata_toolkit.github.sync_repo_file_contents:main"
+# Dataset-summary builders
+hed-extract-summary-info   = "hed_metadata_toolkit.dataset_summary.extract_summary_info:main"
+hed-update-summary         = "hed_metadata_toolkit.dataset_summary.update_summary:main"
+hed-sort-datasets          = "hed_metadata_toolkit.dataset_summary.sort_datasets:main"
+# Citation pipeline
+hed-collect-citations      = "hed_metadata_toolkit.citations.collect_citations:main"
+hed-assign-citation-ids    = "hed_metadata_toolkit.citations.assign_citation_ids:main"
+hed-generate-review-queue  = "hed_metadata_toolkit.citations.generate_review_queue:main"
+hed-apply-manual-fills     = "hed_metadata_toolkit.citations.apply_manual_fills:main"
+hed-enrich-pub-ids         = "hed_metadata_toolkit.citations.enrich_pub_ids:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -90,4 +106,11 @@ quote-style = "double"
 indent-style = "space"
 skip-magic-trailing-comma = false
 line-ending = "auto"
+
+[tool.pytest.ini_options]
+# Pytest configuration
+minversion = "8.0"
+testpaths = ["tests"]
+addopts = "-v --tb=short"
+# --integration flag is defined in tests/integration/conftest.py
 

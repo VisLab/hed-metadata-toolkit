@@ -62,7 +62,6 @@ from dotenv import load_dotenv
 # Constants
 # ---------------------------------------------------------------------------
 GRAPHQL_URL = "https://api.github.com/graphql"
-ORGANIZATION = "OpenNeuroDatasets"
 BATCH_SIZE = 10  # repos per GraphQL request; large repos (many sub-* dirs) can
 # cause 502s with bigger batches — keep <=10 to stay under complexity limits
 RETRY_LIMIT = 4
@@ -336,6 +335,7 @@ def sync_repo_contents(
     tsv_path: str,
     out_path: str,
     token: str | None,
+    organization: str = "OpenNeuroDatasets",
     force: bool = False,
     retry_failed: bool = False,
     test_repo: str | None = None,
@@ -451,7 +451,7 @@ def sync_repo_contents(
         batch = to_fetch[start : start + BATCH_SIZE]
         print(f"\nBatch {batch_num}/{total_batches}: {batch}")
 
-        results = fetch_batch(batch, ORGANIZATION, headers)
+        results = fetch_batch(batch, organization, headers)
 
         for name, entries in results.items():
             if entries:
@@ -539,6 +539,11 @@ def main(argv: "list[str] | None" = None) -> int:
         help="Path to output repo_contents.json",
     )
     parser.add_argument(
+        "--org",
+        default="OpenNeuroDatasets",
+        help="GitHub organization name (default: OpenNeuroDatasets).",
+    )
+    parser.add_argument(
         "--token",
         default=None,
         help="GitHub PAT (defaults to $GITHUB_TOKEN).",
@@ -555,6 +560,7 @@ def main(argv: "list[str] | None" = None) -> int:
         tsv_path=args.tsv,
         out_path=args.out,
         token=token,
+        organization=args.org,
         force=args.force,
         retry_failed=args.retry_failed,
         test_repo=args.repo,

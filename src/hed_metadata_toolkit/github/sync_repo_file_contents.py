@@ -56,7 +56,6 @@ from dotenv import load_dotenv
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
-ORGANIZATION = "OpenNeuroDatasets"
 REST_URL = "https://api.github.com/repos/{org}/{repo}/contents/{path}"
 GIT_TREES_URL = "https://api.github.com/repos/{org}/{repo}/git/trees/{sha}"
 
@@ -431,6 +430,7 @@ def sync_repo(
     failures_lock: threading.Lock,
     retry_failed: bool,
     workers: int,
+    organization: str = "OpenNeuroDatasets",
 ) -> tuple[dict, dict | None]:
     """
     Sync one repository.
@@ -483,7 +483,7 @@ def sync_repo(
     # ------------------------------------------------------------------
     # 4. Fetch root tree to resolve the participant directory's tree SHA
     # ------------------------------------------------------------------
-    root_tree, err = _fetch_root_tree(ORGANIZATION, repo_name, headers)
+    root_tree, err = _fetch_root_tree(organization, repo_name, headers)
     if err:
         print(f"\n  Error fetching root tree: {err}")
         return stats, None
@@ -504,7 +504,7 @@ def sync_repo(
     # 5. Fetch recursive file listing for the participant directory
     # ------------------------------------------------------------------
     tree_entries, err = _fetch_recursive_tree(
-        ORGANIZATION, repo_name, participant_sha, headers
+        organization, repo_name, participant_sha, headers
     )
     if err:
         print(f"\n  Error fetching recursive tree: {err}")
@@ -569,7 +569,7 @@ def sync_repo(
             return
 
         success, returned_sha, dl_err = _download_file(
-            ORGANIZATION, repo_name, full_rel, local_path, headers
+            organization, repo_name, full_rel, local_path, headers
         )
 
         if success:
@@ -617,6 +617,7 @@ def sync_all(
     datasets_dir: str,
     out_path: str,
     token: str | None,
+    organization: str = "OpenNeuroDatasets",
     test_repo: str | None = None,
     workers: int = DEFAULT_WORKERS,
     force: bool = False,
@@ -783,6 +784,11 @@ def main(argv: "list[str] | None" = None) -> int:
         default=None,
         help="GitHub PAT (defaults to $GITHUB_TOKEN).",
     )
+    parser.add_argument(
+        "--org",
+        default="OpenNeuroDatasets",
+        help="GitHub organization name (default: OpenNeuroDatasets).",
+    )
     args = parser.parse_args(argv)
 
     token = args.token or os.environ.get("GITHUB_TOKEN")
@@ -794,6 +800,7 @@ def main(argv: "list[str] | None" = None) -> int:
         datasets_dir=args.datasets,
         out_path=args.out,
         token=token,
+        organization=args.org,
         test_repo=args.repo,
         workers=args.workers,
         force=args.force,

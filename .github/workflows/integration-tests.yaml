@@ -1,0 +1,63 @@
+name: Integration Tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      python-version:
+        description: 'Python version to test'
+        required: false
+        default: '3.12'
+        type: choice
+        options:
+          - '3.10'
+          - '3.11'
+          - '3.12'
+          - '3.13'
+          - '3.14'
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  integration:
+    name: Run Integration Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          submodules: true
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
+        with:
+          python-version: ${{ inputs.python-version || '3.12' }}
+          enable-cache: true
+          cache-dependency-glob: "**/pyproject.toml"
+
+      - name: Create virtual environment
+        run: |
+          uv venv --clear .venv
+          echo "$GITHUB_WORKSPACE/.venv/bin" >> $GITHUB_PATH
+
+      # Install dependencies
+      - name: Install dependencies
+        run: uv pip install -e ".[test]"
+
+      # Run integration tests
+      - name: Run integration tests
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          python -m pytest tests/integration/ --integration -v
+
+      # Print rate limit info
+      - name: Check rate limits
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          echo "Integration tests completed. Rate limits are tracked per-organization."
+          echo "GitHub API (REST): https://api.github.com/rate_limit"
+          echo "GraphQL API: Included in test output above"

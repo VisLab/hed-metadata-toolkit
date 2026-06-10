@@ -48,7 +48,7 @@
   - `sort_datasets.py`: Organize datasets by criteria
   - `update_summary.py`: Update dataset metadata
 
-- **`github_org/`**: GitHub organization management
+- **`github/`**: GitHub organization management
   - `fetch_repo_list.py`: List repositories in an organization
   - `sync_repo_contents.py`: Sync repository contents locally
   - `sync_local_files.py`: Sync local changes to remote
