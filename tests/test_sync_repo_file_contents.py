@@ -20,10 +20,7 @@ class TestParticipantIdReading:
         """Test reading participant IDs from valid TSV file."""
         tsv_file = tmp_path / "participants.tsv"
         tsv_file.write_text(
-            "participant_id\tage\tsex\n"
-            "sub-01\t25\tM\n"
-            "sub-02\t30\tF\n"
-            "sub-03\t28\tM\n"
+            "participant_id\tage\tsex\nsub-01\t25\tM\nsub-02\t30\tF\nsub-03\t28\tM\n"
         )
 
         result = _read_participant_ids(str(tsv_file))
@@ -41,11 +38,7 @@ class TestParticipantIdReading:
     def test_read_participant_ids_no_participant_column(self, tmp_path):
         """Test TSV without participant_id column."""
         tsv_file = tmp_path / "participants.tsv"
-        tsv_file.write_text(
-            "id\tage\tsex\n"
-            "001\t25\tM\n"
-            "002\t30\tF\n"
-        )
+        tsv_file.write_text("id\tage\tsex\n001\t25\tM\n002\t30\tF\n")
 
         result = _read_participant_ids(str(tsv_file))
 
@@ -54,11 +47,7 @@ class TestParticipantIdReading:
     def test_read_participant_ids_handles_whitespace(self, tmp_path):
         """Test that trailing whitespace is stripped."""
         tsv_file = tmp_path / "participants.tsv"
-        tsv_file.write_text(
-            "participant_id\tage\n"
-            "sub-01  \t25\n"
-            " sub-02 \t30\n"
-        )
+        tsv_file.write_text("participant_id\tage\nsub-01  \t25\n sub-02 \t30\n")
 
         result = _read_participant_ids(str(tsv_file))
 
@@ -67,12 +56,7 @@ class TestParticipantIdReading:
     def test_read_participant_ids_skips_empty(self, tmp_path):
         """Test that empty participant_id values are skipped."""
         tsv_file = tmp_path / "participants.tsv"
-        tsv_file.write_text(
-            "participant_id\tage\n"
-            "sub-01\t25\n"
-            "\t30\n"
-            "sub-02\t28\n"
-        )
+        tsv_file.write_text("participant_id\tage\nsub-01\t25\n\t30\nsub-02\t28\n")
 
         result = _read_participant_ids(str(tsv_file))
 
@@ -81,11 +65,7 @@ class TestParticipantIdReading:
     def test_read_participant_ids_participant_column_anywhere(self, tmp_path):
         """Test that participant_id column can be in any position."""
         tsv_file = tmp_path / "participants.tsv"
-        tsv_file.write_text(
-            "age\tparticipant_id\tsex\n"
-            "25\tsub-01\tM\n"
-            "30\tsub-02\tF\n"
-        )
+        tsv_file.write_text("age\tparticipant_id\tsex\n25\tsub-01\tM\n30\tsub-02\tF\n")
 
         result = _read_participant_ids(str(tsv_file))
 
@@ -309,7 +289,9 @@ class TestParticipantDirStructure:
 
         # Verify event files
         event_suffixes = ("_events.tsv", "_events.json")
-        event_files = [p for p in expected_paths if any(p.endswith(s) for s in event_suffixes)]
+        event_files = [
+            p for p in expected_paths if any(p.endswith(s) for s in event_suffixes)
+        ]
 
         assert len(event_files) == 3
         assert "sub-01_task-rest_events.tsv" in event_files[0]

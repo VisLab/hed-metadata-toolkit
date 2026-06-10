@@ -193,7 +193,7 @@ class TestFileDownloadLogic:
         # Remote file info from repo_contents.json
         remote_entries = [
             {"name": "README.md", "sha": "abc123"},  # Match: skip
-            {"name": "data.txt", "sha": "def456"},   # Match: skip
+            {"name": "data.txt", "sha": "def456"},  # Match: skip
             {"name": "new_file.txt", "sha": "xyz789"},  # New: download
         ]
 

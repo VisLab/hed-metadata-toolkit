@@ -1,7 +1,5 @@
 """Tests for github.sync_repo_contents module."""
 
-
-
 from hed_metadata_toolkit.github.sync_repo_contents import (
     _build_graphql_query,
     _parse_graphql_response,
@@ -15,7 +13,7 @@ class TestBuildGraphqlQuery:
         """Test building query for a single repository."""
         query = _build_graphql_query(["ds000001"], "OpenNeuroDatasets")
 
-        assert "repository(owner: \"OpenNeuroDatasets\", name: \"ds000001\")" in query
+        assert 'repository(owner: "OpenNeuroDatasets", name: "ds000001")' in query
         assert "r0:" in query  # alias for first repo
         assert "entries" in query
         assert "type" in query
@@ -26,7 +24,9 @@ class TestBuildGraphqlQuery:
         query = _build_graphql_query(repos, "OpenNeuroDatasets")
 
         for i, repo in enumerate(repos):
-            assert f"r{i}: repository(owner: \"OpenNeuroDatasets\", name: \"{repo}\")" in query
+            assert (
+                f'r{i}: repository(owner: "OpenNeuroDatasets", name: "{repo}")' in query
+            )
 
     def test_query_structure(self):
         """Test that query has valid GraphQL structure."""
@@ -37,7 +37,7 @@ class TestBuildGraphqlQuery:
         assert query.endswith("}")
         # Should contain required fields
         assert "nameWithOwner" in query
-        assert "object(expression: \"HEAD:\")" in query
+        assert 'object(expression: "HEAD:")' in query
         assert "Tree" in query
         assert "Blob" in query
         assert "byteSize" in query
