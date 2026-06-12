@@ -43,9 +43,7 @@ COMMANDS = [
 def test_command_help_exits_zero(command):
     exe = shutil.which(command)
     if exe is None:
-        pytest.skip(
-            f"{command} not on PATH — toolkit not pip-installed in this env"
-        )
+        pytest.skip(f"{command} not on PATH — toolkit not pip-installed in this env")
     result = subprocess.run(
         [exe, "--help"],
         capture_output=True,
