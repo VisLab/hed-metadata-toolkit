@@ -20,6 +20,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# PDF -> Markdown conversion (hed-convert-pdfs). Heavy; opt-in only.
+pdf = [
+    "marker-pdf",
+]
 test = [
     "pytest>=8.0.0",
 ]
@@ -53,6 +57,7 @@ hed-assign-citation-ids    = "hed_metadata_toolkit.citations.assign_citation_ids
 hed-generate-review-queue  = "hed_metadata_toolkit.citations.generate_review_queue:main"
 hed-apply-manual-fills     = "hed_metadata_toolkit.citations.apply_manual_fills:main"
 hed-enrich-pub-ids         = "hed_metadata_toolkit.citations.enrich_pub_ids:main"
+hed-convert-pdfs           = "hed_metadata_toolkit.citations.convert_pdfs:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
