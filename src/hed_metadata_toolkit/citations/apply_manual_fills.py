@@ -22,7 +22,9 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+# Default data/output paths live under the current working directory (run the
+# command from the consumer repo root); all are overridable via CLI flags.
+REPO_ROOT = Path.cwd()
 
 _URL_RE = re.compile(r"^(https?://|doi:)", re.IGNORECASE)
 

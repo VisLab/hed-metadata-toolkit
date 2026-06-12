@@ -20,14 +20,10 @@ from __future__ import annotations
 import argparse
 import csv
 import re
-import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-_SRC = Path(__file__).resolve().parent
-sys.path.insert(0, str(_SRC))
-
-from hed_metadata_toolkit.citation_normalize import (  # noqa: E402
+from hed_metadata_toolkit.citation_normalize import (
     canonicalize_url,
     extract_doi,
     is_junk_link,
@@ -267,7 +263,7 @@ def run_assignment(
 
 
 def parse_args() -> argparse.Namespace:
-    repo_root = Path(__file__).resolve().parent.parent
+    repo_root = Path.cwd()
     parser = argparse.ArgumentParser(
         description="Idempotent citation-ID assignment.",
     )

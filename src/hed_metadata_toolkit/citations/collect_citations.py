@@ -17,15 +17,14 @@ import argparse
 import csv
 import json
 import re
-import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-_SRC = Path(__file__).resolve().parent
-_REPO_ROOT = _SRC.parent
-sys.path.insert(0, str(_SRC))
+from hed_metadata_toolkit.citation_normalize import is_junk_link, load_skip_list
 
-from hed_metadata_toolkit.citation_normalize import is_junk_link, load_skip_list  # noqa: E402
+# Default data/config paths live under the current working directory (run the
+# command from the consumer repo root); every path is overridable via CLI flags.
+_REPO_ROOT = Path.cwd()
 
 
 MAPPING_COLUMNS = ["dataset_id", "citation_id", "raw_link", "UnlinkedAck"]

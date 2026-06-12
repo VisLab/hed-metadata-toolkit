@@ -33,22 +33,14 @@ import datetime
 import logging
 import os
 import re
-import sys
 import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 
-# ---------------------------------------------------------------------------
-# Path setup — must happen before any src.* imports
-# ---------------------------------------------------------------------------
-
-_ROOT = Path(__file__).resolve().parent.parent
-_SRC = _ROOT / "src"
-if str(_ROOT) not in sys.path:
-    sys.path.insert(0, str(_ROOT))
-if str(_SRC) not in sys.path:
-    sys.path.insert(0, str(_SRC))
+# Default data/output paths live under the current working directory (run the
+# command from the consumer repo root); all are overridable via CLI flags.
+_ROOT = Path.cwd()
 
 from hed_metadata_toolkit.citation_identity import build_pub_id  # noqa: E402
 from hed_metadata_toolkit.citation_normalize import synthesise_doi_from_url  # noqa: E402

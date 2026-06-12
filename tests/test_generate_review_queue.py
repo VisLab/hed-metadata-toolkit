@@ -408,7 +408,7 @@ def test_no_osf_hints_when_not_in_cache(tmp_path):
 
 def test_date_stamped_output_filename(tmp_path, monkeypatch):
     """main() writes manual_review_<today>.json."""
-    import generate_review_queue as grq  # noqa: PLC0415
+    from hed_metadata_toolkit.citations import generate_review_queue as grq  # noqa: PLC0415
 
     # Write a minimal registry
     reg_path = tmp_path / "registry.tsv"
