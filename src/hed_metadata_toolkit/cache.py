@@ -148,30 +148,30 @@ def cache_get_or_fetch(
     error), do NOT persist — return {} so the caller gets a miss and the
     next run can retry the live API.
 
-    Args:
-        cache_dir:     Root cache directory.
-        source:        One of "openalex", "crossref", "europepmc",
-                       "semanticscholar", "unpaywall".
-        key:           Arbitrary string identifying the request (e.g. the DOI).
-        fetch:         Zero-argument callable returning dict | None.
-                       None signals a transient error (should not be cached).
-                       {} signals a legitimate not-found (safe to cache).
-        today:         "YYYY-MM-DD" override; defaults to date.today().isoformat().
-                       Used for both write-bucket selection and the staleness
-                       window's upper bound.  Ignored when stable=True for
-                       reads (stable lookups have no date), but still used
-                       for the `fetched_on` field of any new write.
-        stable:        When True, use the stable (no-date) cache layout under
-                       <cache_dir>/<source>/stable/. Use this for lookups whose
-                       results are essentially fixed (e.g. lookup_by_doi calls);
-                       delete the file manually to force a refresh. Default
-                       False keeps the date-stamped layout for search-style
-                       calls whose results drift over time.
-        max_age_days:  Staleness window for date-stamped reads.  A cached
-                       file is served if its date subdirectory lies within
-                       [today − max_age_days, today].  Default 30.  Ignored
-                       when stable=True.  Set to 0 to restrict the lookup
-                       to today's bucket only.
+    Parameters:
+        cache_dir: Root cache directory.
+        source: One of "openalex", "crossref", "europepmc",
+            "semanticscholar", "unpaywall".
+        key: Arbitrary string identifying the request (e.g. the DOI).
+        fetch: Zero-argument callable returning dict | None.
+            None signals a transient error (should not be cached).
+            {} signals a legitimate not-found (safe to cache).
+        today: "YYYY-MM-DD" override; defaults to date.today().isoformat().
+            Used for both write-bucket selection and the staleness
+            window's upper bound.  Ignored when stable=True for
+            reads (stable lookups have no date), but still used
+            for the `fetched_on` field of any new write.
+        stable: When True, use the stable (no-date) cache layout under
+            <cache_dir>/<source>/stable/. Use this for lookups whose
+            results are essentially fixed (e.g. lookup_by_doi calls);
+            delete the file manually to force a refresh. Default
+            False keeps the date-stamped layout for search-style
+            calls whose results drift over time.
+        max_age_days: Staleness window for date-stamped reads.  A cached
+            file is served if its date subdirectory lies within
+            [today − max_age_days, today].  Default 30.  Ignored
+            when stable=True.  Set to 0 to restrict the lookup
+            to today's bucket only.
 
     Returns:
         The response dict, or {} if not found / error.

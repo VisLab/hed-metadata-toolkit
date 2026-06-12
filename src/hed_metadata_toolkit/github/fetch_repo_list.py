@@ -1,3 +1,14 @@
+"""
+fetch_repo_list.py — Retrieve repository list from a GitHub organization.
+
+Fetches all repositories from a GitHub organization and stores them in a TSV file
+with repository names and updated_at timestamps.
+
+Usage:
+    python fetch_repo_list.py [--org ORGANIZATION] [--token TOKEN]
+                              [--output PATH]
+"""
+
 import argparse
 from pathlib import Path
 
@@ -10,20 +21,18 @@ from dotenv import load_dotenv
 
 
 def get_github_organization_repositories(organization, token=None):
-    """
-    Retrieves a list of tuples (repository name, updated_at) for a GitHub organization.
+    """Retrieve list of repositories from a GitHub organization.
 
-    To avoid rate limiting or to access private repositories, you should use a
+    To avoid rate limiting or to access private repositories, provide a
     personal access token.
 
-    Args:
-        organization (str): The name of the GitHub organization.
-        token (str, optional): A GitHub personal access token for authentication.
-                               Defaults to None.
+    Parameters:
+        organization: The name of the GitHub organization.
+        token: GitHub personal access token for authentication (optional).
 
     Returns:
-        list: A list of tuples (name, updated_at). Returns an empty list if the
-              organization is not found or an error occurs.
+        List of tuples (name, updated_at). Returns an empty list if the
+        organization is not found or an error occurs.
     """
     repos = []
     page = 1

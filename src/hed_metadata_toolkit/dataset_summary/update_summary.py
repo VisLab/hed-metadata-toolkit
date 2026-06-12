@@ -9,14 +9,13 @@ from dotenv import load_dotenv
 
 
 def read_dataset_description(dataset_dir):
-    """
-    Read dataset_description.json from a dataset directory.
+    """Read dataset_description.json from a dataset directory.
 
-    Args:
-        dataset_dir (str): Path to the dataset directory.
+    Parameters:
+        dataset_dir: Path to the dataset directory.
 
     Returns:
-        dict: Dataset description data, or empty dict if not found/error.
+        Dataset description data, or empty dict if not found/error.
     """
     json_path = os.path.join(dataset_dir, "dataset_description.json")
 
@@ -32,15 +31,14 @@ def read_dataset_description(dataset_dir):
 
 
 def update_title_and_hed(summary_df, datasets_base_dir="../datasets/dataset_repos"):
-    """
-    Update title and HED columns from dataset_description.json files.
+    """Update title and HED columns from dataset_description.json files.
 
-    Args:
-        summary_df (pd.DataFrame): Summary DataFrame to update.
-        datasets_base_dir (str): Base directory containing dataset folders.
+    Parameters:
+        summary_df: Summary DataFrame to update.
+        datasets_base_dir: Base directory containing dataset folders.
 
     Returns:
-        pd.DataFrame: Updated DataFrame with title and HED information.
+        Updated DataFrame with title and HED information.
     """
     updated_df = summary_df.copy()
 
@@ -101,15 +99,14 @@ def update_title_and_hed(summary_df, datasets_base_dir="../datasets/dataset_repo
 
 
 def read_dataframes(summary_path, citations_path):
-    """
-    Read the summary and citations TSV files into pandas DataFrames.
+    """Read the summary and citations TSV files into pandas DataFrames.
 
-    Args:
-        summary_path (str): Path to the dataset_summary.tsv file.
-        citations_path (str): Path to the dataset_citations.tsv file.
+    Parameters:
+        summary_path: Path to the dataset_summary.tsv file.
+        citations_path: Path to the dataset_citations.tsv file.
 
     Returns:
-        tuple: (summary_df, citations_df) or (None, None) if error.
+        Tuple of (summary_df, citations_df) or (None, None) if error.
     """
     try:
         # Read dataset summary
@@ -128,15 +125,14 @@ def read_dataframes(summary_path, citations_path):
 
 
 def sort_dataframes(summary_df, citations_df):
-    """
-    Sort both DataFrames by their first column in descending order.
+    """Sort both DataFrames by their first column in descending order.
 
-    Args:
-        summary_df (pd.DataFrame): Dataset summary DataFrame.
-        citations_df (pd.DataFrame): Dataset citations DataFrame.
+    Parameters:
+        summary_df: Dataset summary DataFrame.
+        citations_df: Dataset citations DataFrame.
 
     Returns:
-        tuple: (sorted_summary_df, sorted_citations_df)
+        Tuple of (sorted_summary_df, sorted_citations_df).
     """
     # Get the first column names
     summary_first_col = summary_df.columns[0]
@@ -161,15 +157,14 @@ def sort_dataframes(summary_df, citations_df):
 
 
 def merge_citations_efficiently(summary_df, citations_df):
-    """
-    Efficiently merge citation links into the summary DataFrame.
+    """Efficiently merge citation links into the summary DataFrame.
 
-    Args:
-        summary_df (pd.DataFrame): Sorted dataset summary DataFrame.
-        citations_df (pd.DataFrame): Sorted dataset citations DataFrame.
+    Parameters:
+        summary_df: Sorted dataset summary DataFrame.
+        citations_df: Sorted dataset citations DataFrame.
 
     Returns:
-        pd.DataFrame: Updated summary DataFrame with citation links.
+        Updated summary DataFrame with citation links.
     """
     # Get column names
     summary_key_col = summary_df.columns[0]  # e.g., 'name'
@@ -219,12 +214,11 @@ def merge_citations_efficiently(summary_df, citations_df):
 
 
 def save_updated_summary(updated_df, output_path):
-    """
-    Save the updated summary DataFrame to a TSV file.
+    """Save the updated summary DataFrame to a TSV file.
 
-    Args:
-        updated_df (pd.DataFrame): Updated summary DataFrame.
-        output_path (str): Path to save the output file.
+    Parameters:
+        updated_df: Updated summary DataFrame.
+        output_path: Path to save the output file.
     """
     try:
         updated_df.to_csv(output_path, sep="\t", index=False)

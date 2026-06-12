@@ -47,14 +47,13 @@ from dotenv import load_dotenv
 
 
 def count_subjects(file_list):
-    """
-    Count the number of subjects (entries starting with 'sub').
+    """Count the number of subjects (entries starting with 'sub').
 
-    Args:
-        file_list (list): List of files/directories in the repository.
+    Parameters:
+        file_list: List of files/directories in the repository.
 
     Returns:
-        int: Number of subjects found.
+        Number of subjects found.
     """
     subject_count = 0
     for item in file_list:
@@ -64,14 +63,13 @@ def count_subjects(file_list):
 
 
 def check_has_events(file_list):
-    """
-    Check if there are any events.json files.
+    """Check if there are any events.json files.
 
-    Args:
-        file_list (list): List of files/directories in the repository.
+    Parameters:
+        file_list: List of files/directories in the repository.
 
     Returns:
-        str: 'yes' if events.json files found, 'no' otherwise.
+        'yes' if events.json files found, 'no' otherwise.
     """
     for item in file_list:
         if item.endswith("events.json"):
@@ -80,14 +78,13 @@ def check_has_events(file_list):
 
 
 def extract_task_names(file_list):
-    """
-    Extract task names from filenames containing 'task'.
+    """Extract task names from filenames containing 'task'.
 
-    Args:
-        file_list (list): List of files/directories in the repository.
+    Parameters:
+        file_list: List of files/directories in the repository.
 
     Returns:
-        str: Comma-separated list of task names.
+        Comma-separated list of task names.
     """
     task_names = set()  # Use set to avoid duplicates
 
@@ -111,14 +108,13 @@ def extract_task_names(file_list):
 
 
 def check_has_readme(file_list):
-    """
-    Check if there are any README files.
+    """Check if there are any README files.
 
-    Args:
-        file_list (list): List of files/directories in the repository.
+    Parameters:
+        file_list: List of files/directories in the repository.
 
     Returns:
-        str: 'yes' if README files found, 'no' otherwise.
+        'yes' if README files found, 'no' otherwise.
     """
     for item in file_list:
         if item.lower().startswith("readme"):
@@ -127,15 +123,14 @@ def check_has_readme(file_list):
 
 
 def extract_dataset_info(repo_contents_json_path):
-    """
-    Extract dataset information from repo_contents.json.
+    """Extract dataset information from repo_contents.json.
 
-    Args:
-        repo_contents_json_path (str): Path to the repo_contents.json file
-                                       (produced by sync_repo_contents.py).
+    Parameters:
+        repo_contents_json_path: Path to the repo_contents.json file
+            (produced by sync_repo_contents.py).
 
     Returns:
-        list: List of dictionaries containing dataset information.
+        List of dictionaries containing dataset information.
     """
     # Load the repository contents data
     try:
@@ -200,12 +195,11 @@ def extract_dataset_info(repo_contents_json_path):
 
 
 def save_dataset_summary(dataset_info, output_file="dataset_summary.tsv"):
-    """
-    Save dataset information to a TSV file.
+    """Save dataset information to a TSV file.
 
-    Args:
-        dataset_info (list): List of dictionaries containing dataset information.
-        output_file (str): Path to the output TSV file.
+    Parameters:
+        dataset_info: List of dictionaries containing dataset information.
+        output_file: Path to the output TSV file.
     """
     # Convert to DataFrame
     df = pd.DataFrame(dataset_info)

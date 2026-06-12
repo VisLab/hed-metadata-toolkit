@@ -6,14 +6,13 @@ from dotenv import load_dotenv
 
 
 def read_dataset_summary(summary_path):
-    """
-    Read the dataset summary TSV file into a pandas DataFrame.
+    """Read the dataset summary TSV file into a pandas DataFrame.
 
-    Args:
-        summary_path (str): Path to the dataset_summary_updated.tsv file.
+    Parameters:
+        summary_path: Path to the dataset_summary_updated.tsv file.
 
     Returns:
-        pd.DataFrame: Dataset summary DataFrame, or None if error.
+        Dataset summary DataFrame, or None if error.
     """
     try:
         df = pd.read_csv(summary_path, sep="\t")
@@ -25,15 +24,15 @@ def read_dataset_summary(summary_path):
 
 
 def sort_datasets(df):
-    """
-    Sort datasets by HED, links, events, and name columns in reverse order.
+    """Sort datasets by HED, links, events, and name columns in reverse order.
+
     Treats empty lists [] in HED column as empty values.
 
-    Args:
-        df (pd.DataFrame): Dataset summary DataFrame.
+    Parameters:
+        df: Dataset summary DataFrame.
 
     Returns:
-        pd.DataFrame: Sorted DataFrame.
+        Sorted DataFrame.
     """
     print("Sorting datasets by HED, links, events, and name (all in reverse order)...")
 
@@ -81,12 +80,11 @@ def sort_datasets(df):
 
 
 def save_sorted_datasets(sorted_df, output_path):
-    """
-    Save the sorted DataFrame to a TSV file.
+    """Save the sorted DataFrame to a TSV file.
 
-    Args:
-        sorted_df (pd.DataFrame): Sorted dataset DataFrame.
-        output_path (str): Path to save the output file.
+    Parameters:
+        sorted_df: Sorted dataset DataFrame.
+        output_path: Path to save the output file.
     """
     try:
         sorted_df.to_csv(output_path, sep="\t", index=False)

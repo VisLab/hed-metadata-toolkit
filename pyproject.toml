@@ -49,6 +49,7 @@ hed-sync-local-files       = "hed_metadata_toolkit.github.sync_local_files:main"
 hed-sync-repo-file-contents = "hed_metadata_toolkit.github.sync_repo_file_contents:main"
 # Dataset-summary builders
 hed-extract-summary-info   = "hed_metadata_toolkit.dataset_summary.extract_summary_info:main"
+hed-extract-readme-summaries = "hed_metadata_toolkit.dataset_summary.extract_readme_summaries:main"
 hed-update-summary         = "hed_metadata_toolkit.dataset_summary.update_summary:main"
 hed-sort-datasets          = "hed_metadata_toolkit.dataset_summary.sort_datasets:main"
 # Citation pipeline
