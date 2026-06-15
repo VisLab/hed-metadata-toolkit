@@ -685,6 +685,7 @@ def sync_all(
             failures_lock=failures_lock,
             retry_failed=retry_failed,
             workers=workers,
+            organization=organization,
         )
 
         if fc_entry is not None:

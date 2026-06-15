@@ -103,34 +103,63 @@ def _safe_replace(
 # ---------------------------------------------------------------------------
 
 
-def _build_graphql_query(repo_names: list[str], org: str) -> str:
-    """Build a single GraphQL query that fetches the root tree for each repo."""
+_TREE_ENTRIES = (
+    "... on Tree { entries { name type "
+    "object { ... on Blob { byteSize oid } } } }"
+)
+
+
+def _build_graphql_query(
+    repo_names: list[str], org: str, include_subdirs: "list[str] | None" = None
+) -> str:
+    """Build a single GraphQL query that fetches the root tree for each repo.
+
+    If ``include_subdirs`` is given (e.g. ``[".nemar"]``), each repo fragment
+    also fetches the tree of those subdirectories, so their contents can be
+    included alongside the root-level entries.
+    """
+    include_subdirs = include_subdirs or []
     fragments = []
     for i, name in enumerate(repo_names):
         safe = f"r{i}"  # alias must be a valid GraphQL identifier
-        fragments.append(f"""
-  {safe}: repository(owner: "{org}", name: "{name}") {{
-    nameWithOwner
-    object(expression: "HEAD:") {{
-      ... on Tree {{
-        entries {{
-          name
-          type
-          object {{
-            ... on Blob {{
-              byteSize
-              oid
-            }}
-          }}
-        }}
-      }}
-    }}
-  }}""")
+        lines = [
+            f'  {safe}: repository(owner: "{org}", name: "{name}") {{',
+            "    nameWithOwner",
+            f'    object(expression: "HEAD:") {{ {_TREE_ENTRIES} }}',
+        ]
+        for j, sub in enumerate(include_subdirs):
+            lines.append(
+                f'    s{j}: object(expression: "HEAD:{sub}") {{ {_TREE_ENTRIES} }}'
+            )
+        lines.append("  }")
+        fragments.append("\n".join(lines))
     return "{\n" + "\n".join(fragments) + "\n}"
 
 
-def _parse_graphql_response(payload: dict, repo_names: list[str]) -> dict:
-    """Extract per-repo entry lists from a successful GraphQL response payload."""
+def _entry_dict(name: str, entry: dict) -> dict:
+    """Normalize one GraphQL tree entry into our stored shape."""
+    if entry.get("type", "blob") == "blob":
+        obj = entry.get("object") or {}
+        return {
+            "name": name,
+            "type": "blob",
+            "size": obj.get("byteSize"),
+            "sha": obj.get("oid"),
+        }
+    return {"name": name, "type": "tree"}
+
+
+def _parse_graphql_response(
+    payload: dict, repo_names: list[str], include_subdirs: "list[str] | None" = None
+) -> dict:
+    """Extract per-repo entry lists from a successful GraphQL response payload.
+
+    Root-level hidden entries (``.github`` etc.) are skipped as before. For any
+    directory named in ``include_subdirs`` (e.g. ``.nemar``), its entries are
+    appended with paths prefixed by the subdir (``.nemar/<name>``); hidden names
+    *inside* an included subdir are kept.
+    """
+    include_subdirs = include_subdirs or []
     data = payload.get("data") or {}
     results = {}
     for i, name in enumerate(repo_names):
@@ -139,31 +168,27 @@ def _parse_graphql_response(payload: dict, repo_names: list[str]) -> dict:
         if not repo_data:
             results[name] = []
             continue
-        tree = (repo_data.get("object") or {}).get("entries") or []
         entries = []
+        tree = (repo_data.get("object") or {}).get("entries") or []
         for entry in tree:
             e_name = entry.get("name", "")
             if e_name.startswith("."):
-                continue  # skip hidden files
-            e_type = entry.get("type", "blob")
-            if e_type == "blob":
-                obj = entry.get("object") or {}
-                entries.append(
-                    {
-                        "name": e_name,
-                        "type": "blob",
-                        "size": obj.get("byteSize"),
-                        "sha": obj.get("oid"),
-                    }
-                )
-            else:
-                entries.append({"name": e_name, "type": "tree"})
+                continue  # skip hidden top-level files/dirs
+            entries.append(_entry_dict(e_name, entry))
+        for j, sub in enumerate(include_subdirs):
+            sub_entries = (repo_data.get(f"s{j}") or {}).get("entries") or []
+            for entry in sub_entries:
+                e_name = entry.get("name", "")
+                if not e_name:
+                    continue
+                entries.append(_entry_dict(f"{sub}/{e_name}", entry))
         results[name] = entries
     return results
 
 
 def _fetch_batch_once(
-    repo_names: list[str], org: str, headers: dict
+    repo_names: list[str], org: str, headers: dict,
+    include_subdirs: "list[str] | None" = None,
 ) -> tuple[dict | None, bool]:
     """
     Make a single GraphQL request for the given repos.
@@ -172,7 +197,7 @@ def _fetch_batch_once(
     results_dict is None if the request failed outright.
     is_server_error is True for 5xx responses (signals caller to halve batch).
     """
-    query = _build_graphql_query(repo_names, org)
+    query = _build_graphql_query(repo_names, org, include_subdirs)
     try:
         response = requests.post(
             GRAPHQL_URL,
@@ -202,10 +227,13 @@ def _fetch_batch_once(
     if "errors" in payload:
         print(f"  GraphQL errors: {payload['errors']}")
 
-    return _parse_graphql_response(payload, repo_names), False
+    return _parse_graphql_response(payload, repo_names, include_subdirs), False
 
 
-def fetch_batch(repo_names: list[str], org: str, headers: dict) -> dict:
+def fetch_batch(
+    repo_names: list[str], org: str, headers: dict,
+    include_subdirs: "list[str] | None" = None,
+) -> dict:
     """
     Execute a GraphQL request for the given repos with retries and exponential
     backoff.  On 5xx errors the batch is automatically halved and each half is
@@ -218,7 +246,9 @@ def fetch_batch(repo_names: list[str], org: str, headers: dict) -> dict:
 
     delay = RETRY_BASE_DELAY
     for attempt in range(1, RETRY_LIMIT + 1):
-        results, is_server_error = _fetch_batch_once(repo_names, org, headers)
+        results, is_server_error = _fetch_batch_once(
+            repo_names, org, headers, include_subdirs
+        )
 
         if results is not None:
             return results
@@ -230,8 +260,8 @@ def fetch_batch(repo_names: list[str], org: str, headers: dict) -> dict:
             print(f"  Halving batch: {len(half_a)} + {len(half_b)} repos")
             time.sleep(delay)
             combined = {}
-            combined.update(fetch_batch(half_a, org, headers))
-            combined.update(fetch_batch(half_b, org, headers))
+            combined.update(fetch_batch(half_a, org, headers, include_subdirs))
+            combined.update(fetch_batch(half_b, org, headers, include_subdirs))
             return combined
 
         if attempt < RETRY_LIMIT:
@@ -339,6 +369,8 @@ def sync_repo_contents(
     force: bool = False,
     retry_failed: bool = False,
     test_repo: str | None = None,
+    prefix: str = "ds",
+    include_subdirs: "list[str] | None" = None,
 ) -> None:
     now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -356,9 +388,11 @@ def sync_repo_contents(
         print(f"Error reading {tsv_path}: {exc}")
         return
 
-    # Keep only ds* repos
-    df = df[df["name"].str.startswith("ds")].reset_index(drop=True)
-    print(f"{len(df)} ds* repos to consider")
+    # Keep only repos whose name starts with the configured prefix
+    # ("ds" for OpenNeuro, "nm" for NEMAR). Empty prefix keeps all repos.
+    if prefix:
+        df = df[df["name"].str.startswith(prefix)].reset_index(drop=True)
+    print(f"{len(df)} {prefix or '(all)'}* repos to consider")
 
     if test_repo:
         df = df[df["name"] == test_repo].reset_index(drop=True)
@@ -451,7 +485,7 @@ def sync_repo_contents(
         batch = to_fetch[start : start + BATCH_SIZE]
         print(f"\nBatch {batch_num}/{total_batches}: {batch}")
 
-        results = fetch_batch(batch, organization, headers)
+        results = fetch_batch(batch, organization, headers, include_subdirs)
 
         for name, entries in results.items():
             if entries:
@@ -544,6 +578,20 @@ def main(argv: "list[str] | None" = None) -> int:
         help="GitHub organization name (default: OpenNeuroDatasets).",
     )
     parser.add_argument(
+        "--prefix",
+        default="ds",
+        help="Only process repos whose name starts with this prefix "
+        "(default: 'ds'; use 'nm' for NEMAR, '' for all repos).",
+    )
+    parser.add_argument(
+        "--include-subdir",
+        action="append",
+        default=[],
+        metavar="SUBDIR",
+        help="Also fetch this repo subdirectory's contents and include them as "
+        "'<subdir>/<file>' entries (repeatable; e.g. '.nemar').",
+    )
+    parser.add_argument(
         "--token",
         default=None,
         help="GitHub PAT (defaults to $GITHUB_TOKEN).",
@@ -564,6 +612,8 @@ def main(argv: "list[str] | None" = None) -> int:
         force=args.force,
         retry_failed=args.retry_failed,
         test_repo=args.repo,
+        prefix=args.prefix,
+        include_subdirs=args.include_subdir,
     )
     return 0
 
