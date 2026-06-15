@@ -104,8 +104,7 @@ def _safe_replace(
 
 
 _TREE_ENTRIES = (
-    "... on Tree { entries { name type "
-    "object { ... on Blob { byteSize oid } } } }"
+    "... on Tree { entries { name type object { ... on Blob { byteSize oid } } } }"
 )
 
 
@@ -187,7 +186,9 @@ def _parse_graphql_response(
 
 
 def _fetch_batch_once(
-    repo_names: list[str], org: str, headers: dict,
+    repo_names: list[str],
+    org: str,
+    headers: dict,
     include_subdirs: "list[str] | None" = None,
 ) -> tuple[dict | None, bool]:
     """
@@ -231,7 +232,9 @@ def _fetch_batch_once(
 
 
 def fetch_batch(
-    repo_names: list[str], org: str, headers: dict,
+    repo_names: list[str],
+    org: str,
+    headers: dict,
     include_subdirs: "list[str] | None" = None,
 ) -> dict:
     """

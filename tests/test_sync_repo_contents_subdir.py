@@ -119,7 +119,9 @@ def test_prefix_filters_repos_and_threads_subdirs(tmp_path, monkeypatch):
         captured["batch"] = list(batch)
         captured["org"] = org
         captured["include_subdirs"] = include_subdirs
-        return {n: [{"name": "x", "type": "blob", "size": 1, "sha": "s"}] for n in batch}
+        return {
+            n: [{"name": "x", "type": "blob", "size": 1, "sha": "s"}] for n in batch
+        }
 
     monkeypatch.setattr(src, "fetch_batch", fake_fetch_batch)
     monkeypatch.setattr(src, "_check_rate_limit", lambda headers: None)
