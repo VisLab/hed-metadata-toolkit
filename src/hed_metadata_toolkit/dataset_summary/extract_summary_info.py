@@ -12,6 +12,11 @@ The output TSV provides a template for manual curation; the title, links,
 modalities, contact, and notes columns are filled by subsequent scripts or
 human reviewers.
 
+NEMAR enrichment: if a dataset has a local ``.nemar/metadata.json`` (under
+``--datasets-dir/<repo>/.nemar/metadata.json``), its ``title`` and ``modalities``
+and the ``related_identifiers`` (as ``links``) are pulled into those columns.
+Datasets without that file (e.g. OpenNeuro) are unchanged.
+
 Input:
     datasets/dataset_summaries/repo_contents.json
     Schema:
@@ -122,12 +127,55 @@ def check_has_readme(file_list):
     return "no"
 
 
-def extract_dataset_info(repo_contents_json_path):
+def _load_nemar_metadata(datasets_dir, dataset_name):
+    """Return the parsed ``.nemar/metadata.json`` for a dataset, or None.
+
+    Looks for ``<datasets_dir>/<dataset_name>/.nemar/metadata.json``. Returns
+    None when ``datasets_dir`` is not given, the file is absent, or it does not
+    parse as JSON.
+    """
+    if not datasets_dir:
+        return None
+    path = Path(datasets_dir) / dataset_name / ".nemar" / "metadata.json"
+    if not path.is_file():
+        return None
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as exc:
+        print(f"  Warning: could not read {path}: {exc}")
+        return None
+
+
+def _nemar_overrides(meta):
+    """Map a ``.nemar/metadata.json`` dict to summary columns.
+
+    Returns a dict with ``title``, ``modalities`` (comma-joined), and ``links``
+    (the ``related_identifiers`` values joined by ``; ``).
+    """
+    modalities = meta.get("modalities") or []
+    if not isinstance(modalities, str):
+        modalities = ",".join(str(m) for m in modalities)
+    identifiers = []
+    for rel in meta.get("related_identifiers") or []:
+        if isinstance(rel, dict) and rel.get("identifier"):
+            identifiers.append(str(rel["identifier"]))
+    return {
+        "title": meta.get("title") or "",
+        "modalities": modalities,
+        "links": "; ".join(identifiers),
+    }
+
+
+def extract_dataset_info(repo_contents_json_path, datasets_dir=None):
     """Extract dataset information from repo_contents.json.
 
     Parameters:
         repo_contents_json_path: Path to the repo_contents.json file
             (produced by sync_repo_contents.py).
+        datasets_dir: Optional path to the local ``dataset_repos`` directory.
+            When given, a dataset's ``.nemar/metadata.json`` (if present) fills
+            the ``title``, ``modalities``, and ``links`` columns.
 
     Returns:
         List of dictionaries containing dataset information.
@@ -179,6 +227,13 @@ def extract_dataset_info(repo_contents_json_path):
             "contact": "",  # Will be filled by another script
             "notes": "",  # Will be filled by another script
         }
+
+        # NEMAR enrichment: when a .nemar/metadata.json is present, fill
+        # title, modalities, and links from it.
+        nemar_meta = _load_nemar_metadata(datasets_dir, dataset_name)
+        if nemar_meta:
+            info.update(_nemar_overrides(nemar_meta))
+            print("  .nemar metadata: filled title, modalities, links")
 
         dataset_info.append(info)
 
@@ -268,6 +323,7 @@ def run_extraction(
     repo_contents_path: "Path | str | None" = None,
     legacy_repo_files_path: "Path | str | None" = None,
     output_path: "Path | str",
+    datasets_dir: "Path | str | None" = None,
 ) -> int:
     """Extract per-dataset summary info and write the summary TSV.
 
@@ -290,7 +346,7 @@ def run_extraction(
                 f"neither repo_contents path nor legacy fallback was found "
                 f"({repo_contents_path!r}, {legacy_repo_files_path!r})"
             )
-    dataset_info = extract_dataset_info(str(input_path))
+    dataset_info = extract_dataset_info(str(input_path), datasets_dir=datasets_dir)
     if not dataset_info:
         return 0
     save_dataset_summary(dataset_info, str(output_path))
@@ -327,6 +383,13 @@ def main(argv: "list[str] | None" = None) -> int:
         default=Path("datasets/dataset_summaries/dataset_summary.tsv"),
         help="Destination path for the dataset summary TSV.",
     )
+    parser.add_argument(
+        "--datasets-dir",
+        type=Path,
+        default=Path("datasets/dataset_repos"),
+        help="Local dataset_repos directory. A dataset's .nemar/metadata.json "
+        "(if present) fills the title, modalities, and links columns.",
+    )
     args = parser.parse_args(argv)
 
     print("Extracting dataset information from repo contents...")
@@ -353,6 +416,7 @@ def main(argv: "list[str] | None" = None) -> int:
             repo_contents_path=args.repo_contents,
             legacy_repo_files_path=args.legacy_repo_files,
             output_path=args.output,
+            datasets_dir=args.datasets_dir,
         )
     except FileNotFoundError as exc:
         print(f"Error: {exc}")
@@ -368,7 +432,9 @@ def main(argv: "list[str] | None" = None) -> int:
     input_used = (
         args.repo_contents if args.repo_contents.exists() else args.legacy_repo_files
     )
-    print_extraction_summary(extract_dataset_info(str(input_used)))
+    print_extraction_summary(
+        extract_dataset_info(str(input_used), datasets_dir=args.datasets_dir)
+    )
     print("\nDataset information extraction complete!")
     return 0
 
