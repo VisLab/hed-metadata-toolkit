@@ -1,219 +1,78 @@
-"""Tests for github.sync_repo_contents module."""
+"""Tests for github.sync_repo_contents — recursive git-tree fetch layer.
 
-from hed_metadata_toolkit.github.sync_repo_contents import (
-    _build_graphql_query,
-    _parse_graphql_response,
-)
+The 2026-06-15 rewrite replaced the shallow batched GraphQL listing with one
+recursive REST git-tree call per repo. These tests cover ``_fetch_recursive_tree``
+response handling; the end-to-end producer behavior (prefix, schema, incremental,
+truncated, failures) is in ``test_sync_repo_contents_subdir.py`` and the BIDS
+derivation in ``test_bids_tree.py``.
 
+No network: ``requests.get`` is monkeypatched.
+"""
 
-class TestBuildGraphqlQuery:
-    """Tests for _build_graphql_query()."""
+from __future__ import annotations
 
-    def test_single_repo(self):
-        """Test building query for a single repository."""
-        query = _build_graphql_query(["ds000001"], "OpenNeuroDatasets")
-
-        assert 'repository(owner: "OpenNeuroDatasets", name: "ds000001")' in query
-        assert "r0:" in query  # alias for first repo
-        assert "entries" in query
-        assert "type" in query
-
-    def test_multiple_repos(self):
-        """Test building query for multiple repositories."""
-        repos = ["ds000001", "ds000002", "ds000003"]
-        query = _build_graphql_query(repos, "OpenNeuroDatasets")
-
-        for i, repo in enumerate(repos):
-            assert (
-                f'r{i}: repository(owner: "OpenNeuroDatasets", name: "{repo}")' in query
-            )
-
-    def test_query_structure(self):
-        """Test that query has valid GraphQL structure."""
-        query = _build_graphql_query(["test"], "TestOrg")
-
-        # Should start with { and end with }
-        assert query.startswith("{")
-        assert query.endswith("}")
-        # Should contain required fields
-        assert "nameWithOwner" in query
-        assert 'object(expression: "HEAD:")' in query
-        assert "Tree" in query
-        assert "Blob" in query
-        assert "byteSize" in query
-        assert "oid" in query
+from hed_metadata_toolkit.github import sync_repo_contents as src
 
 
-class TestParseGraphqlResponse:
-    """Tests for _parse_graphql_response()."""
+class _Resp:
+    def __init__(self, status_code, json_data=None, headers=None):
+        self.status_code = status_code
+        self._json = json_data or {}
+        self.headers = headers or {}
 
-    def test_parse_successful_response(self):
-        """Test parsing a successful GraphQL response."""
-        payload = {
-            "data": {
-                "r0": {
-                    "nameWithOwner": "OpenNeuroDatasets/ds000001",
-                    "object": {
-                        "entries": [
-                            {
-                                "name": "README",
-                                "type": "blob",
-                                "object": {"byteSize": 1024, "oid": "abc123"},
-                            },
-                            {
-                                "name": "sub-01",
-                                "type": "tree",
-                            },
-                            {
-                                "name": ".gitignore",
-                                "type": "blob",
-                                "object": {"byteSize": 256, "oid": "def456"},
-                            },
-                        ]
-                    },
-                }
-            }
+    def json(self):
+        return self._json
+
+    def raise_for_status(self):
+        if self.status_code >= 400:
+            raise Exception(f"HTTP {self.status_code}")
+
+
+class TestFetchRecursiveTree:
+    def test_success_returns_entries(self, monkeypatch):
+        tree = {
+            "tree": [
+                {"path": "README", "type": "blob", "size": 10, "sha": "a"},
+                {"path": "sub-01", "type": "tree"},
+            ],
+            "truncated": False,
         }
+        monkeypatch.setattr(src.requests, "get", lambda *a, **k: _Resp(200, tree))
+        entries, truncated, err = src._fetch_recursive_tree("org", "repo", {})
+        assert err is None
+        assert truncated is False
+        assert [e["path"] for e in entries] == ["README", "sub-01"]
 
-        result = _parse_graphql_response(payload, ["ds000001"])
+    def test_truncated_flag(self, monkeypatch):
+        tree = {"tree": [], "truncated": True}
+        monkeypatch.setattr(src.requests, "get", lambda *a, **k: _Resp(200, tree))
+        _, truncated, err = src._fetch_recursive_tree("org", "repo", {})
+        assert truncated is True
+        assert err is None
 
-        assert "ds000001" in result
-        entries = result["ds000001"]
-        assert len(entries) == 2  # .gitignore should be skipped
+    def test_404_is_not_found(self, monkeypatch):
+        monkeypatch.setattr(src.requests, "get", lambda *a, **k: _Resp(404))
+        entries, truncated, err = src._fetch_recursive_tree("org", "repo", {})
+        assert entries is None
+        assert err == "not_found"
 
-        # Check README
-        readme = next(e for e in entries if e["name"] == "README")
-        assert readme["type"] == "blob"
-        assert readme["size"] == 1024
-        assert readme["sha"] == "abc123"
-
-        # Check directory
-        subdir = next(e for e in entries if e["name"] == "sub-01")
-        assert subdir["type"] == "tree"
-        assert "size" not in subdir  # trees don't have size
-
-    def test_parse_multiple_repos(self):
-        """Test parsing response for multiple repositories."""
-        payload = {
-            "data": {
-                "r0": {
-                    "nameWithOwner": "OpenNeuroDatasets/ds000001",
-                    "object": {
-                        "entries": [
-                            {
-                                "name": "README",
-                                "type": "blob",
-                                "object": {"byteSize": 1024, "oid": "abc123"},
-                            }
-                        ]
-                    },
-                },
-                "r1": {
-                    "nameWithOwner": "OpenNeuroDatasets/ds000002",
-                    "object": {
-                        "entries": [
-                            {
-                                "name": "data.txt",
-                                "type": "blob",
-                                "object": {"byteSize": 2048, "oid": "def456"},
-                            }
-                        ]
-                    },
-                },
-            }
-        }
-
-        result = _parse_graphql_response(payload, ["ds000001", "ds000002"])
-
-        assert len(result) == 2
-        assert len(result["ds000001"]) == 1
-        assert len(result["ds000002"]) == 1
-        assert result["ds000001"][0]["name"] == "README"
-        assert result["ds000002"][0]["name"] == "data.txt"
-
-    def test_parse_empty_response(self):
-        """Test parsing response with no entries."""
-        payload = {
-            "data": {
-                "r0": {
-                    "nameWithOwner": "OpenNeuroDatasets/ds000001",
-                    "object": None,  # No tree at HEAD
-                }
-            }
-        }
-
-        result = _parse_graphql_response(payload, ["ds000001"])
-
-        assert "ds000001" in result
-        assert result["ds000001"] == []
-
-    def test_parse_missing_repo(self):
-        """Test parsing when repo data is missing."""
-        payload = {
-            "data": {
-                # r0 is missing
-            }
-        }
-
-        result = _parse_graphql_response(payload, ["ds000001"])
-
-        assert "ds000001" in result
-        assert result["ds000001"] == []
-
-    def test_skip_hidden_files(self):
-        """Test that hidden files (starting with .) are skipped."""
-        payload = {
-            "data": {
-                "r0": {
-                    "nameWithOwner": "OpenNeuroDatasets/ds000001",
-                    "object": {
-                        "entries": [
-                            {
-                                "name": "README",
-                                "type": "blob",
-                                "object": {"byteSize": 1024, "oid": "abc123"},
-                            },
-                            {
-                                "name": ".DS_Store",
-                                "type": "blob",
-                                "object": {"byteSize": 512, "oid": "def456"},
-                            },
-                            {
-                                "name": ".github",
-                                "type": "tree",
-                            },
-                        ]
-                    },
-                }
-            }
-        }
-
-        result = _parse_graphql_response(payload, ["ds000001"])
-
-        entries = result["ds000001"]
-        assert len(entries) == 1
-        assert entries[0]["name"] == "README"
+    def test_409_empty_repo(self, monkeypatch):
+        monkeypatch.setattr(src.requests, "get", lambda *a, **k: _Resp(409))
+        entries, truncated, err = src._fetch_recursive_tree("org", "repo", {})
+        assert entries == []
+        assert err is None
 
 
 class TestFailureTracking:
-    """Tests for failure tracking with repo_contents_failures.json."""
-
-    def test_failure_dict_schema(self, tmp_path):
-        """Test that failure dict follows expected schema."""
-        # This test documents the expected failure dict structure
+    def test_failure_dict_schema(self):
         failure_dict = {
-            "ds000001": {
-                "reason": "empty_entries",
-                "failed_at": "2026-04-14T17:41:55Z",
-            },
-            "ds000002": {
-                "reason": "empty_entries",
-                "failed_at": "2026-04-14T17:41:55Z",
+            "nm000103": {"reason": "not_found", "failed_at": "2026-06-15T00:00:00Z"},
+            "nm000104": {
+                "reason": "empty_repo",
+                "failed_at": "2026-06-15T00:00:00Z",
                 "skip": True,
             },
         }
-
-        # Verify structure
         assert all("reason" in v and "failed_at" in v for v in failure_dict.values())
-        assert failure_dict["ds000002"]["skip"] is True
-        assert failure_dict["ds000001"].get("skip") is None
+        assert failure_dict["nm000104"]["skip"] is True
+        assert failure_dict["nm000103"].get("skip") is None

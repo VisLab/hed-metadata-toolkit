@@ -22,9 +22,13 @@ Outputs (both written):
   - JSON manifest, keyed by repo::
 
         { "<repo>": {
-            "synced_at": "...", "updated_at": "...",
+            "synced_at": "...", "updated_at": "...", "truncated": false,
             "event_files": [ {"path": ..., "size": ..., "sha": ...}, ... ]
         }, ... }
+
+    ``truncated`` is true when the repo's git-tree exceeded GitHub's
+    100k-entry / 7MB cap (the cap is per whole-repo request), in which case the
+    event-file list may be incomplete. The run prints how many repos truncated.
 
     ``size`` is the blob byte size and ``sha`` is the git blob SHA, both from the
     git-trees response.
@@ -48,31 +52,15 @@ import pandas as pd
 import requests
 from dotenv import load_dotenv
 
+# is_event_file (root or under a top-level sub-*/) is the shared BIDS rule.
+from hed_metadata_toolkit.github.bids_tree import (  # noqa: F401  (re-exported)
+    EVENTS_SUFFIXES,
+    is_event_file,
+)
+
 GIT_TREES_URL = "https://api.github.com/repos/{org}/{repo}/git/trees/{sha}"
-EVENTS_SUFFIXES = ("_events.tsv", "_events.json")
 RETRY_LIMIT = 4
 RETRY_DELAY = 5  # seconds, doubled on each retry
-
-
-# ---------------------------------------------------------------------------
-# Filtering
-# ---------------------------------------------------------------------------
-
-
-def is_event_file(path: str) -> bool:
-    """Keep BIDS event files at the repo root or under a top-level ``sub-*`` dir.
-
-    ``path`` is repo-root-relative (POSIX separators). A path qualifies when it
-    ends in ``_events.tsv`` / ``_events.json`` AND it is either at the root (no
-    ``/``) or its first segment is a ``sub-`` directory (any depth below it).
-    Event files under other top-level directories (``derivatives/`` etc.) are
-    rejected.
-    """
-    if not path.endswith(EVENTS_SUFFIXES):
-        return False
-    if "/" not in path:
-        return True  # repo root
-    return path.split("/", 1)[0].startswith("sub-")
 
 
 # ---------------------------------------------------------------------------
@@ -82,12 +70,13 @@ def is_event_file(path: str) -> bool:
 
 def _fetch_recursive_tree(
     org: str, repo: str, headers: dict
-) -> tuple[list | None, str | None]:
-    """Return (blob_entries, error) for the whole repo via one recursive call.
+) -> tuple[list | None, bool, str | None]:
+    """Return (blob_entries, truncated, error) for the whole repo (one call).
 
     Each entry is the raw git-trees blob dict (has ``path``, ``sha``, ``size``).
-    ``error`` is None on success; "not_found" for 404; an empty list for an
-    empty repo (409). Warns (does not fail) if GitHub truncated the response.
+    ``truncated`` is True when GitHub capped the response (>100k entries / 7MB
+    for the whole-repo tree), so the listing may be incomplete. ``error`` is
+    None on success; "not_found" for 404; an empty list for an empty repo (409).
     """
     url = GIT_TREES_URL.format(org=org, repo=repo, sha="HEAD") + "?recursive=1"
     delay = RETRY_DELAY
@@ -99,12 +88,12 @@ def _fetch_recursive_tree(
                 time.sleep(delay)
                 delay *= 2
                 continue
-            return None, str(exc)
+            return None, False, str(exc)
 
         if resp.status_code == 404:
-            return None, "not_found"
+            return None, False, "not_found"
         if resp.status_code == 409:
-            return [], None  # empty repository (no commits)
+            return [], False, None  # empty repository (no commits)
         if (
             resp.status_code in (403, 429)
             and resp.headers.get("x-ratelimit-remaining") == "0"
@@ -123,17 +112,18 @@ def _fetch_recursive_tree(
                 time.sleep(delay)
                 delay *= 2
                 continue
-            return None, str(exc)
+            return None, False, str(exc)
 
-        if data.get("truncated"):
+        truncated = bool(data.get("truncated"))
+        if truncated:
             print(
                 f"  WARNING: git-tree for {repo} was truncated (>100k entries / "
-                "7MB) — event-file list may be incomplete."
+                "7MB across the whole repo) — event-file list may be incomplete."
             )
         blobs = [e for e in data.get("tree", []) if e.get("type") == "blob"]
-        return blobs, None
+        return blobs, truncated, None
 
-    return None, "max retries exceeded"
+    return None, False, "max retries exceeded"
 
 
 # ---------------------------------------------------------------------------
@@ -197,7 +187,7 @@ def list_event_files(
             print(f"Warning: could not read existing {out_path}: {exc}")
 
     now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-    listed = skipped = errors = 0
+    listed = skipped = errors = truncated_count = 0
     n = len(df)
 
     for i, row in enumerate(df.itertuples(index=False), 1):
@@ -215,7 +205,7 @@ def list_event_files(
             skipped += 1
             continue
 
-        blobs, err = _fetch_recursive_tree(organization, name, headers)
+        blobs, truncated, err = _fetch_recursive_tree(organization, name, headers)
         if err:
             errors += 1
             print(f"[{i}/{n}] {name}: ERROR ({err})")
@@ -232,10 +222,16 @@ def list_event_files(
         manifest[name] = {
             "synced_at": now_iso,
             "updated_at": updated_at,
+            "truncated": truncated,
             "event_files": events,
         }
         listed += 1
-        print(f"[{i}/{n}] {name}: {len(events)} event files")
+        if truncated:
+            truncated_count += 1
+        print(
+            f"[{i}/{n}] {name}: {len(events)} event files"
+            + ("  [TRUNCATED]" if truncated else "")
+        )
         _save_json(manifest, out_path)
 
     if tsv_out_path:
@@ -243,8 +239,13 @@ def list_event_files(
 
     print(
         f"\nDone. Listed: {listed}  |  Skipped (unchanged): {skipped}  |  "
-        f"Errors: {errors}"
+        f"Errors: {errors}  |  Truncated: {truncated_count}"
     )
+    if truncated_count:
+        print(
+            f"  {truncated_count} repo(s) had truncated git-trees — their "
+            'event_files may be incomplete (see "truncated": true in the manifest).'
+        )
     print(f"Manifest: {out_path}")
     if tsv_out_path:
         print(f"TSV:      {tsv_out_path}")

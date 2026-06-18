@@ -1,16 +1,15 @@
-"""test_sync_repo_contents_subdir.py — prefix + include-subdir behavior.
+"""test_sync_repo_contents_subdir.py — recursive-tree producer behavior.
 
-Covers the NEMAR-driven additions to sync_repo_contents:
-  - configurable repo-name prefix (``ds`` for OpenNeuro, ``nm`` for NEMAR)
-  - ``include_subdirs`` (e.g. ``.nemar``): the GraphQL query fetches the
-    subdirectory tree, and its blobs are returned as ``<subdir>/<file>`` entries
-    (hidden names inside an included subdir are kept; hidden *root* entries are
-    still skipped).
-  - backward compatibility: with no subdirs and the default prefix, behavior is
-    unchanged.
+Covers the 2026-06-15 rewrite of sync_repo_contents (GraphQL shallow listing ->
+one recursive git-tree per repo, new per-repo schema):
+  - prefix filter (``ds`` for OpenNeuro, ``nm`` for NEMAR)
+  - new schema fields: top_level_files / subjects / datatypes / event_files,
+    plus synced_at / updated_at / truncated
+  - include_subdirs (e.g. ``.nemar``): blobs under it are kept as top-level files
+  - incremental skip (synced_at >= updated_at) and ``force``
+  - truncated flag recorded
 
-No network: GraphQL responses are synthesized; the one sync_repo_contents test
-monkeypatches fetch_batch and the rate-limit check.
+No network: ``_fetch_recursive_tree`` is monkeypatched.
 
 Run:
     pytest tests/test_sync_repo_contents_subdir.py -v
@@ -18,91 +17,36 @@ Run:
 
 from __future__ import annotations
 
+import json
+
 from hed_metadata_toolkit.github import sync_repo_contents as src
 
 
-# ---------------------------------------------------------------------------
-# GraphQL query builder
-# ---------------------------------------------------------------------------
+def _blob(path, size=1, sha="s"):
+    return {"path": path, "type": "blob", "size": size, "sha": sha}
 
 
-def test_query_without_subdirs_has_no_subdir_alias():
-    q = src._build_graphql_query(["nm000103"], "nemarDatasets")
-    assert 'object(expression: "HEAD:")' in q
-    assert "s0:" not in q
-    assert "HEAD:.nemar" not in q
+def _tree(path):
+    return {"path": path, "type": "tree"}
 
 
-def test_query_with_subdir_includes_head_subdir():
-    q = src._build_graphql_query(["nm000103"], "nemarDatasets", [".nemar"])
-    assert 's0: object(expression: "HEAD:.nemar")' in q
+def _sample_tree():
+    return [
+        _blob("dataset_description.json", size=12, sha="dd"),
+        _blob("participants.tsv", size=8, sha="pt"),
+        _blob(".bidsignore", size=2, sha="bi"),  # hidden root -> excluded
+        _tree(".nemar"),
+        _blob(".nemar/metadata.json", size=20, sha="nm"),
+        _tree("sub-01"),
+        _tree("sub-01/eeg"),
+        _blob("sub-01/eeg/sub-01_task-foo_events.tsv", size=30, sha="e1"),
+        _blob("sub-01/eeg/sub-01_task-foo_eeg.json", size=5, sha="x1"),
+        _tree("derivatives"),
+        _blob("derivatives/sub-01/sub-01_task-foo_events.tsv", sha="d1"),  # ignored
+    ]
 
 
-# ---------------------------------------------------------------------------
-# GraphQL response parser
-# ---------------------------------------------------------------------------
-
-
-def _fake_payload() -> dict:
-    return {
-        "data": {
-            "r0": {
-                "nameWithOwner": "nemarDatasets/nm000103",
-                "object": {
-                    "entries": [
-                        {
-                            "name": "participants.tsv",
-                            "type": "blob",
-                            "object": {"byteSize": 10, "oid": "aaa"},
-                        },
-                        {"name": ".github", "type": "tree"},  # hidden root -> skip
-                    ]
-                },
-                "s0": {
-                    "entries": [
-                        {
-                            "name": "meta.json",
-                            "type": "blob",
-                            "object": {"byteSize": 5, "oid": "bbb"},
-                        },
-                        {
-                            "name": ".keep",  # hidden inside subdir -> kept
-                            "type": "blob",
-                            "object": {"byteSize": 0, "oid": "ccc"},
-                        },
-                    ]
-                },
-            }
-        }
-    }
-
-
-def test_parse_includes_subdir_and_skips_hidden_root():
-    res = src._parse_graphql_response(_fake_payload(), ["nm000103"], [".nemar"])
-    names = {e["name"] for e in res["nm000103"]}
-    assert "participants.tsv" in names
-    assert ".github" not in names  # hidden root entry skipped
-    assert ".nemar/meta.json" in names  # subdir contents included, path-qualified
-    assert ".nemar/.keep" in names  # hidden-inside-subdir kept
-    meta = next(e for e in res["nm000103"] if e["name"] == ".nemar/meta.json")
-    assert meta["type"] == "blob"
-    assert meta["sha"] == "bbb"
-    assert meta["size"] == 5
-
-
-def test_parse_without_subdirs_is_unchanged():
-    res = src._parse_graphql_response(_fake_payload(), ["nm000103"])
-    names = [e["name"] for e in res["nm000103"]]
-    # Only the non-hidden root blob; .github skipped; the s0 subdir is ignored.
-    assert names == ["participants.tsv"]
-
-
-# ---------------------------------------------------------------------------
-# sync_repo_contents: prefix filter + include_subdirs threading
-# ---------------------------------------------------------------------------
-
-
-def test_prefix_filters_repos_and_threads_subdirs(tmp_path, monkeypatch):
+def _write_tsv(tmp_path):
     tsv = tmp_path / "datasets.tsv"
     tsv.write_text(
         "name\tupdated_at\n"
@@ -111,20 +55,20 @@ def test_prefix_filters_repos_and_threads_subdirs(tmp_path, monkeypatch):
         ".github\t2026-01-01T00:00:00Z\n",
         encoding="utf-8",
     )
+    return tsv
+
+
+def test_prefix_filter_and_new_schema(tmp_path, monkeypatch):
+    tsv = _write_tsv(tmp_path)
     out = tmp_path / "repo_contents.json"
 
-    captured = {}
+    fetched = []
 
-    def fake_fetch_batch(batch, org, headers, include_subdirs=None):
-        captured["batch"] = list(batch)
-        captured["org"] = org
-        captured["include_subdirs"] = include_subdirs
-        return {
-            n: [{"name": "x", "type": "blob", "size": 1, "sha": "s"}] for n in batch
-        }
+    def fake_fetch(org, repo, headers):
+        fetched.append((org, repo))
+        return _sample_tree(), False, None
 
-    monkeypatch.setattr(src, "fetch_batch", fake_fetch_batch)
-    monkeypatch.setattr(src, "_check_rate_limit", lambda headers: None)
+    monkeypatch.setattr(src, "_fetch_recursive_tree", fake_fetch)
 
     src.sync_repo_contents(
         tsv_path=str(tsv),
@@ -135,7 +79,139 @@ def test_prefix_filters_repos_and_threads_subdirs(tmp_path, monkeypatch):
         include_subdirs=[".nemar"],
     )
 
-    assert captured["batch"] == ["nm000103"]  # ds* and .github filtered out
-    assert captured["org"] == "nemarDatasets"
-    assert captured["include_subdirs"] == [".nemar"]
-    assert out.exists()
+    # ds* and .github filtered out by prefix nm
+    assert fetched == [("nemarDatasets", "nm000103")]
+    data = json.loads(out.read_text(encoding="utf-8"))
+    rec = data["nm000103"]
+    assert rec["subjects"] == ["sub-01"]
+    assert rec["datatypes"] == ["eeg"]
+    assert [b["path"] for b in rec["event_files"]] == [
+        "sub-01/eeg/sub-01_task-foo_events.tsv"
+    ]
+    tlf = [b["path"] for b in rec["top_level_files"]]
+    assert tlf == [".nemar/metadata.json", "dataset_description.json", "participants.tsv"]
+    assert rec["truncated"] is False
+    assert rec["synced_at"] and rec["updated_at"] == "2026-01-01T00:00:00Z"
+
+
+def test_include_subdir_omitted_drops_nemar(tmp_path, monkeypatch):
+    tsv = _write_tsv(tmp_path)
+    out = tmp_path / "repo_contents.json"
+    monkeypatch.setattr(
+        src, "_fetch_recursive_tree", lambda o, r, h: (_sample_tree(), False, None)
+    )
+    src.sync_repo_contents(
+        tsv_path=str(tsv),
+        out_path=str(out),
+        token=None,
+        organization="nemarDatasets",
+        prefix="nm",
+        include_subdirs=None,
+    )
+    rec = json.loads(out.read_text(encoding="utf-8"))["nm000103"]
+    assert ".nemar/metadata.json" not in [b["path"] for b in rec["top_level_files"]]
+
+
+def test_incremental_skip(tmp_path, monkeypatch):
+    tsv = _write_tsv(tmp_path)
+    out = tmp_path / "repo_contents.json"
+    # Pre-seed: nm000103 already synced after its updated_at -> should be skipped.
+    out.write_text(
+        json.dumps(
+            {
+                "nm000103": {
+                    "synced_at": "2026-02-01T00:00:00Z",
+                    "updated_at": "2026-01-01T00:00:00Z",
+                    "truncated": False,
+                    "top_level_files": [],
+                    "subjects": [],
+                    "datatypes": [],
+                    "event_files": [],
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    fetched = []
+    monkeypatch.setattr(
+        src,
+        "_fetch_recursive_tree",
+        lambda o, r, h: (fetched.append(r), (_sample_tree(), False, None))[1],
+    )
+    src.sync_repo_contents(
+        tsv_path=str(tsv),
+        out_path=str(out),
+        token=None,
+        organization="nemarDatasets",
+        prefix="nm",
+    )
+    assert fetched == []  # nothing re-fetched
+
+
+def test_force_refetches(tmp_path, monkeypatch):
+    tsv = _write_tsv(tmp_path)
+    out = tmp_path / "repo_contents.json"
+    out.write_text(
+        json.dumps(
+            {
+                "nm000103": {
+                    "synced_at": "2999-01-01T00:00:00Z",
+                    "updated_at": "x",
+                    "subjects": [],
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    fetched = []
+    monkeypatch.setattr(
+        src,
+        "_fetch_recursive_tree",
+        lambda o, r, h: (fetched.append(r), (_sample_tree(), False, None))[1],
+    )
+    src.sync_repo_contents(
+        tsv_path=str(tsv),
+        out_path=str(out),
+        token=None,
+        organization="nemarDatasets",
+        prefix="nm",
+        force=True,
+    )
+    assert fetched == ["nm000103"]
+
+
+def test_truncated_flag_recorded(tmp_path, monkeypatch):
+    tsv = _write_tsv(tmp_path)
+    out = tmp_path / "repo_contents.json"
+    monkeypatch.setattr(
+        src, "_fetch_recursive_tree", lambda o, r, h: (_sample_tree(), True, None)
+    )
+    src.sync_repo_contents(
+        tsv_path=str(tsv),
+        out_path=str(out),
+        token=None,
+        organization="nemarDatasets",
+        prefix="nm",
+    )
+    rec = json.loads(out.read_text(encoding="utf-8"))["nm000103"]
+    assert rec["truncated"] is True
+
+
+def test_error_recorded_in_failures(tmp_path, monkeypatch):
+    tsv = _write_tsv(tmp_path)
+    out = tmp_path / "repo_contents.json"
+    monkeypatch.setattr(
+        src, "_fetch_recursive_tree", lambda o, r, h: (None, False, "not_found")
+    )
+    src.sync_repo_contents(
+        tsv_path=str(tsv),
+        out_path=str(out),
+        token=None,
+        organization="nemarDatasets",
+        prefix="nm",
+    )
+    fail = json.loads(
+        (tmp_path / "repo_contents_failures.json").read_text(encoding="utf-8")
+    )
+    assert fail["nm000103"]["reason"] == "not_found"

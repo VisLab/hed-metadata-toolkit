@@ -263,6 +263,36 @@ def _save_failures(failures: dict, contents_path: str) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Schema normalization (supports both repo_contents.json shapes)
+# ---------------------------------------------------------------------------
+
+
+def _repo_blob_entries(meta) -> list[dict]:
+    """Return top-level blob entries as ``{name, type, size, sha}`` dicts.
+
+    Supports both schemas:
+      - new: ``meta["top_level_files"]`` = list of ``{path, size, sha}`` (the
+        ``path`` becomes ``name``, so ``.nemar/metadata.json`` downloads into the
+        right nested location).
+      - legacy: ``meta["entries"]`` = list of ``{name, type, size, sha}``.
+    """
+    if not isinstance(meta, dict):
+        return []
+    if "top_level_files" in meta:
+        return [
+            {
+                "name": b.get("path"),
+                "type": "blob",
+                "size": b.get("size"),
+                "sha": b.get("sha"),
+            }
+            for b in meta.get("top_level_files", [])
+            if b.get("path")
+        ]
+    return meta.get("entries", [])
+
+
+# ---------------------------------------------------------------------------
 # Per-repo sync
 # ---------------------------------------------------------------------------
 
@@ -423,7 +453,7 @@ def sync_all(
 
     n = len(repo_contents)
     for idx, (repo_name, meta) in enumerate(repo_contents.items(), 1):
-        entries = meta.get("entries", []) if isinstance(meta, dict) else []
+        entries = _repo_blob_entries(meta)
         blob_count = sum(1 for e in entries if e.get("type") == "blob")
         print(f"[{idx}/{n}] {repo_name}: {blob_count} blobs", end=" ... ", flush=True)
 

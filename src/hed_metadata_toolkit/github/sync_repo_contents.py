@@ -1,52 +1,59 @@
 """
 sync_repo_contents.py
 
-Fetches the top-level file/directory listing for every ds* repository in the
-OpenNeuroDatasets GitHub organization and stores the results in
-datasets/dataset_summaries/repo_contents.json.
+For every ``<prefix>*`` repository in a GitHub organization, fetch the full
+**recursive** git-tree once
+(``GET /repos/{org}/{repo}/git/trees/HEAD?recursive=1``) and derive a compact
+per-repo metadata record into ``datasets/dataset_summaries/repo_contents.json``.
 
-Improvements over get_repo_files.py:
-  - Uses the GitHub GraphQL API to batch 20 repos per request (~90 requests
-    instead of 1,800 individual REST calls).
-  - Stores entry type (blob / tree), file size, and git SHA for each item so
-    that sync_local_files.py can do incremental, SHA-based downloads.
-  - Incremental mode: compares updated_at from datasets_ordered.tsv against the
-    stored synced_at timestamp and skips repos that have not changed.
+Output schema (one recursive call per repo):
 
-Output schema (datasets/dataset_summaries/repo_contents.json):
 {
-  "ds000001": {
-    "synced_at": "2026-04-14T12:00:00Z",
-    "entries": [
-      {"name": "README",                   "type": "blob", "size": 2048, "sha": "abc123"},
-      {"name": "dataset_description.json", "type": "blob", "size":  512, "sha": "def456"},
-      {"name": "sub-01",                   "type": "tree"}
+  "nm000105": {
+    "synced_at":  "2026-06-15T12:00:00Z",
+    "updated_at": "2026-06-14T08:00:00Z",
+    "truncated":  false,
+    "top_level_files": [
+      {"path": "dataset_description.json", "size": 512, "sha": "abc"},
+      {"path": ".nemar/metadata.json",     "size": 200, "sha": "def"}
+    ],
+    "subjects":   ["sub-001", "sub-002"],
+    "datatypes":  ["eeg", "emg"],
+    "event_files": [
+      {"path": "sub-001/eeg/sub-001_task-x_events.tsv", "size": 300, "sha": "e1"}
     ]
   },
   ...
 }
 
-Failure tracking (datasets/dataset_summaries/repo_contents_failures.json):
-Repos that return empty entries are recorded in a companion JSON dict keyed by
-repo name.  On a subsequent successful fetch the entry is removed.  To
-permanently skip a repo (e.g. a private / unreleased dataset), set its
-"skip" field to true — it will then be ignored even when --retry-failed is used.
+``top_level_files`` are root-level (non-hidden) blobs plus blobs under any
+``--include-subdir`` (e.g. ``.nemar``). ``subjects`` / ``datatypes`` /
+``event_files`` are derived from the BIDS layout under each top-level ``sub-*``
+directory (``derivatives/`` and other non-``sub-`` top-level dirs are ignored;
+``phenotype`` is not treated as a datatype). See
+``hed_metadata_toolkit.github.bids_tree`` for the exact rules.
 
-{
-  "ds004169": {"reason": "empty_entries", "failed_at": "2026-04-14T17:41:55Z"},
-  "ds004186": {"reason": "empty_entries", "failed_at": "2026-04-14T17:41:55Z", "skip": true}
-}
+``truncated`` is True when GitHub capped the recursive tree (>100k entries /
+7 MB for the whole repo), in which case the derived lists may be incomplete; the
+run prints how many repos truncated. Won't be hit for NEMAR-sized repos.
+
+Incremental: a repo is re-fetched only when its ``updated_at`` (from
+``datasets.tsv``) is newer than the stored ``synced_at`` (``--force`` re-fetches
+all). Repos that error or are empty are recorded in a companion
+``repo_contents_failures.json``; set ``"skip": true`` there to permanently
+ignore a repo.
+
+This replaces the earlier shallow GraphQL listing (which stored only top-level
+``entries``). Consumers read either the new fields or the legacy ``entries`` for
+backward compatibility, so a re-sync can be done incrementally.
 
 Usage:
-    python sync_repo_contents.py [--force] [--retry-failed] [--repo ds000001] [--tsv PATH] [--out PATH]
-
-Options:
-    --force         Re-fetch all repos even if synced_at >= updated_at
-    --retry-failed  Re-attempt repos recorded in the failures dict (skip=true entries are always excluded)
-    --repo NAME     Only process a single repository (useful for testing)
-    --tsv PATH      Path to datasets.tsv (output of create_repo_list.py, default: ../datasets/dataset_summaries/datasets.tsv)
-    --out PATH      Path to output repo_contents.json       (default: ../datasets/dataset_summaries/repo_contents.json)
+    hed-sync-repo-contents [--force] [--retry-failed] [--repo NAME]
+        [--org ORG] [--prefix PFX] [--include-subdir SUBDIR] [--tsv PATH] [--out PATH]
+    python -m hed_metadata_toolkit.github.sync_repo_contents ...
 """
+
+from __future__ import annotations
 
 import argparse
 import json
@@ -58,15 +65,14 @@ import pandas as pd
 import requests
 from dotenv import load_dotenv
 
+from hed_metadata_toolkit.github.bids_tree import derive_repo_metadata
+
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
-GRAPHQL_URL = "https://api.github.com/graphql"
-BATCH_SIZE = 10  # repos per GraphQL request; large repos (many sub-* dirs) can
-# cause 502s with bigger batches — keep <=10 to stay under complexity limits
+GIT_TREES_URL = "https://api.github.com/repos/{org}/{repo}/git/trees/{sha}"
 RETRY_LIMIT = 4
 RETRY_BASE_DELAY = 5  # seconds; doubled on each retry (exponential backoff)
-MIN_BATCH_SIZE = 1  # floor when auto-halving a batch on 5xx errors
 
 
 # ---------------------------------------------------------------------------
@@ -77,203 +83,19 @@ MIN_BATCH_SIZE = 1  # floor when auto-halving a batch on 5xx errors
 def _safe_replace(
     tmp_path: str, target_path: str, retries: int = 5, delay: float = 0.5
 ) -> None:
-    """
-    Replace target_path with tmp_path, retrying on Windows permission errors.
-
-    On Windows, os.replace() can fail with PermissionError if the target file
-    is open in an editor or locked by another process. This function retries
-    with exponential backoff.
-    """
+    """Replace target_path with tmp_path, retrying on Windows permission errors."""
     for attempt in range(1, retries + 1):
         try:
             os.replace(tmp_path, target_path)
             return
         except PermissionError:
             if attempt >= retries:
-                raise  # exhausted retries
+                raise
             print(
                 f"    File locked, retrying in {delay}s... (attempt {attempt}/{retries})"
             )
             time.sleep(delay)
-            delay *= 2  # exponential backoff
-
-
-# ---------------------------------------------------------------------------
-# GraphQL helpers
-# ---------------------------------------------------------------------------
-
-
-_TREE_ENTRIES = (
-    "... on Tree { entries { name type object { ... on Blob { byteSize oid } } } }"
-)
-
-
-def _build_graphql_query(
-    repo_names: list[str], org: str, include_subdirs: "list[str] | None" = None
-) -> str:
-    """Build a single GraphQL query that fetches the root tree for each repo.
-
-    If ``include_subdirs`` is given (e.g. ``[".nemar"]``), each repo fragment
-    also fetches the tree of those subdirectories, so their contents can be
-    included alongside the root-level entries.
-    """
-    include_subdirs = include_subdirs or []
-    fragments = []
-    for i, name in enumerate(repo_names):
-        safe = f"r{i}"  # alias must be a valid GraphQL identifier
-        lines = [
-            f'  {safe}: repository(owner: "{org}", name: "{name}") {{',
-            "    nameWithOwner",
-            f'    object(expression: "HEAD:") {{ {_TREE_ENTRIES} }}',
-        ]
-        for j, sub in enumerate(include_subdirs):
-            lines.append(
-                f'    s{j}: object(expression: "HEAD:{sub}") {{ {_TREE_ENTRIES} }}'
-            )
-        lines.append("  }")
-        fragments.append("\n".join(lines))
-    return "{\n" + "\n".join(fragments) + "\n}"
-
-
-def _entry_dict(name: str, entry: dict) -> dict:
-    """Normalize one GraphQL tree entry into our stored shape."""
-    if entry.get("type", "blob") == "blob":
-        obj = entry.get("object") or {}
-        return {
-            "name": name,
-            "type": "blob",
-            "size": obj.get("byteSize"),
-            "sha": obj.get("oid"),
-        }
-    return {"name": name, "type": "tree"}
-
-
-def _parse_graphql_response(
-    payload: dict, repo_names: list[str], include_subdirs: "list[str] | None" = None
-) -> dict:
-    """Extract per-repo entry lists from a successful GraphQL response payload.
-
-    Root-level hidden entries (``.github`` etc.) are skipped as before. For any
-    directory named in ``include_subdirs`` (e.g. ``.nemar``), its entries are
-    appended with paths prefixed by the subdir (``.nemar/<name>``); hidden names
-    *inside* an included subdir are kept.
-    """
-    include_subdirs = include_subdirs or []
-    data = payload.get("data") or {}
-    results = {}
-    for i, name in enumerate(repo_names):
-        alias = f"r{i}"
-        repo_data = data.get(alias)
-        if not repo_data:
-            results[name] = []
-            continue
-        entries = []
-        tree = (repo_data.get("object") or {}).get("entries") or []
-        for entry in tree:
-            e_name = entry.get("name", "")
-            if e_name.startswith("."):
-                continue  # skip hidden top-level files/dirs
-            entries.append(_entry_dict(e_name, entry))
-        for j, sub in enumerate(include_subdirs):
-            sub_entries = (repo_data.get(f"s{j}") or {}).get("entries") or []
-            for entry in sub_entries:
-                e_name = entry.get("name", "")
-                if not e_name:
-                    continue
-                entries.append(_entry_dict(f"{sub}/{e_name}", entry))
-        results[name] = entries
-    return results
-
-
-def _fetch_batch_once(
-    repo_names: list[str],
-    org: str,
-    headers: dict,
-    include_subdirs: "list[str] | None" = None,
-) -> tuple[dict | None, bool]:
-    """
-    Make a single GraphQL request for the given repos.
-
-    Returns (results_dict, is_server_error).
-    results_dict is None if the request failed outright.
-    is_server_error is True for 5xx responses (signals caller to halve batch).
-    """
-    query = _build_graphql_query(repo_names, org, include_subdirs)
-    try:
-        response = requests.post(
-            GRAPHQL_URL,
-            json={"query": query},
-            headers=headers,
-            timeout=60,
-        )
-    except requests.RequestException as exc:
-        print(f"  Request error: {exc}")
-        return None, False
-
-    if _is_rate_limited(response):
-        _wait_for_rate_limit(response)
-        return None, False  # outer retry loop will retry immediately after the wait
-
-    if response.status_code >= 500:
-        print(f"  Server error {response.status_code} for batch of {len(repo_names)}")
-        return None, True
-
-    try:
-        response.raise_for_status()
-        payload = response.json()
-    except Exception as exc:
-        print(f"  Response error: {exc}")
-        return None, False
-
-    if "errors" in payload:
-        print(f"  GraphQL errors: {payload['errors']}")
-
-    return _parse_graphql_response(payload, repo_names, include_subdirs), False
-
-
-def fetch_batch(
-    repo_names: list[str],
-    org: str,
-    headers: dict,
-    include_subdirs: "list[str] | None" = None,
-) -> dict:
-    """
-    Execute a GraphQL request for the given repos with retries and exponential
-    backoff.  On 5xx errors the batch is automatically halved and each half is
-    retried independently, recursing down to MIN_BATCH_SIZE = 1 if needed.
-
-    Returns a dict mapping repo_name -> list of entry dicts.
-    """
-    if not repo_names:
-        return {}
-
-    delay = RETRY_BASE_DELAY
-    for attempt in range(1, RETRY_LIMIT + 1):
-        results, is_server_error = _fetch_batch_once(
-            repo_names, org, headers, include_subdirs
-        )
-
-        if results is not None:
-            return results
-
-        if is_server_error and len(repo_names) > MIN_BATCH_SIZE:
-            # Halve the batch and retry each half independently
-            mid = len(repo_names) // 2
-            half_a, half_b = repo_names[:mid], repo_names[mid:]
-            print(f"  Halving batch: {len(half_a)} + {len(half_b)} repos")
-            time.sleep(delay)
-            combined = {}
-            combined.update(fetch_batch(half_a, org, headers, include_subdirs))
-            combined.update(fetch_batch(half_b, org, headers, include_subdirs))
-            return combined
-
-        if attempt < RETRY_LIMIT:
-            print(f"  [attempt {attempt}/{RETRY_LIMIT}] Retrying in {delay}s...")
-            time.sleep(delay)
-            delay *= 2  # exponential backoff
-
-    print(f"  All retries exhausted for batch of {len(repo_names)}")
-    return {name: [] for name in repo_names}
+            delay *= 2
 
 
 # ---------------------------------------------------------------------------
@@ -282,7 +104,6 @@ def fetch_batch(
 
 
 def _is_rate_limited(response) -> bool:
-    """Return True if the response indicates a GitHub rate-limit hit."""
     if response.status_code == 429:
         return True
     if response.status_code == 403:
@@ -291,10 +112,6 @@ def _is_rate_limited(response) -> bool:
 
 
 def _wait_for_rate_limit(response) -> None:
-    """
-    Block until the GitHub rate-limit window resets.
-    Reads retry-after or x-ratelimit-reset from the response headers.
-    """
     wait = 0
     retry_after = response.headers.get("retry-after")
     if retry_after:
@@ -310,29 +127,70 @@ def _wait_for_rate_limit(response) -> None:
             except ValueError:
                 pass
     if not wait:
-        wait = 60  # fallback: 60 s
+        wait = 60
     print(f"\n  Rate limit hit — waiting {wait}s until reset...")
     time.sleep(wait)
     print("  Resuming after rate-limit wait.")
 
 
-def _check_rate_limit(headers: dict) -> None:
-    """Print remaining GraphQL rate-limit points."""
-    query = "{ rateLimit { remaining resetAt } }"
-    try:
-        r = requests.post(
-            GRAPHQL_URL, json={"query": query}, headers=headers, timeout=10
-        )
-        rl = r.json().get("data", {}).get("rateLimit", {})
-        print(
-            f"GraphQL rate limit: {rl.get('remaining')} points remaining, resets at {rl.get('resetAt')}"
-        )
-    except Exception:
-        pass
+# ---------------------------------------------------------------------------
+# Recursive git-tree fetch (one call per repo; no file contents downloaded)
+# ---------------------------------------------------------------------------
+
+
+def _fetch_recursive_tree(
+    org: str, repo: str, headers: dict
+) -> "tuple[list | None, bool, str | None]":
+    """Return ``(tree_entries, truncated, error)`` for the whole repo.
+
+    ``tree_entries`` is the raw ``tree`` array (both ``blob`` and ``tree``
+    entries). ``truncated`` is True when GitHub capped the response.
+    ``error`` is None on success, ``"not_found"`` for 404, or a message string.
+    An empty repository (409, no commits) returns ``([], False, None)``.
+    """
+    url = GIT_TREES_URL.format(org=org, repo=repo, sha="HEAD") + "?recursive=1"
+    delay = RETRY_BASE_DELAY
+    for attempt in range(1, RETRY_LIMIT + 1):
+        try:
+            resp = requests.get(url, headers=headers, timeout=60)
+        except requests.RequestException as exc:
+            if attempt < RETRY_LIMIT:
+                time.sleep(delay)
+                delay *= 2
+                continue
+            return None, False, str(exc)
+
+        if resp.status_code == 404:
+            return None, False, "not_found"
+        if resp.status_code == 409:
+            return [], False, None  # empty repository (no commits)
+        if _is_rate_limited(resp):
+            _wait_for_rate_limit(resp)
+            continue  # retry without consuming an attempt slot meaningfully
+
+        try:
+            resp.raise_for_status()
+            data = resp.json()
+        except Exception as exc:
+            if attempt < RETRY_LIMIT:
+                time.sleep(delay)
+                delay *= 2
+                continue
+            return None, False, str(exc)
+
+        truncated = bool(data.get("truncated"))
+        if truncated:
+            print(
+                f"  WARNING: git-tree for {repo} was truncated (>100k entries / "
+                "7MB across the whole repo) — derived lists may be incomplete."
+            )
+        return data.get("tree", []), truncated, None
+
+    return None, False, "max retries exceeded"
 
 
 # ---------------------------------------------------------------------------
-# Main logic
+# Failure tracking  (repo_contents_failures.json)
 # ---------------------------------------------------------------------------
 
 
@@ -342,7 +200,6 @@ def _failures_path(out_path: str) -> str:
 
 
 def _load_failures(path: str) -> dict:
-    """Load the failures dict from JSON, returning an empty dict if absent/corrupt."""
     if os.path.exists(path):
         try:
             with open(path, "r", encoding="utf-8") as fh:
@@ -353,7 +210,6 @@ def _load_failures(path: str) -> dict:
 
 
 def _save_failures(failures: dict, path: str) -> None:
-    """Persist the failures dict; removes the file entirely when failures is empty."""
     if not failures:
         if os.path.exists(path):
             os.remove(path)
@@ -362,6 +218,19 @@ def _save_failures(failures: dict, path: str) -> None:
     with open(tmp, "w", encoding="utf-8") as fh:
         json.dump(failures, fh, indent=2, ensure_ascii=False)
     _safe_replace(tmp, path)
+
+
+def _save_json(data: dict, path: str) -> None:
+    os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as fh:
+        json.dump(data, fh, indent=2, ensure_ascii=False)
+    _safe_replace(tmp, path)
+
+
+# ---------------------------------------------------------------------------
+# Main logic
+# ---------------------------------------------------------------------------
 
 
 def sync_repo_contents(
@@ -377,9 +246,9 @@ def sync_repo_contents(
 ) -> None:
     now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
-    headers: dict = {"Content-Type": "application/json"}
+    headers: dict = {"Accept": "application/vnd.github.v3+json"}
     if token:
-        headers["Authorization"] = f"bearer {token}"
+        headers["Authorization"] = f"token {token}"
 
     # ------------------------------------------------------------------
     # Load repo list
@@ -405,7 +274,7 @@ def sync_repo_contents(
         print(f"Single-repo mode: {test_repo}")
 
     # ------------------------------------------------------------------
-    # Load existing repo_contents.json
+    # Load existing repo_contents.json + failures dict
     # ------------------------------------------------------------------
     existing: dict = {}
     if os.path.exists(out_path):
@@ -416,39 +285,18 @@ def sync_repo_contents(
         except Exception as exc:
             print(f"Warning: could not read {out_path}: {exc}")
 
-    # ------------------------------------------------------------------
-    # Load failures dict (repo_contents_failures.json)
-    # ------------------------------------------------------------------
     fail_file = _failures_path(out_path)
     failures: dict = _load_failures(fail_file)
     print(
-        f"Failures dict: {len(failures)} repos ({sum(1 for v in failures.values() if v.get('skip'))} skipped permanently)"
+        f"Failures dict: {len(failures)} repos "
+        f"({sum(1 for v in failures.values() if v.get('skip'))} skipped permanently)"
     )
-
-    # Migrate any legacy status="failed" entries from repo_contents.json
-    migrated = 0
-    for name, entry in list(existing.items()):
-        if entry.get("status") == "failed":
-            if name not in failures:
-                failures[name] = {
-                    "reason": "empty_entries",
-                    "failed_at": entry.get("synced_at", now_iso),
-                }
-            # Remove status field; strip empty entry shell if no real entries kept
-            entry.pop("status", None)
-            if not entry.get("entries"):
-                del existing[name]
-            migrated += 1
-    if migrated:
-        print(f"Migrated {migrated} legacy status=failed entries to failures dict")
-        _save_failures(failures, fail_file)
 
     # ------------------------------------------------------------------
     # Decide which repos need a refresh
     # ------------------------------------------------------------------
     to_fetch: list[str] = []
     skipped = 0
-
     for _, row in df.iterrows():
         name = row["name"]
         updated_at = str(row.get("updated_at", ""))
@@ -457,7 +305,7 @@ def sync_repo_contents(
             if name in failures:
                 if failures[name].get("skip"):
                     skipped += 1
-                    continue  # permanently skipped — ignore even with --retry-failed
+                    continue  # permanently skipped
                 if not retry_failed:
                     skipped += 1
                     continue
@@ -466,7 +314,6 @@ def sync_repo_contents(
                 if synced_at and synced_at >= updated_at:
                     skipped += 1
                     continue
-
         to_fetch.append(name)
 
     print(f"Repos to fetch: {len(to_fetch)}  |  Skipped (up-to-date): {skipped}")
@@ -474,63 +321,71 @@ def sync_repo_contents(
         print("Nothing to do.")
         return
 
-    _check_rate_limit(headers)
-
     # ------------------------------------------------------------------
-    # Batch GraphQL fetches
+    # Per-repo recursive fetch
     # ------------------------------------------------------------------
-    total_batches = (len(to_fetch) + BATCH_SIZE - 1) // BATCH_SIZE
-    print(f"Batch size: {BATCH_SIZE}  |  Total batches: {total_batches}")
-    fetched = 0
-    errors = 0
+    n = len(to_fetch)
+    fetched = errors = truncated_count = 0
+    updated_lookup = {row["name"]: str(row.get("updated_at", "")) for _, row in df.iterrows()}
 
-    for batch_num, start in enumerate(range(0, len(to_fetch), BATCH_SIZE), 1):
-        batch = to_fetch[start : start + BATCH_SIZE]
-        print(f"\nBatch {batch_num}/{total_batches}: {batch}")
+    for i, name in enumerate(to_fetch, 1):
+        updated_at = updated_lookup.get(name, "")
+        entries, truncated, err = _fetch_recursive_tree(organization, name, headers)
 
-        results = fetch_batch(batch, organization, headers, include_subdirs)
+        if err is not None:
+            errors += 1
+            print(f"[{i}/{n}] {name}: ERROR ({err}) — recorded in failures dict")
+            prev_skip = (failures.get(name) or {}).get("skip", False)
+            failures[name] = {"reason": err, "failed_at": now_iso}
+            if prev_skip:
+                failures[name]["skip"] = True
+            _save_failures(failures, fail_file)
+            continue
 
-        for name, entries in results.items():
-            if entries:
-                existing[name] = {
-                    "synced_at": now_iso,
-                    "entries": entries,
-                }
-                if name in failures:
-                    del failures[name]
-                fetched += 1
-            else:
-                errors += 1
-                print(
-                    f"  Warning: empty entries for {name} — recorded in failures dict"
-                )
-                failures[name] = {"reason": "empty_entries", "failed_at": now_iso}
-                # Keep any previously-fetched entries in repo_contents.json but
-                # do not update synced_at — the repo is effectively unchanged.
-                if name not in existing:
-                    existing[name] = {"synced_at": "", "entries": []}
+        if not entries:
+            errors += 1
+            print(f"[{i}/{n}] {name}: empty repository — recorded in failures dict")
+            prev_skip = (failures.get(name) or {}).get("skip", False)
+            failures[name] = {"reason": "empty_repo", "failed_at": now_iso}
+            if prev_skip:
+                failures[name]["skip"] = True
+            _save_failures(failures, fail_file)
+            continue
 
-        # Save incrementally after each batch
+        meta = derive_repo_metadata(entries, include_subdirs)
+        existing[name] = {
+            "synced_at": now_iso,
+            "updated_at": updated_at,
+            "truncated": truncated,
+            **meta,
+        }
+        failures.pop(name, None)
+        fetched += 1
+        if truncated:
+            truncated_count += 1
+        print(
+            f"[{i}/{n}] {name}: {len(meta['subjects'])} subjects, "
+            f"{len(meta['datatypes'])} datatypes, {len(meta['event_files'])} event files, "
+            f"{len(meta['top_level_files'])} top-level files"
+            + ("  [TRUNCATED]" if truncated else "")
+        )
+
+        # Save incrementally so a crash mid-run keeps progress.
         _save_json(existing, out_path)
         _save_failures(failures, fail_file)
 
-        # Polite delay between batches
-        if batch_num < total_batches:
-            time.sleep(1)
-
-    print(f"\nDone.  Fetched: {fetched}  |  Errors: {errors}  |  Skipped: {skipped}")
+    print(
+        f"\nDone.  Fetched: {fetched}  |  Errors: {errors}  |  "
+        f"Skipped: {skipped}  |  Truncated: {truncated_count}"
+    )
+    if truncated_count:
+        print(
+            f"  {truncated_count} repo(s) had truncated git-trees — their derived "
+            'lists may be incomplete (see "truncated": true in the manifest).'
+        )
     if errors:
         print(f"Failures saved to: {fail_file}")
         print('  Set "skip": true on any permanently inaccessible repos in that file.')
-    _check_rate_limit(headers)
-
-
-def _save_json(data: dict, path: str) -> None:
-    os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
-    tmp = path + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as fh:
-        json.dump(data, fh, indent=2, ensure_ascii=False)
-    _safe_replace(tmp, path)
 
 
 # ---------------------------------------------------------------------------
@@ -539,15 +394,12 @@ def _save_json(data: dict, path: str) -> None:
 
 
 def main(argv: "list[str] | None" = None) -> int:
-    """Argparse wrapper around :func:`sync_repo_contents`.
-
-    ``sync_repo_contents`` is already the library entry point;
-    consumers can call it directly with their own paths and config.
-    """
+    """Argparse wrapper around :func:`sync_repo_contents`."""
     load_dotenv()
 
     parser = argparse.ArgumentParser(
-        description="Sync repo contents from a GitHub organization to repo_contents.json",
+        description="Sync per-repo BIDS metadata from a GitHub organization to "
+        "repo_contents.json (one recursive git-tree call per repo).",
     )
     parser.add_argument(
         "--force",
@@ -591,8 +443,8 @@ def main(argv: "list[str] | None" = None) -> int:
         action="append",
         default=[],
         metavar="SUBDIR",
-        help="Also fetch this repo subdirectory's contents and include them as "
-        "'<subdir>/<file>' entries (repeatable; e.g. '.nemar').",
+        help="Treat blobs under this repo subdirectory as top-level files, "
+        "recorded as '<subdir>/<file>' (repeatable; e.g. '.nemar').",
     )
     parser.add_argument(
         "--token",
@@ -603,9 +455,7 @@ def main(argv: "list[str] | None" = None) -> int:
 
     token = args.token or os.environ.get("GITHUB_TOKEN")
     if not token:
-        print(
-            "Warning: GITHUB_TOKEN not set. Unauthenticated GraphQL requests are not supported."
-        )
+        print("Warning: GITHUB_TOKEN not set; requests will be rate-limited.")
 
     sync_repo_contents(
         tsv_path=args.tsv,

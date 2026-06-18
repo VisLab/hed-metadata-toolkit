@@ -9,32 +9,33 @@ per-dataset statistics to build a summary TSV:
   - Task names extracted from filenames (task-<name> pattern)
 
 The output TSV provides a template for manual curation; the title, links,
-modalities, contact, and notes columns are filled by subsequent scripts or
-human reviewers.
+contact, and notes columns are filled by subsequent scripts or human reviewers.
+The ``datatypes`` column lists the BIDS datatype directories found in the
+repository tree (e.g. ``eeg,emg``); it is derived from repo_contents.json.
 
 NEMAR enrichment: if a dataset has a local ``.nemar/metadata.json`` (under
-``--datasets-dir/<repo>/.nemar/metadata.json``), its ``title`` and ``modalities``
-and the ``related_identifiers`` (as ``links``) are pulled into those columns.
-Datasets without that file (e.g. OpenNeuro) are unchanged.
+``--datasets-dir/<repo>/.nemar/metadata.json``), its ``title`` and the
+``related_identifiers`` (as ``links``) are pulled into those columns. The
+``datatypes`` column is NOT taken from NEMAR. Datasets without that file (e.g.
+OpenNeuro) are unchanged.
 
 Input:
     datasets/dataset_summaries/repo_contents.json
-    Schema:
+    New schema (preferred):
         {
-          "ds000001": {
-            "synced_at": "2026-06-01T21:19:43Z",
-            "entries": [
-              {"name": "README", "type": "blob", "size": 1175, "sha": "abc123"},
-              {"name": "sub-01", "type": "tree"},
-              ...
-            ]
-          },
-          ...
+          "nm000105": {
+            "synced_at": "...", "updated_at": "...", "truncated": false,
+            "top_level_files": [{"path": "README", "size": 1175, "sha": "abc"}],
+            "subjects": ["sub-01"],
+            "datatypes": ["eeg"],
+            "event_files": [{"path": "sub-01/eeg/sub-01_task-x_events.tsv", ...}]
+          }
         }
+    Legacy schema (still read): {"ds000001": {"entries": [{"name", "type"}]}}.
 
 Output:
     datasets/dataset_summaries/dataset_summary.tsv
-    Columns: name, subjs, links, readme, events, title, tasks, modalities, contact, notes
+    Columns: name, subjs, links, readme, events, title, tasks, datatypes, contact, notes
 
 Usage:
     python extract_summary_info.py
@@ -150,19 +151,16 @@ def _load_nemar_metadata(datasets_dir, dataset_name):
 def _nemar_overrides(meta):
     """Map a ``.nemar/metadata.json`` dict to summary columns.
 
-    Returns a dict with ``title``, ``modalities`` (comma-joined), and ``links``
-    (the ``related_identifiers`` values joined by ``; ``).
+    Returns ``title`` and ``links`` (the ``related_identifiers`` values joined by
+    ``; ``). The ``datatypes`` column is intentionally NOT taken from NEMAR — it
+    is derived from the repository's directory tree (see ``extract_dataset_info``).
     """
-    modalities = meta.get("modalities") or []
-    if not isinstance(modalities, str):
-        modalities = ",".join(str(m) for m in modalities)
     identifiers = []
     for rel in meta.get("related_identifiers") or []:
         if isinstance(rel, dict) and rel.get("identifier"):
             identifiers.append(str(rel["identifier"]))
     return {
         "title": meta.get("title") or "",
-        "modalities": modalities,
         "links": "; ".join(identifiers),
     }
 
@@ -196,44 +194,60 @@ def extract_dataset_info(repo_contents_json_path, datasets_dir=None):
     for dataset_name, dataset_entry in repo_data.items():
         print(f"Processing dataset: {dataset_name}")
 
-        # Extract the list of entry names from the new repo_contents.json format
-        # repo_contents.json has structure: {"ds000001": {"synced_at": "...", "entries": [...]}}
-        if isinstance(dataset_entry, dict) and "entries" in dataset_entry:
-            # New format from sync_repo_contents.py
-            file_list = [entry["name"] for entry in dataset_entry.get("entries", [])]
-        elif isinstance(dataset_entry, list):
-            # Legacy format from get_repo_files.py (list of strings)
-            file_list = dataset_entry
+        # repo_contents.json comes in two shapes:
+        #   new      -> {"subjects": [...], "datatypes": [...],
+        #                "event_files": [{"path": ...}], "top_level_files": [{"path": ...}]}
+        #   legacy   -> {"entries": [{"name": ..., "type": ...}]}  (or a bare list)
+        if isinstance(dataset_entry, dict) and "subjects" in dataset_entry:
+            subjs = len(dataset_entry.get("subjects", []))
+            datatypes = ",".join(dataset_entry.get("datatypes", []))
+            event_paths = [
+                b.get("path", "") for b in dataset_entry.get("event_files", [])
+            ]
+            top_paths = [
+                b.get("path", "") for b in dataset_entry.get("top_level_files", [])
+            ]
+            events = "yes" if event_paths else "no"
+            tasks = extract_task_names(event_paths + top_paths)
+            readme = (
+                "yes"
+                if any(Path(p).name.lower().startswith("readme") for p in top_paths)
+                else "no"
+            )
         else:
-            print(f"  Warning: unexpected format for {dataset_name}, skipping")
-            continue
-
-        # Extract information
-        subjs = count_subjects(file_list)
-        events = check_has_events(file_list)
-        tasks = extract_task_names(file_list)
-        readme = check_has_readme(file_list)
+            if isinstance(dataset_entry, dict) and "entries" in dataset_entry:
+                file_list = [e["name"] for e in dataset_entry.get("entries", [])]
+            elif isinstance(dataset_entry, list):
+                file_list = dataset_entry  # legacy get_repo_files.py format
+            else:
+                print(f"  Warning: unexpected format for {dataset_name}, skipping")
+                continue
+            subjs = count_subjects(file_list)
+            events = check_has_events(file_list)
+            tasks = extract_task_names(file_list)
+            readme = check_has_readme(file_list)
+            datatypes = ""  # legacy schema has no derived datatypes
 
         # Create dataset info record
         info = {
             "name": dataset_name,
             "subjs": subjs,
-            "title": "",  # Will be filled by another script
-            "links": "",  # Will be filled by another script
+            "title": "",  # filled from .nemar metadata when present
+            "links": "",  # filled from .nemar metadata when present
             "readme": readme,
             "events": events,
             "tasks": tasks,
-            "modalities": "",  # Will be filled by another script
-            "contact": "",  # Will be filled by another script
-            "notes": "",  # Will be filled by another script
+            "datatypes": datatypes,  # derived from the repo directory tree
+            "contact": "",  # filled by a later script / reviewer
+            "notes": "",  # filled by a later script / reviewer
         }
 
-        # NEMAR enrichment: when a .nemar/metadata.json is present, fill
-        # title, modalities, and links from it.
+        # NEMAR enrichment: when a .nemar/metadata.json is present, fill the
+        # title and links (NOT datatypes — those come from the tree above).
         nemar_meta = _load_nemar_metadata(datasets_dir, dataset_name)
         if nemar_meta:
             info.update(_nemar_overrides(nemar_meta))
-            print("  .nemar metadata: filled title, modalities, links")
+            print("  .nemar metadata: filled title, links")
 
         dataset_info.append(info)
 
@@ -268,7 +282,7 @@ def save_dataset_summary(dataset_info, output_file="dataset_summary.tsv"):
         "events",
         "title",
         "tasks",
-        "modalities",
+        "datatypes",
         "contact",
         "notes",
     ]
@@ -388,7 +402,7 @@ def main(argv: "list[str] | None" = None) -> int:
         type=Path,
         default=Path("datasets/dataset_repos"),
         help="Local dataset_repos directory. A dataset's .nemar/metadata.json "
-        "(if present) fills the title, modalities, and links columns.",
+        "(if present) fills the title and links columns.",
     )
     args = parser.parse_args(argv)
 

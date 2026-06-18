@@ -86,7 +86,7 @@ def test_incremental_skip_and_filtering(tmp_path, monkeypatch):
             "sub-01/eeg/sub-01_task-foo_events.tsv",
             "derivatives/sub-01/sub-01_task-foo_events.tsv",  # must be excluded
             "participants.tsv",
-        ), None
+        ), False, None
 
     monkeypatch.setattr(lef, "_fetch_recursive_tree", fake_fetch)
 
@@ -135,7 +135,7 @@ def test_force_relists_everything(tmp_path, monkeypatch):
 
     def fake_fetch(org, repo, headers):
         fetched.append(repo)
-        return _tree("sub-01/sub-01_task-x_events.json"), None
+        return _tree("sub-01/sub-01_task-x_events.json"), False, None
 
     monkeypatch.setattr(lef, "_fetch_recursive_tree", fake_fetch)
 
@@ -149,3 +149,26 @@ def test_force_relists_everything(tmp_path, monkeypatch):
         tsv_out_path=None,
     )
     assert fetched == ["nm000103"]  # re-listed despite future synced_at
+
+
+def test_truncated_flag_recorded(tmp_path, monkeypatch):
+    tsv = tmp_path / "datasets.tsv"
+    tsv.write_text(
+        "name\tupdated_at\nnm000200\t2026-01-02T00:00:00Z\n", encoding="utf-8"
+    )
+    out = tmp_path / "event_files.json"
+
+    def fake_fetch(org, repo, headers):
+        return _tree("sub-01/eeg/sub-01_task-x_events.tsv"), True, None  # truncated
+
+    monkeypatch.setattr(lef, "_fetch_recursive_tree", fake_fetch)
+
+    m = lef.list_event_files(
+        tsv_path=str(tsv),
+        out_path=str(out),
+        token=None,
+        organization="nemarDatasets",
+        prefix="nm",
+        tsv_out_path=None,
+    )
+    assert m["nm000200"]["truncated"] is True

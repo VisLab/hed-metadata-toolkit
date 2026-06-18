@@ -259,6 +259,20 @@ def _find_participant_dir(
     return None
 
 
+def _repo_tree_entries(meta) -> list[dict]:
+    """Return top-level directory entries as ``{name, type: "tree"}`` dicts.
+
+    Supports both repo_contents.json schemas:
+      - new: ``meta["subjects"]`` = list of ``sub-*`` directory names.
+      - legacy: ``meta["entries"]`` = mixed blob/tree entries (trees kept).
+    """
+    if not isinstance(meta, dict):
+        return []
+    if "subjects" in meta:
+        return [{"name": s, "type": "tree"} for s in meta.get("subjects", [])]
+    return meta.get("entries", [])
+
+
 # ---------------------------------------------------------------------------
 # GitHub git-trees API helpers
 # ---------------------------------------------------------------------------
@@ -672,7 +686,7 @@ def sync_all(
 
     n = len(repo_contents)
     for idx, (repo_name, meta) in enumerate(repo_contents.items(), 1):
-        entries = meta.get("entries", []) if isinstance(meta, dict) else []
+        entries = _repo_tree_entries(meta)
         print(f"[{idx}/{n}] {repo_name}:", end=" ", flush=True)
 
         stats, fc_entry = sync_repo(
