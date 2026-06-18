@@ -47,6 +47,7 @@ hed-fetch-repo-list        = "hed_metadata_toolkit.github.fetch_repo_list:main"
 hed-sync-repo-contents     = "hed_metadata_toolkit.github.sync_repo_contents:main"
 hed-sync-local-files       = "hed_metadata_toolkit.github.sync_local_files:main"
 hed-sync-repo-file-contents = "hed_metadata_toolkit.github.sync_repo_file_contents:main"
+hed-list-event-files       = "hed_metadata_toolkit.github.list_event_files:main"
 # Dataset-summary builders
 hed-extract-summary-info   = "hed_metadata_toolkit.dataset_summary.extract_summary_info:main"
 hed-extract-readme-summaries = "hed_metadata_toolkit.dataset_summary.extract_readme_summaries:main"

@@ -26,6 +26,7 @@ COMMANDS = [
     "hed-sync-repo-contents",
     "hed-sync-local-files",
     "hed-sync-repo-file-contents",
+    "hed-list-event-files",
     "hed-extract-summary-info",
     "hed-extract-readme-summaries",
     "hed-update-summary",
