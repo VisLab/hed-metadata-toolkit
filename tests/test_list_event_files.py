@@ -20,19 +20,19 @@ from hed_metadata_toolkit.github import list_event_files as lef
 
 def test_is_event_file_root_and_sub_only():
     keep = [
-        "task-foo_events.json",                                  # root
-        "task-foo_events.tsv",                                   # root
-        "sub-001/sub-001_events.tsv",                            # directly in sub
-        "sub-001/eeg/sub-001_task-foo_events.tsv",               # nested under sub
+        "task-foo_events.json",  # root
+        "task-foo_events.tsv",  # root
+        "sub-001/sub-001_events.tsv",  # directly in sub
+        "sub-001/eeg/sub-001_task-foo_events.tsv",  # nested under sub
         "sub-001/ses-01/eeg/sub-001_ses-01_task-foo_events.json",  # deep under sub
     ]
     drop = [
-        "derivatives/sub-001/sub-001_task-foo_events.tsv",       # other top dir
-        "sourcedata/x_events.json",                              # other top dir
-        "code/x_events.json",                                    # other top dir
-        "stimuli/sub-001_events.tsv",                            # other top dir
-        "participants.tsv",                                      # not an events file
-        "sub-001/eeg/sub-001_task-foo_eeg.json",                 # not an events file
+        "derivatives/sub-001/sub-001_task-foo_events.tsv",  # other top dir
+        "sourcedata/x_events.json",  # other top dir
+        "code/x_events.json",  # other top dir
+        "stimuli/sub-001_events.tsv",  # other top dir
+        "participants.tsv",  # not an events file
+        "sub-001/eeg/sub-001_task-foo_eeg.json",  # not an events file
     ]
     for p in keep:
         assert lef.is_event_file(p) is True, p
@@ -114,11 +114,19 @@ def test_incremental_skip_and_filtering(tmp_path, monkeypatch):
 
 def test_force_relists_everything(tmp_path, monkeypatch):
     tsv = tmp_path / "datasets.tsv"
-    tsv.write_text("name\tupdated_at\nnm000103\t2026-01-02T00:00:00Z\n", encoding="utf-8")
+    tsv.write_text(
+        "name\tupdated_at\nnm000103\t2026-01-02T00:00:00Z\n", encoding="utf-8"
+    )
     out = tmp_path / "event_files.json"
     out.write_text(
         json.dumps(
-            {"nm000103": {"synced_at": "2999-01-01T00:00:00Z", "updated_at": "x", "event_files": []}}
+            {
+                "nm000103": {
+                    "synced_at": "2999-01-01T00:00:00Z",
+                    "updated_at": "x",
+                    "event_files": [],
+                }
+            }
         ),
         encoding="utf-8",
     )

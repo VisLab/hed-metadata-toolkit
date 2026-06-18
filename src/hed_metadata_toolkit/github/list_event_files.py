@@ -80,7 +80,9 @@ def is_event_file(path: str) -> bool:
 # ---------------------------------------------------------------------------
 
 
-def _fetch_recursive_tree(org: str, repo: str, headers: dict) -> tuple[list | None, str | None]:
+def _fetch_recursive_tree(
+    org: str, repo: str, headers: dict
+) -> tuple[list | None, str | None]:
     """Return (blob_entries, error) for the whole repo via one recursive call.
 
     Each entry is the raw git-trees blob dict (has ``path``, ``sha``, ``size``).
@@ -103,7 +105,10 @@ def _fetch_recursive_tree(org: str, repo: str, headers: dict) -> tuple[list | No
             return None, "not_found"
         if resp.status_code == 409:
             return [], None  # empty repository (no commits)
-        if resp.status_code in (403, 429) and resp.headers.get("x-ratelimit-remaining") == "0":
+        if (
+            resp.status_code in (403, 429)
+            and resp.headers.get("x-ratelimit-remaining") == "0"
+        ):
             reset = int(resp.headers.get("x-ratelimit-reset", "0") or 0)
             wait = max(0, reset - int(time.time())) + 1
             print(f"  Rate limited; waiting {min(wait, 300)}s...")
@@ -196,7 +201,7 @@ def list_event_files(
     n = len(df)
 
     for i, row in enumerate(df.itertuples(index=False), 1):
-        name = getattr(row, "name")
+        name = row.name
         updated_at = str(getattr(row, "updated_at", "") or "")
 
         prev = manifest.get(name)

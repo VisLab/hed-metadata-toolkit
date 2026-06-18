@@ -47,7 +47,10 @@ def _setup(tmp_path, with_nemar: bool):
                     "title": "FRL Discrete Gestures",
                     "modalities": ["emg", "eeg"],
                     "related_identifiers": [
-                        {"identifier": "10.1038/s41586-025-09255-w", "identifier_type": "DOI"},
+                        {
+                            "identifier": "10.1038/s41586-025-09255-w",
+                            "identifier_type": "DOI",
+                        },
                         {"identifier": "https://nemar.org/x", "identifier_type": "URL"},
                     ],
                 }
