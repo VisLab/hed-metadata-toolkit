@@ -503,7 +503,7 @@ def run_apply_fills(
 
     if report_path is not None:
         report_path.parent.mkdir(parents=True, exist_ok=True)
-        report_path.write_text(report_text, encoding="utf-8")
+        report_path.write_text(report_text, encoding="utf-8", newline="")
 
     return ApplyFillsResult(
         today=today,

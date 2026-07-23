@@ -466,7 +466,7 @@ def write_json_atomic(path: Path, data: list) -> None:
     """Serialise data to path via tmp-then-rename with fsync."""
     tmp = path.with_suffix(path.suffix + f".{os.getpid()}.tmp")
     try:
-        with tmp.open("w", encoding="utf-8") as fh:
+        with tmp.open("w", encoding="utf-8", newline="") as fh:
             json.dump(data, fh, ensure_ascii=False, indent=2)
             fh.write("\n")
             fh.flush()

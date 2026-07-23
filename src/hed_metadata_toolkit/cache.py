@@ -247,6 +247,7 @@ def cache_get_or_fetch(
         tmp_path.write_text(
             json.dumps(payload, ensure_ascii=False, indent=2),
             encoding="utf-8",
+            newline="",
         )
         tmp_path.replace(cache_path)
     except OSError:

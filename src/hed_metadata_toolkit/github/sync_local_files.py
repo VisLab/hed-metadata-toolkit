@@ -151,7 +151,9 @@ def _save_sha_cache(repo_dir: str, cache: dict) -> None:
     path = os.path.join(repo_dir, SHA_CACHE_FILENAME)
     with _cache_lock:
         tmp = path + ".tmp"
-        with open(tmp, "w", encoding="utf-8") as fh:
+        # newline="" prevents Python's text-mode translation of "\n" to the
+        # platform line ending (CRLF on Windows); JSON is always written LF.
+        with open(tmp, "w", encoding="utf-8", newline="") as fh:
             json.dump(cache, fh, indent=2)
         _safe_replace(tmp, path)
 
@@ -257,7 +259,7 @@ def _save_failures(failures: dict, contents_path: str) -> None:
             os.remove(path)
         return
     tmp = path + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as fh:
+    with open(tmp, "w", encoding="utf-8", newline="") as fh:
         json.dump(failures, fh, indent=2, ensure_ascii=False)
     _safe_replace(tmp, path)
 

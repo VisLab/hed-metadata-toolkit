@@ -215,7 +215,7 @@ def _save_failures(failures: dict, path: str) -> None:
             os.remove(path)
         return
     tmp = path + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as fh:
+    with open(tmp, "w", encoding="utf-8", newline="") as fh:
         json.dump(failures, fh, indent=2, ensure_ascii=False)
     _safe_replace(tmp, path)
 
@@ -223,7 +223,7 @@ def _save_failures(failures: dict, path: str) -> None:
 def _save_json(data: dict, path: str) -> None:
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
     tmp = path + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as fh:
+    with open(tmp, "w", encoding="utf-8", newline="") as fh:
         json.dump(data, fh, indent=2, ensure_ascii=False)
     _safe_replace(tmp, path)
 
@@ -241,7 +241,7 @@ def sync_repo_contents(
     force: bool = False,
     retry_failed: bool = False,
     test_repo: str | None = None,
-    prefix: str = "ds",
+    prefix: "str | list[str]" = "ds",
     include_subdirs: "list[str] | None" = None,
 ) -> None:
     now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -260,11 +260,17 @@ def sync_repo_contents(
         print(f"Error reading {tsv_path}: {exc}")
         return
 
-    # Keep only repos whose name starts with the configured prefix
-    # ("ds" for OpenNeuro, "nm" for NEMAR). Empty prefix keeps all repos.
-    if prefix:
-        df = df[df["name"].str.startswith(prefix)].reset_index(drop=True)
-    print(f"{len(df)} {prefix or '(all)'}* repos to consider")
+    # Keep only repos whose name starts with one of the configured prefixes
+    # ("ds" for OpenNeuro; "nm" and "on" for NEMAR). Accepts a single string or
+    # a list; an empty list (or only empty strings) keeps all repos.
+    prefixes = [prefix] if isinstance(prefix, str) else list(prefix or [])
+    prefixes = [p for p in prefixes if p]
+    if prefixes:
+        df = df[
+            df["name"].apply(lambda n: any(str(n).startswith(p) for p in prefixes))
+        ].reset_index(drop=True)
+    label = "/".join(prefixes) if prefixes else "(all)"
+    print(f"{len(df)} {label}* repos to consider")
 
     if test_repo:
         df = df[df["name"] == test_repo].reset_index(drop=True)
@@ -326,7 +332,9 @@ def sync_repo_contents(
     # ------------------------------------------------------------------
     n = len(to_fetch)
     fetched = errors = truncated_count = 0
-    updated_lookup = {row["name"]: str(row.get("updated_at", "")) for _, row in df.iterrows()}
+    updated_lookup = {
+        row["name"]: str(row.get("updated_at", "")) for _, row in df.iterrows()
+    }
 
     for i, name in enumerate(to_fetch, 1):
         updated_at = updated_lookup.get(name, "")
@@ -434,9 +442,11 @@ def main(argv: "list[str] | None" = None) -> int:
     )
     parser.add_argument(
         "--prefix",
-        default="ds",
-        help="Only process repos whose name starts with this prefix "
-        "(default: 'ds'; use 'nm' for NEMAR, '' for all repos).",
+        action="append",
+        default=None,
+        help="Only process repos whose name starts with this prefix. Repeatable "
+        "(e.g. '--prefix nm --prefix on' for NEMAR). Default: 'ds' (OpenNeuro). "
+        "Pass '--prefix \"\"' for all repos.",
     )
     parser.add_argument(
         "--include-subdir",
@@ -457,6 +467,10 @@ def main(argv: "list[str] | None" = None) -> int:
     if not token:
         print("Warning: GITHUB_TOKEN not set; requests will be rate-limited.")
 
+    # No --prefix given -> default to OpenNeuro's "ds". One or more given ->
+    # use them as-is (an explicit '--prefix ""' means "all repos").
+    prefixes = args.prefix if args.prefix is not None else ["ds"]
+
     sync_repo_contents(
         tsv_path=args.tsv,
         out_path=args.out,
@@ -465,7 +479,7 @@ def main(argv: "list[str] | None" = None) -> int:
         force=args.force,
         retry_failed=args.retry_failed,
         test_repo=args.repo,
-        prefix=args.prefix,
+        prefix=prefixes,
         include_subdirs=args.include_subdir,
     )
     return 0

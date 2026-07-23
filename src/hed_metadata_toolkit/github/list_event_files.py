@@ -134,7 +134,7 @@ def _fetch_recursive_tree(
 def _save_json(manifest: dict, path: str) -> None:
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
     tmp = path + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as fh:
+    with open(tmp, "w", encoding="utf-8", newline="") as fh:
         json.dump(manifest, fh, indent=2, ensure_ascii=False)
     os.replace(tmp, path)
 
@@ -160,7 +160,7 @@ def list_event_files(
     out_path: str,
     token: str | None,
     organization: str = "OpenNeuroDatasets",
-    prefix: str = "ds",
+    prefix: "str | list[str]" = "ds",
     force: bool = False,
     tsv_out_path: "str | None" = None,
 ) -> dict:
@@ -174,9 +174,16 @@ def list_event_files(
     except Exception as exc:
         print(f"Error reading {tsv_path}: {exc}")
         return {}
-    if prefix:
-        df = df[df["name"].str.startswith(prefix)].reset_index(drop=True)
-    print(f"{len(df)} {prefix or '(all)'}* repos to consider")
+    # prefix may be a single string or a list ("nm" and "on" for NEMAR); an
+    # empty list keeps all repos.
+    prefixes = [prefix] if isinstance(prefix, str) else list(prefix or [])
+    prefixes = [p for p in prefixes if p]
+    if prefixes:
+        df = df[
+            df["name"].apply(lambda n: any(str(n).startswith(p) for p in prefixes))
+        ].reset_index(drop=True)
+    label = "/".join(prefixes) if prefixes else "(all)"
+    print(f"{len(df)} {label}* repos to consider")
 
     manifest: dict = {}
     if os.path.exists(out_path):
@@ -286,9 +293,11 @@ def main(argv: "list[str] | None" = None) -> int:
     )
     parser.add_argument(
         "--prefix",
-        default="ds",
-        help="Only process repos whose name starts with this prefix "
-        "(default: 'ds'; use 'nm' for NEMAR, '' for all).",
+        action="append",
+        default=None,
+        help="Only process repos whose name starts with this prefix. Repeatable "
+        "(e.g. '--prefix nm --prefix on' for NEMAR). Default: 'ds' (OpenNeuro). "
+        "Pass '--prefix \"\"' for all.",
     )
     parser.add_argument(
         "--force",
@@ -306,12 +315,14 @@ def main(argv: "list[str] | None" = None) -> int:
     if not token:
         print("Warning: GITHUB_TOKEN not set; requests will be rate-limited.")
 
+    prefixes = args.prefix if args.prefix is not None else ["ds"]
+
     list_event_files(
         tsv_path=args.tsv,
         out_path=args.out,
         token=token,
         organization=args.org,
-        prefix=args.prefix,
+        prefix=prefixes,
         force=args.force,
         tsv_out_path=(args.tsv_out or None),
     )

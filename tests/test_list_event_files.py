@@ -81,12 +81,16 @@ def test_incremental_skip_and_filtering(tmp_path, monkeypatch):
 
     def fake_fetch(org, repo, headers):
         fetched.append(repo)
-        return _tree(
-            "task-foo_events.json",
-            "sub-01/eeg/sub-01_task-foo_events.tsv",
-            "derivatives/sub-01/sub-01_task-foo_events.tsv",  # must be excluded
-            "participants.tsv",
-        ), False, None
+        return (
+            _tree(
+                "task-foo_events.json",
+                "sub-01/eeg/sub-01_task-foo_events.tsv",
+                "derivatives/sub-01/sub-01_task-foo_events.tsv",  # must be excluded
+                "participants.tsv",
+            ),
+            False,
+            None,
+        )
 
     monkeypatch.setattr(lef, "_fetch_recursive_tree", fake_fetch)
 

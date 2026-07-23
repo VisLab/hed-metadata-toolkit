@@ -158,7 +158,7 @@ def _save_sha_cache(repo_dir: str, cache: dict) -> None:
     path = os.path.join(repo_dir, SHA_CACHE_FILENAME)
     with _cache_lock:
         tmp = path + ".tmp"
-        with open(tmp, "w", encoding="utf-8") as fh:
+        with open(tmp, "w", encoding="utf-8", newline="") as fh:
             json.dump(cache, fh, indent=2)
         _safe_replace(tmp, path)
 
@@ -190,7 +190,7 @@ def _save_failures(failures: dict, out_path: str) -> None:
             os.remove(path)
         return
     tmp = path + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as fh:
+    with open(tmp, "w", encoding="utf-8", newline="") as fh:
         json.dump(failures, fh, indent=2, ensure_ascii=False)
     _safe_replace(tmp, path)
 
@@ -212,7 +212,7 @@ def _load_file_contents(out_path: str) -> dict:
 
 def _save_file_contents(file_contents: dict, out_path: str) -> None:
     tmp = out_path + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as fh:
+    with open(tmp, "w", encoding="utf-8", newline="") as fh:
         json.dump(file_contents, fh, indent=2, ensure_ascii=False)
     _safe_replace(tmp, out_path)
 

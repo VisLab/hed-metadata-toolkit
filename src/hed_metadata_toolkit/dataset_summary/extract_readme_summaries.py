@@ -202,7 +202,7 @@ def main(argv: "list[str] | None" = None) -> int:
     results = build_corpus(repos_dir, dirprefix=args.dirprefix)
 
     output.parent.mkdir(parents=True, exist_ok=True)
-    with open(output, "w", encoding="utf-8") as f:
+    with open(output, "w", encoding="utf-8", newline="") as f:
         json.dump(results, f, indent=2)
 
     print(f"Processed {len(results)} README files and wrote to {output}")

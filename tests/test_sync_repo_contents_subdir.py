@@ -89,9 +89,42 @@ def test_prefix_filter_and_new_schema(tmp_path, monkeypatch):
         "sub-01/eeg/sub-01_task-foo_events.tsv"
     ]
     tlf = [b["path"] for b in rec["top_level_files"]]
-    assert tlf == [".nemar/metadata.json", "dataset_description.json", "participants.tsv"]
+    assert tlf == [
+        ".nemar/metadata.json",
+        "dataset_description.json",
+        "participants.tsv",
+    ]
     assert rec["truncated"] is False
     assert rec["synced_at"] and rec["updated_at"] == "2026-01-01T00:00:00Z"
+
+
+def test_multiple_prefixes_match_any(tmp_path, monkeypatch):
+    tsv = tmp_path / "datasets.tsv"
+    tsv.write_text(
+        "name\tupdated_at\n"
+        "nm000103\t2026-01-01T00:00:00Z\n"
+        "on007262\t2026-01-01T00:00:00Z\n"
+        "ds000001\t2026-01-01T00:00:00Z\n"
+        ".github\t2026-01-01T00:00:00Z\n",
+        encoding="utf-8",
+    )
+    out = tmp_path / "repo_contents.json"
+    fetched = []
+    monkeypatch.setattr(
+        src,
+        "_fetch_recursive_tree",
+        lambda o, r, h: (fetched.append(r), (_sample_tree(), False, None))[1],
+    )
+    src.sync_repo_contents(
+        tsv_path=str(tsv),
+        out_path=str(out),
+        token=None,
+        organization="nemarDatasets",
+        prefix=["nm", "on"],
+    )
+    # both nm* and on* fetched; ds* and .github excluded
+    assert sorted(fetched) == ["nm000103", "on007262"]
+    assert set(json.loads(out.read_text(encoding="utf-8"))) == {"nm000103", "on007262"}
 
 
 def test_include_subdir_omitted_drops_nemar(tmp_path, monkeypatch):

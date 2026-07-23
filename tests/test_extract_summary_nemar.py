@@ -62,7 +62,10 @@ def _make_nemar(tmp_path):
                 "title": "FRL Discrete Gestures",
                 "modalities": ["emg", "eeg"],  # must be ignored
                 "related_identifiers": [
-                    {"identifier": "10.1038/s41586-025-09255-w", "identifier_type": "DOI"},
+                    {
+                        "identifier": "10.1038/s41586-025-09255-w",
+                        "identifier_type": "DOI",
+                    },
                     {"identifier": "https://nemar.org/x", "identifier_type": "URL"},
                 ],
             }
