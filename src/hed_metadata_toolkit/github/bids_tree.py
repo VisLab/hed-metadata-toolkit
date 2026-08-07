@@ -78,9 +78,7 @@ def _blob_obj(entry: dict) -> dict:
     }
 
 
-def derive_repo_metadata(
-    tree_entries: list, include_subdirs: "list[str] | None" = None
-) -> dict:
+def derive_repo_metadata(tree_entries: list, include_subdirs: "list[str] | None" = None) -> dict:
     """Derive the per-repo ``repo_contents.json`` fields from a recursive tree.
 
     Parameters:

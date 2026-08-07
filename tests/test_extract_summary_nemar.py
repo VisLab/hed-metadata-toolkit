@@ -111,12 +111,18 @@ def test_no_datasets_dir_skips_nemar(tmp_path):
     assert row["datatypes"] == "eeg,emg"
 
 
-def test_legacy_entries_schema_still_parses(tmp_path):
+def test_legacy_entries_schema_is_skipped(tmp_path, capsys):
+    """Pre-2026-06-15 entries are skipped loudly, not parsed half-way.
+
+    Legacy support was dropped on 2026-08-06 with openneuro-metadata. A stale
+    repo_contents.json must produce no rows and say why, rather than emitting a
+    row with a blank datatypes column that looks real.
+    """
     contents = tmp_path / "repo_contents.json"
     contents.write_text(
         json.dumps(
             {
-                "ds000001": {
+                "nm000105": {
                     "synced_at": "2026-06-01T00:00:00Z",
                     "entries": [
                         {"name": "participants.tsv", "type": "blob"},
@@ -128,7 +134,5 @@ def test_legacy_entries_schema_still_parses(tmp_path):
         ),
         encoding="utf-8",
     )
-    row = esi.extract_dataset_info(str(contents))[0]
-    assert row["subjs"] == 1
-    assert row["readme"] == "yes"
-    assert row["datatypes"] == ""  # legacy schema has no derived datatypes
+    assert esi.extract_dataset_info(str(contents)) == []
+    assert "not in the current repo_contents.json schema" in capsys.readouterr().out

@@ -2,7 +2,7 @@
 
 Covers the 2026-06-15 rewrite of sync_repo_contents (GraphQL shallow listing ->
 one recursive git-tree per repo, new per-repo schema):
-  - prefix filter (``ds`` for OpenNeuro, ``nm`` for NEMAR)
+  - prefix filter (``nm`` and ``on``, the two prefixes in NemarDatasets)
   - new schema fields: top_level_files / subjects / datatypes / event_files,
     plus synced_at / updated_at / truncated
   - include_subdirs (e.g. ``.nemar``): blobs under it are kept as top-level files
@@ -85,9 +85,7 @@ def test_prefix_filter_and_new_schema(tmp_path, monkeypatch):
     rec = data["nm000103"]
     assert rec["subjects"] == ["sub-01"]
     assert rec["datatypes"] == ["eeg"]
-    assert [b["path"] for b in rec["event_files"]] == [
-        "sub-01/eeg/sub-01_task-foo_events.tsv"
-    ]
+    assert [b["path"] for b in rec["event_files"]] == ["sub-01/eeg/sub-01_task-foo_events.tsv"]
     tlf = [b["path"] for b in rec["top_level_files"]]
     assert tlf == [
         ".nemar/metadata.json",
@@ -130,9 +128,7 @@ def test_multiple_prefixes_match_any(tmp_path, monkeypatch):
 def test_include_subdir_omitted_drops_nemar(tmp_path, monkeypatch):
     tsv = _write_tsv(tmp_path)
     out = tmp_path / "repo_contents.json"
-    monkeypatch.setattr(
-        src, "_fetch_recursive_tree", lambda o, r, h: (_sample_tree(), False, None)
-    )
+    monkeypatch.setattr(src, "_fetch_recursive_tree", lambda o, r, h: (_sample_tree(), False, None))
     src.sync_repo_contents(
         tsv_path=str(tsv),
         out_path=str(out),
@@ -217,9 +213,7 @@ def test_force_refetches(tmp_path, monkeypatch):
 def test_truncated_flag_recorded(tmp_path, monkeypatch):
     tsv = _write_tsv(tmp_path)
     out = tmp_path / "repo_contents.json"
-    monkeypatch.setattr(
-        src, "_fetch_recursive_tree", lambda o, r, h: (_sample_tree(), True, None)
-    )
+    monkeypatch.setattr(src, "_fetch_recursive_tree", lambda o, r, h: (_sample_tree(), True, None))
     src.sync_repo_contents(
         tsv_path=str(tsv),
         out_path=str(out),
@@ -234,9 +228,7 @@ def test_truncated_flag_recorded(tmp_path, monkeypatch):
 def test_error_recorded_in_failures(tmp_path, monkeypatch):
     tsv = _write_tsv(tmp_path)
     out = tmp_path / "repo_contents.json"
-    monkeypatch.setattr(
-        src, "_fetch_recursive_tree", lambda o, r, h: (None, False, "not_found")
-    )
+    monkeypatch.setattr(src, "_fetch_recursive_tree", lambda o, r, h: (None, False, "not_found"))
     src.sync_repo_contents(
         tsv_path=str(tsv),
         out_path=str(out),
@@ -244,7 +236,5 @@ def test_error_recorded_in_failures(tmp_path, monkeypatch):
         organization="nemarDatasets",
         prefix="nm",
     )
-    fail = json.loads(
-        (tmp_path / "repo_contents_failures.json").read_text(encoding="utf-8")
-    )
+    fail = json.loads((tmp_path / "repo_contents_failures.json").read_text(encoding="utf-8"))
     assert fail["nm000103"]["reason"] == "not_found"

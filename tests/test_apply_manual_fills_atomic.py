@@ -70,20 +70,16 @@ def test_write_registry_preserves_full_row_count(tmp_path: Path):
 
     text = out_path.read_text(encoding="utf-8")
     nonempty_lines = [ln for ln in text.splitlines() if ln.strip()]
-    assert len(nonempty_lines) == 201, (
-        f"Expected 1 header + 200 rows = 201 non-empty lines, got {len(nonempty_lines)}"
-    )
+    assert len(nonempty_lines) == 201, f"Expected 1 header + 200 rows = 201 non-empty lines, got {len(nonempty_lines)}"
 
     # Last data row must be cit_000200 with the full status string.
     fields = nonempty_lines[-1].split("\t")
     assert fields[0] == "cit_000200"
     assert len(fields) == len(COLUMNS), (
-        f"Last row has {len(fields)} fields, expected {len(COLUMNS)}; "
-        f"truncation indicator"
+        f"Last row has {len(fields)} fields, expected {len(COLUMNS)}; truncation indicator"
     )
     assert fields[COLUMNS.index("status")] == "needs_review", (
-        f"Last row status is {fields[COLUMNS.index('status')]!r}; "
-        f"expected 'needs_review' (truncation regression)"
+        f"Last row status is {fields[COLUMNS.index('status')]!r}; expected 'needs_review' (truncation regression)"
     )
 
     # Round-trip via load_registry as a final sanity check.

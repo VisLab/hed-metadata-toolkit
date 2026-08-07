@@ -55,8 +55,7 @@ PINNED = [
     (
         "Eriksen",
         1974,
-        "Effects of noise letters upon the identification of a target letter "
-        "in a nonsearch task",
+        "Effects of noise letters upon the identification of a target letter in a nonsearch task",
         "pub_7e2a3692",
         "eriksen1974effectsofnoiselet",
     ),
@@ -131,12 +130,8 @@ def test_canonical_string_matches_upstream(
 
 def test_determinism() -> None:
     """build_pub_id is deterministic: same inputs always give same output."""
-    a = build_pub_id(
-        "Stroop", 1935, "Studies of interference in serial verbal reactions"
-    )
-    b = build_pub_id(
-        "Stroop", 1935, "Studies of interference in serial verbal reactions"
-    )
+    a = build_pub_id("Stroop", 1935, "Studies of interference in serial verbal reactions")
+    b = build_pub_id("Stroop", 1935, "Studies of interference in serial verbal reactions")
     assert a == b
 
 

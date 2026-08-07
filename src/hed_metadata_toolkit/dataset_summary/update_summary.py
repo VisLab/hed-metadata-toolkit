@@ -138,17 +138,11 @@ def sort_dataframes(summary_df, citations_df):
     summary_first_col = summary_df.columns[0]
     citations_first_col = citations_df.columns[0]
 
-    print(
-        f"Sorting by: {summary_first_col} (summary), {citations_first_col} (citations)"
-    )
+    print(f"Sorting by: {summary_first_col} (summary), {citations_first_col} (citations)")
 
     # Sort both DataFrames in descending order
-    sorted_summary = summary_df.sort_values(
-        by=summary_first_col, ascending=False
-    ).reset_index(drop=True)
-    sorted_citations = citations_df.sort_values(
-        by=citations_first_col, ascending=False
-    ).reset_index(drop=True)
+    sorted_summary = summary_df.sort_values(by=summary_first_col, ascending=False).reset_index(drop=True)
+    sorted_citations = citations_df.sort_values(by=citations_first_col, ascending=False).reset_index(drop=True)
 
     print(f"Sorted summary: {len(sorted_summary)} entries")
     print(f"Sorted citations: {len(sorted_citations)} entries")

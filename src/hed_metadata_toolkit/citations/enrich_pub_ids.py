@@ -7,22 +7,22 @@ Two-pass resolver:
     via Crossref, OpenAlex, Europe PMC, and the OSF API.
 
 Usage:
-    python src/enrich_pub_ids.py [--registry PATH] [--write-back]
-                                  [--limit N] [--cache-dir PATH]
-                                  [--paths A,B,C,D] [--report PATH]
-                                  [--dry-run]
+    hed-enrich-pub-ids [--registry PATH] [--write-back]
+                       [--limit N] [--cache-dir PATH]
+                       [--paths A,B,C,D] [--report PATH]
+                       [--dry-run]
 
 Idempotent: rows with pub_id already set are skipped.
 
-Path details (see .status/instructions/phase2_5_resolver.md §Session-2.5C):
+Resolution paths, tried in the order listed in --paths:
   A — DOI lookup via Crossref → OpenAlex; chases preprint→journal relations.
   B — URL → synthesised DOI → then Path A.
   C — PubMed URL → Europe PMC → DOI or bib metadata.
-  D — OSF URL → GUID lookup → preprints auto-resolve; nodes/registrations cached
-      for 2.5D's review-queue generator (not auto-promoted).
+  D — OSF URL → GUID lookup → preprints auto-resolve; nodes and registrations
+      are cached for the review-queue generator, never auto-promoted.
 
-File writes use atomic write-tmp-then-rename + fsync, mirroring
-src/cache.py and the post-truncation-fix src/apply_manual_fills.py.
+File writes use atomic write-tmp-then-rename + fsync, mirroring cache.py and
+apply_manual_fills.py.
 """
 
 from __future__ import annotations
@@ -41,6 +41,10 @@ from typing import Iterable
 # Default data/output paths live under the current working directory (run the
 # command from the consumer repo root); all are overridable via CLI flags.
 _ROOT = Path.cwd()
+
+# Run reports go beside the citation data they describe, not into a notes
+# directory: a report is a tracked output of the pipeline, not a working note.
+DEFAULT_REPORT_DIR = "datasets/citations/reports"
 
 from hed_metadata_toolkit.citation_identity import build_pub_id  # noqa: E402
 from hed_metadata_toolkit.citation_normalize import synthesise_doi_from_url  # noqa: E402
@@ -119,7 +123,9 @@ def _sanity_check(preprint_meta: dict, journal_meta: dict) -> bool:
     (a) first-author family-name match (ASCII-folded, case-insensitive)
     (b) title token-overlap >= 0.5
 
-    See thinking doc §2.5 for rationale.
+    Either alone is weak, but a preprint-to-journal chase that satisfies
+    neither is almost always the wrong paper, and a wrong pub_id is worse
+    than an unresolved row.
     """
     p_fam = _ascii_fold_lower(preprint_meta.get("family") or "")
     j_fam = _ascii_fold_lower(journal_meta.get("family") or "")
@@ -176,9 +182,7 @@ def _meta_from_openalex(data: dict) -> dict:
 
     authorships = data.get("authorships", [])
     if authorships:
-        first = next(
-            (a for a in authorships if a.get("author_position") == "first"), None
-        )
+        first = next((a for a in authorships if a.get("author_position") == "first"), None)
         if first is None:
             first = authorships[0]
         if first:
@@ -328,7 +332,7 @@ def _try_synth(url: str) -> str | None:
     if doi:
         return doi.lower()
 
-    # Phase 2.5C new patterns
+    # Preprint-server patterns, kept here rather than in citation_normalize
     for fn in (_synth_psyarxiv, _synth_biorxiv_medrxiv, _synth_elife):
         doi = fn(url)
         if doi:
@@ -430,9 +434,7 @@ def _resolve_path_a(
     # Execute chase if we found a candidate journal DOI
     chase_succeeded = False
     if journal_doi:
-        j_result = _resolve_path_a(
-            journal_doi, cache_dir, today, warnings, cit_id, _depth=1
-        )
+        j_result = _resolve_path_a(journal_doi, cache_dir, today, warnings, cit_id, _depth=1)
         if j_result and _sanity_check(meta, j_result):
             chase_succeeded = True
             return {
@@ -450,14 +452,9 @@ def _resolve_path_a(
     # Preprint-only note (resolver resolved with preprint metadata)
     notes = ""
     if is_preprint_doi and not journal_doi:
-        notes = (
-            "preprint-only resolved (no chase candidate found in Crossref or OpenAlex)"
-        )
+        notes = "preprint-only resolved (no chase candidate found in Crossref or OpenAlex)"
     elif is_preprint_doi and journal_doi and not chase_succeeded:
-        notes = (
-            f"preprint-only resolved "
-            f"(chase to {journal_doi} via {chase_via} failed sanity check)"
-        )
+        notes = f"preprint-only resolved (chase to {journal_doi} via {chase_via} failed sanity check)"
 
     return {
         **meta,
@@ -585,12 +582,7 @@ def _resolve_path_d(
     if not guid_data:
         return False  # 401 private or 404
 
-    referent = (
-        guid_data.get("data", {})
-        .get("relationships", {})
-        .get("referent", {})
-        .get("data", {})
-    )
+    referent = guid_data.get("data", {}).get("relationships", {}).get("referent", {}).get("data", {})
     obj_type = referent.get("type", "")
     obj_id = referent.get("id", "")
 
@@ -602,11 +594,7 @@ def _resolve_path_d(
     if obj_type == "files":
         if _depth == 0:
             parent_id = (
-                typed_data.get("data", {})
-                .get("relationships", {})
-                .get("node", {})
-                .get("data", {})
-                .get("id", "")
+                typed_data.get("data", {}).get("relationships", {}).get("node", {}).get("data", {}).get("id", "")
             )
             if parent_id:
                 return _resolve_path_d(
@@ -633,8 +621,9 @@ def _resolve_path_d(
         return False
 
     if obj_type in ("nodes", "registrations"):
-        # Cache is already written by lookup_typed; 2.5D will consume it.
-        # Per thinking doc §2.2: do NOT auto-promote nodes/registrations.
+        # Cache is already written by lookup_typed; the review-queue generator
+        # consumes it. Do NOT auto-promote nodes/registrations: an OSF node is
+        # a project, not a publication.
         stats["path_d_node"].append(cit_id)
         return False  # Not resolved
 
@@ -712,9 +701,7 @@ def _process_pass2(
                 if epmc_data:
                     epmc_doi = (epmc_data.get("doi") or "").strip().lower()
                     if epmc_doi:
-                        result = _resolve_path_a(
-                            epmc_doi, cache_dir, today, warnings, cit_id
-                        )
+                        result = _resolve_path_a(epmc_doi, cache_dir, today, warnings, cit_id)
                         if result and _apply_resolution(row, result, today):
                             row["doi"] = epmc_doi
                             stats["path_c"].append(cit_id)
@@ -735,9 +722,7 @@ def _process_pass2(
         # --- Path D: OSF URL ---
         if not resolved and "D" in paths_enabled and url:
             if _OSF_URL_RE.match(url):
-                resolved = _resolve_path_d(
-                    row, url, cache_dir, today, warnings, stats, cit_id
-                )
+                resolved = _resolve_path_d(row, url, cache_dir, today, warnings, stats, cit_id)
 
         if not resolved:
             # Not counting path_d_node rows as "pending" here; they are in their
@@ -843,7 +828,7 @@ def format_report(
         f"| Path C (PMID URL → Europe PMC) | {len(stats['path_c'])} |",
         f"| Path D preprint (OSF preprint) | {len(stats['path_d_preprint'])} |",
         "| --- | --- |",
-        f"| OSF nodes cached for 2.5D (not resolved) | {len(stats['path_d_node'])} |",
+        f"| OSF nodes cached for review (not resolved) | {len(stats['path_d_node'])} |",
         f"| Still pending (no resolution attempt succeeded) | {len(stats['still_pending'])} |",
         f"| Skipped (already resolved / pub_id set) | {len(stats['skipped_already'])} |",
         f"| Skipped (terminal status) | {len(stats['skipped_terminal'])} |",
@@ -868,16 +853,14 @@ def format_report(
 
     # Watched cit_ids
     if watched_ids:
-        lines.append("## Watched cit_ids (2.5B auto-stagers)")
+        lines.append("## Watched cit_ids (auto-staged, needing confirmation)")
         lines.append("")
         lines.append("| cit_id | status | pub_id | notes |")
         lines.append("|---|---|---|---|")
         for cit_id in watched_ids:
             row = registry.get(cit_id, {})
             lines.append(
-                f"| {cit_id} | {row.get('status', '')} "
-                f"| {row.get('pub_id', '')} "
-                f"| {(row.get('notes') or '')[:60]} |"
+                f"| {cit_id} | {row.get('status', '')} | {row.get('pub_id', '')} | {(row.get('notes') or '')[:60]} |"
             )
         lines.append("")
 
@@ -1118,9 +1101,7 @@ def main(argv: list[str] | None = None) -> int:
     config, a Python dict, etc.) should NOT call ``main`` — call
     :func:`enrich_registry` directly with explicit arguments.
     """
-    parser = argparse.ArgumentParser(
-        description="Enrich citation registry rows with pub_ids."
-    )
+    parser = argparse.ArgumentParser(description="Enrich citation registry rows with pub_ids.")
     parser.add_argument(
         "--registry",
         default=str(_REGISTRY_DEFAULT),
@@ -1146,8 +1127,7 @@ def main(argv: list[str] | None = None) -> int:
         "--cache-dir",
         default=None,
         help=(
-            "Cache directory root.  Checked in order: this arg, $HED_CACHE_DIR, "
-            "outputs/cache/ (repo-relative default)."
+            "Cache directory root.  Checked in order: this arg, $HED_CACHE_DIR, outputs/cache/ (repo-relative default)."
         ),
     )
     parser.add_argument(
@@ -1158,7 +1138,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--report",
         default=None,
-        help="Path for the Markdown run report",
+        help=(f"Path for the Markdown run report (default: {DEFAULT_REPORT_DIR}/enrich_pub_ids_run_<date>.md)"),
     )
     args = parser.parse_args(argv)
 
@@ -1172,11 +1152,7 @@ def main(argv: list[str] | None = None) -> int:
     cache_dir = _resolve_cli_cache_dir(args.cache_dir)
     paths_enabled = [p.strip().upper() for p in args.paths.split(",")]
     today = today_iso()
-    report_path = (
-        Path(args.report)
-        if args.report
-        else _ROOT / ".status" / f"enrich_pub_ids_run_{today}.md"
-    )
+    report_path = Path(args.report) if args.report else _ROOT / DEFAULT_REPORT_DIR / f"enrich_pub_ids_run_{today}.md"
 
     result = enrich_registry(
         registry_path=registry_path,
@@ -1193,7 +1169,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"Pass 1 complete: {result.pass1_count} rows resolved offline.")
     print(f"Pass 2 complete: {result.pass2_count} rows resolved via network paths.")
     print(f"Total resolved this run: {result.total_resolved}")
-    print(f"OSF nodes cached for review (2.5D): {len(result.stats['path_d_node'])}")
+    print(f"OSF nodes cached for review: {len(result.stats['path_d_node'])}")
     print(f"Still pending: {len(result.stats['still_pending'])}")
 
     if write_back:

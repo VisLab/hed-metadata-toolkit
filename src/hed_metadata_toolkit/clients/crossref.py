@@ -42,9 +42,7 @@ def _throttle(host: str) -> None:
     _last_call[host] = time.monotonic()
 
 
-def _get(
-    url: str, headers: dict | None = None, params: dict | None = None
-) -> dict | None:
+def _get(url: str, headers: dict | None = None, params: dict | None = None) -> dict | None:
     host = "api.crossref.org"
     for attempt in range(3):
         _throttle(host)

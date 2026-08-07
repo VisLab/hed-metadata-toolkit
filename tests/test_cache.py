@@ -471,9 +471,7 @@ def test_writes_always_go_to_today_bucket(tmp_path: Path) -> None:
         today="2026-05-01",
         max_age_days=30,
     )
-    today_path = (
-        tmp_path / "crossref" / "2026-05-01" / f"{_expected_hex('search-x')}.json"
-    )
+    today_path = tmp_path / "crossref" / "2026-05-01" / f"{_expected_hex('search-x')}.json"
     assert today_path.exists()
 
 

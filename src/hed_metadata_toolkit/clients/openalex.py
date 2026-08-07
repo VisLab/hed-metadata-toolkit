@@ -185,7 +185,5 @@ def lookup_by_doi(
     cached["_source"] = "openalex"
     cached["_doi"] = doi
     cached["_fetched_on"] = cached.get("updated_date", "")
-    logger.info(
-        "source=openalex doi=%s status=%s cached=True", doi, cached.get("id", "unknown")
-    )
+    logger.info("source=openalex doi=%s status=%s cached=True", doi, cached.get("id", "unknown"))
     return cached

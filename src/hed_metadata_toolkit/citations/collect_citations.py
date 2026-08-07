@@ -6,9 +6,9 @@ writes raw links (no IDs) to datasets/dataset_summaries/dataset_citations.tsv.
 
 ID assignment is handled by assign_citation_ids.py in a separate step.
 
-Run from the repo root:
-    python src/collect_citations.py [--dry-run]
-    python src/collect_citations.py --write-back
+Run from the consumer repo root:
+    hed-collect-citations [--dry-run]
+    hed-collect-citations --write-back
 """
 
 from __future__ import annotations
@@ -258,9 +258,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--datasets-tsv",
         type=Path,
-        default=(
-            _REPO_ROOT / "datasets" / "dataset_summaries" / "datasets_ordered.tsv"
-        ),
+        default=(_REPO_ROOT / "datasets" / "dataset_summaries" / "datasets_ordered.tsv"),
     )
     parser.add_argument(
         "--datasets-dir",
@@ -270,9 +268,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--output",
         type=Path,
-        default=(
-            _REPO_ROOT / "datasets" / "dataset_summaries" / "dataset_citations.tsv"
-        ),
+        default=(_REPO_ROOT / "datasets" / "dataset_summaries" / "dataset_citations.tsv"),
     )
     parser.add_argument(
         "--skip-list",
@@ -306,9 +302,7 @@ def main() -> int:
     print(f"  Empty/UnlinkedAck:  {result.without_links}")
 
     if not result.written:
-        print(
-            f"\nDry-run.  No files written.  Pass --write-back to write {args.output}."
-        )
+        print(f"\nDry-run.  No files written.  Pass --write-back to write {args.output}.")
 
     return 0
 

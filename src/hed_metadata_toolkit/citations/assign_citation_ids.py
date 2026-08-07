@@ -6,13 +6,16 @@ yet in the registry, and writes both files back.
 
 Re-running on an already-complete registry is a no-op (zero new assignments).
 
-Run from the repo root:
-    python src/assign_citation_ids.py             # dry-run (default)
-    python src/assign_citation_ids.py --dry-run   # explicit dry-run
-    python src/assign_citation_ids.py --write-back
+Run from a consumer repo root:
+    hed-assign-citation-ids               # dry-run (default)
+    hed-assign-citation-ids --dry-run     # explicit dry-run
+    hed-assign-citation-ids --write-back
 
-Spec: .status/citation_id_design_v2.md §3
-      .status/instructions/phase2_citation_redesign.md (Session 2C)
+A cit_###### is permanent once assigned: it identifies a row in the registry,
+never a DOI, so a row keeps its ID even when its DOI is corrected later. The
+canonical key that decides "is this link already known" comes from
+`citation_normalize`; see `citation_identity` for the separate, content-derived
+pub_id.
 """
 
 from __future__ import annotations
@@ -108,8 +111,8 @@ def assign(
 
     # Build lookup: canonical_key → index in registry_rows.
     # Primary key: ("doi", doi) when doi is set; ("url", url) otherwise.
-    # Secondary key: the source_link canonical URL, added when Phase 2D has
-    # since resolved a DOI for a previously URL-only entry.  This means the
+    # Secondary key: the source_link canonical URL, needed once a DOI has been
+    # resolved for a previously URL-only entry.  This means the
     # primary key is now a DOI key, but the mapping still holds the original
     # raw URL.  Without the secondary index those rows would appear as new
     # and receive duplicate cit_######.
@@ -131,14 +134,10 @@ def assign(
 
     # Tertiary fallback: if canonical-key lookup fails, honour an already-
     # assigned citation_id in the mapping row (migration output is trusted).
-    # This catches entries where Phase 2D added a DOI but cleared source_link,
+    # This catches entries where a resolver added a DOI but cleared source_link,
     # so neither the primary key (doi) nor the secondary key (source_link URL)
     # can be recovered from the registry row alone.
-    valid_cit_ids: set[str] = {
-        r["citation_id"]
-        for r in registry_rows
-        if _CIT_ID_RE.match(r.get("citation_id", ""))
-    }
+    valid_cit_ids: set[str] = {r["citation_id"] for r in registry_rows if _CIT_ID_RE.match(r.get("citation_id", ""))}
 
     # Determine next free counter from the max existing number
     existing_nums = [cit_id_num(c) for c in valid_cit_ids]
@@ -283,16 +282,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--registry",
         type=Path,
-        default=(
-            repo_root / "datasets" / "dataset_summaries" / "citation_registry.tsv"
-        ),
+        default=(repo_root / "datasets" / "dataset_summaries" / "citation_registry.tsv"),
     )
     parser.add_argument(
         "--citations",
         type=Path,
-        default=(
-            repo_root / "datasets" / "dataset_summaries" / "dataset_citations.tsv"
-        ),
+        default=(repo_root / "datasets" / "dataset_summaries" / "dataset_citations.tsv"),
     )
     parser.add_argument(
         "--skip-list",

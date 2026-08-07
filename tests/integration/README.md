@@ -88,7 +88,7 @@ Example:
 def test_sync_real_repo(github_token):
     """Test syncing a real repository."""
     repos = get_github_organization_repositories(
-        "OpenNeuroDatasets",
+        "NemarDatasets",
         token=github_token,
     )
     assert len(repos) > 0

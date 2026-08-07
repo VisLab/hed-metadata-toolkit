@@ -220,13 +220,7 @@ def test_is_junk_link(link, expected):
 def test_load_skip_list(tmp_path):
     f = tmp_path / "skip.txt"
     f.write_text(
-        "# Header comment\n"
-        "\n"
-        "openneuro.org\n"
-        "  github.com  \n"
-        "# section divider\n"
-        "\n"
-        "doi:10.18112/openneuro.\n",
+        "# Header comment\n\nopenneuro.org\n  github.com  \n# section divider\n\ndoi:10.18112/openneuro.\n",
         encoding="utf-8",
     )
     patterns = load_skip_list(f)
@@ -234,9 +228,7 @@ def test_load_skip_list(tmp_path):
 
 
 def test_load_skip_list_real_file_is_nonempty():
-    skip_list_path = (
-        Path(__file__).resolve().parent.parent / "config" / "citation_skip_list.txt"
-    )
+    skip_list_path = Path(__file__).resolve().parent.parent / "config" / "citation_skip_list.txt"
     patterns = load_skip_list(skip_list_path)
     assert len(patterns) >= 30
     assert "openneuro.org" in patterns

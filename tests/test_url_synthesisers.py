@@ -1,6 +1,6 @@
 """test_url_synthesisers.py — Pure-Python regex tests for Path B URL synthesisers.
 
-Tests the three new synthesis patterns added in Phase 2.5C:
+Tests the three preprint-server synthesis patterns:
   - PsyArXiv (.com and .org variants, view_only param, trailing slash)
   - bioRxiv / medRxiv (with v1/v2 version suffixes, query params stripped)
   - eLife (numeric article ID)
@@ -180,10 +180,7 @@ class TestTrySynth:
 
     def test_elife_dispatched(self):
         # _try_synth canonicalises to lowercase; eLife DOIs are case-insensitive
-        assert (
-            _try_synth("https://elifesciences.org/articles/12345")
-            == "10.7554/elife.12345"
-        )
+        assert _try_synth("https://elifesciences.org/articles/12345") == "10.7554/elife.12345"
 
     def test_existing_nature_synth_still_works(self):
         """Existing citation_normalize patterns must not be broken."""

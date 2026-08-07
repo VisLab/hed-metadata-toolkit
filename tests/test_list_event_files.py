@@ -118,9 +118,7 @@ def test_incremental_skip_and_filtering(tmp_path, monkeypatch):
 
 def test_force_relists_everything(tmp_path, monkeypatch):
     tsv = tmp_path / "datasets.tsv"
-    tsv.write_text(
-        "name\tupdated_at\nnm000103\t2026-01-02T00:00:00Z\n", encoding="utf-8"
-    )
+    tsv.write_text("name\tupdated_at\nnm000103\t2026-01-02T00:00:00Z\n", encoding="utf-8")
     out = tmp_path / "event_files.json"
     out.write_text(
         json.dumps(
@@ -157,9 +155,7 @@ def test_force_relists_everything(tmp_path, monkeypatch):
 
 def test_truncated_flag_recorded(tmp_path, monkeypatch):
     tsv = tmp_path / "datasets.tsv"
-    tsv.write_text(
-        "name\tupdated_at\nnm000200\t2026-01-02T00:00:00Z\n", encoding="utf-8"
-    )
+    tsv.write_text("name\tupdated_at\nnm000200\t2026-01-02T00:00:00Z\n", encoding="utf-8")
     out = tmp_path / "event_files.json"
 
     def fake_fetch(org, repo, headers):

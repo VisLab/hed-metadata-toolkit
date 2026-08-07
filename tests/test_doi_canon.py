@@ -1,4 +1,4 @@
-"""test_doi_canon.py — Tests for the DOI pre-canonicalization step (Phase 2.5C-bis).
+"""test_doi_canon.py — Tests for the DOI pre-canonicalization step.
 
 Tests _canonicalise_doi for:
   - bioRxiv version suffixes (v1, v2, v1.abstract, v1.full.pdf, v1.full)
@@ -21,7 +21,7 @@ from hed_metadata_toolkit.citations.enrich_pub_ids import _canonicalise_doi  # n
 
 
 class TestCanonicaliseDOI:
-    """Required cases from Phase 2.5C-bis spec."""
+    """Required cases: each one was a real DOI that resolved wrong."""
 
     @pytest.mark.parametrize(
         "doi, expected",

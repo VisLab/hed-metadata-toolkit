@@ -51,7 +51,5 @@ def test_command_help_exits_zero(command):
         text=True,
         timeout=120,
     )
-    assert result.returncode == 0, (
-        f"{command} --help exited {result.returncode}\n{result.stderr}"
-    )
+    assert result.returncode == 0, f"{command} --help exited {result.returncode}\n{result.stderr}"
     assert "usage" in (result.stdout + result.stderr).lower()

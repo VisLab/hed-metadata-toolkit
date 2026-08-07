@@ -40,8 +40,8 @@ dev = [
 
 [project.scripts]
 # Pipeline steps, exposed as console commands so consumer repos
-# (openneuro-metadata, task-research, nemar-metadata) invoke the shared
-# implementation directly instead of vendoring wrapper scripts.
+# (nemar-metadata, task-research) invoke the shared implementation
+# directly instead of vendoring wrapper scripts.
 # GitHub-org pipeline
 hed-fetch-repo-list        = "hed_metadata_toolkit.github.fetch_repo_list:main"
 hed-sync-repo-contents     = "hed_metadata_toolkit.github.sync_repo_contents:main"
@@ -63,6 +63,11 @@ hed-convert-pdfs           = "hed_metadata_toolkit.citations.convert_pdfs:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.ruff]
+# 120, not ruff's default of 88. Set 2026-08-07; the one-off reformat it caused
+# is its own commit.
+line-length = 120
 
 [tool.ruff.lint]
 # Enable flake8-style checks plus additional rules
@@ -105,14 +110,16 @@ ignore = [
 max-complexity = 10
 
 [tool.ruff.lint.isort]
-known-first-party = ["hed"]
+known-first-party = ["hed_metadata_toolkit"]
 
 [tool.ruff.format]
 # Ruff format settings
 quote-style = "double"
 indent-style = "space"
 skip-magic-trailing-comma = false
-line-ending = "auto"
+# LF, not "auto". This repo is developed on Windows and "auto" lets the
+# formatter preserve CRLF, which is the bug .gitattributes exists to catch.
+line-ending = "lf"
 
 [tool.pytest.ini_options]
 # Pytest configuration

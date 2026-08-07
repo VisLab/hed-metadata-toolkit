@@ -61,9 +61,7 @@ def _make_repo(tmp_path: Path, datasets: dict, skip_patterns=()) -> tuple:
         d = repos / dsid
         d.mkdir()
         if spec.get("desc") is not None:
-            (d / "dataset_description.json").write_text(
-                json.dumps(spec["desc"]), encoding="utf-8"
-            )
+            (d / "dataset_description.json").write_text(json.dumps(spec["desc"]), encoding="utf-8")
         if spec.get("readme") is not None:
             (d / "README.md").write_text(spec["readme"], encoding="utf-8")
 
@@ -92,10 +90,7 @@ def test_clean_link_leaves_clean_link_untouched():
 
 
 def test_extract_links_finds_all_url_flavors():
-    text = (
-        "doi https://doi.org/10.1/x then http://plain.org and www.host.org "
-        "plus doi:10.2/zzz end"
-    )
+    text = "doi https://doi.org/10.1/x then http://plain.org and www.host.org plus doi:10.2/zzz end"
     links = _extract_links_from_text(text)
     assert "https://doi.org/10.1/x" in links
     assert "http://plain.org" in links
@@ -250,6 +245,5 @@ def test_default_paths_are_not_inside_the_installed_package(monkeypatch):
     pkg_dir = Path(cc.__file__).resolve().parent.parent  # .../hed_metadata_toolkit
     for p in (args.datasets_tsv, args.datasets_dir, args.output, args.skip_list):
         assert not Path(p).resolve().is_relative_to(pkg_dir), (
-            f"default {p} resolves inside the package; it must be relative to "
-            "the current working directory"
+            f"default {p} resolves inside the package; it must be relative to the current working directory"
         )

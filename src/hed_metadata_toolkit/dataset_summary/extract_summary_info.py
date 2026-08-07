@@ -16,14 +16,13 @@ repository tree (e.g. ``eeg,emg``); it is derived from repo_contents.json.
 NEMAR enrichment: if a dataset has a local ``.nemar/metadata.json`` (under
 ``--datasets-dir/<repo>/.nemar/metadata.json``), its ``title`` and the
 ``related_identifiers`` (as ``links``) are pulled into those columns. The
-``datatypes`` column is NOT taken from NEMAR. Datasets without that file (e.g.
-OpenNeuro) are unchanged.
+``datatypes`` column is NOT taken from NEMAR. Datasets without that file are
+unchanged.
 
 Input:
     datasets/dataset_summaries/repo_contents.json
-    New schema (preferred):
         {
-          "nm000105": {
+          "REPO_NAME": {
             "synced_at": "...", "updated_at": "...", "truncated": false,
             "top_level_files": [{"path": "README", "size": 1175, "sha": "abc"}],
             "subjects": ["sub-01"],
@@ -31,17 +30,18 @@ Input:
             "event_files": [{"path": "sub-01/eeg/sub-01_task-x_events.tsv", ...}]
           }
         }
-    Legacy schema (still read): {"ds000001": {"entries": [{"name", "type"}]}}.
+    A dataset entry without ``subjects`` is skipped with a warning: rebuild
+    repo_contents.json with hed-sync-repo-contents.
 
 Output:
     datasets/dataset_summaries/dataset_summary.tsv
     Columns: name, subjs, links, readme, events, title, tasks, datatypes, contact, notes
 
-Usage:
-    python extract_summary_info.py
+Usage (run from the consumer repo root):
+    hed-extract-summary-info
 
-The script expects repo_contents.json to exist. If you have not yet run
-sync_repo_contents.py, this script will exit with an error.
+The command expects repo_contents.json to exist. If you have not yet run
+hed-sync-repo-contents, it will exit with an error.
 """
 
 import argparse
@@ -50,37 +50,6 @@ from pathlib import Path
 
 import pandas as pd
 from dotenv import load_dotenv
-
-
-def count_subjects(file_list):
-    """Count the number of subjects (entries starting with 'sub').
-
-    Parameters:
-        file_list: List of files/directories in the repository.
-
-    Returns:
-        Number of subjects found.
-    """
-    subject_count = 0
-    for item in file_list:
-        if item.startswith("sub"):
-            subject_count += 1
-    return subject_count
-
-
-def check_has_events(file_list):
-    """Check if there are any events.json files.
-
-    Parameters:
-        file_list: List of files/directories in the repository.
-
-    Returns:
-        'yes' if events.json files found, 'no' otherwise.
-    """
-    for item in file_list:
-        if item.endswith("events.json"):
-            return "yes"
-    return "no"
 
 
 def extract_task_names(file_list):
@@ -111,21 +80,6 @@ def extract_task_names(file_list):
         return ",".join(sorted(task_names))
     else:
         return ""
-
-
-def check_has_readme(file_list):
-    """Check if there are any README files.
-
-    Parameters:
-        file_list: List of files/directories in the repository.
-
-    Returns:
-        'yes' if README files found, 'no' otherwise.
-    """
-    for item in file_list:
-        if item.lower().startswith("readme"):
-            return "yes"
-    return "no"
 
 
 def _load_nemar_metadata(datasets_dir, dataset_name):
@@ -182,9 +136,7 @@ def extract_dataset_info(repo_contents_json_path, datasets_dir=None):
     try:
         with open(repo_contents_json_path, "r", encoding="utf-8") as f:
             repo_data = json.load(f)
-        print(
-            f"Loaded data for {len(repo_data)} repositories from {repo_contents_json_path}"
-        )
+        print(f"Loaded data for {len(repo_data)} repositories from {repo_contents_json_path}")
     except Exception as e:
         print(f"Error reading JSON file: {e}")
         return []
@@ -194,39 +146,22 @@ def extract_dataset_info(repo_contents_json_path, datasets_dir=None):
     for dataset_name, dataset_entry in repo_data.items():
         print(f"Processing dataset: {dataset_name}")
 
-        # repo_contents.json comes in two shapes:
-        #   new      -> {"subjects": [...], "datatypes": [...],
-        #                "event_files": [{"path": ...}], "top_level_files": [{"path": ...}]}
-        #   legacy   -> {"entries": [{"name": ..., "type": ...}]}  (or a bare list)
-        if isinstance(dataset_entry, dict) and "subjects" in dataset_entry:
-            subjs = len(dataset_entry.get("subjects", []))
-            datatypes = ",".join(dataset_entry.get("datatypes", []))
-            event_paths = [
-                b.get("path", "") for b in dataset_entry.get("event_files", [])
-            ]
-            top_paths = [
-                b.get("path", "") for b in dataset_entry.get("top_level_files", [])
-            ]
-            events = "yes" if event_paths else "no"
-            tasks = extract_task_names(event_paths + top_paths)
-            readme = (
-                "yes"
-                if any(Path(p).name.lower().startswith("readme") for p in top_paths)
-                else "no"
+        # Each entry is {"subjects": [...], "datatypes": [...],
+        # "event_files": [{"path": ...}], "top_level_files": [{"path": ...}]}.
+        if not isinstance(dataset_entry, dict) or "subjects" not in dataset_entry:
+            print(
+                f"  Warning: {dataset_name} is not in the current "
+                "repo_contents.json schema (no 'subjects'), skipping. Re-run "
+                "hed-sync-repo-contents to rebuild it."
             )
-        else:
-            if isinstance(dataset_entry, dict) and "entries" in dataset_entry:
-                file_list = [e["name"] for e in dataset_entry.get("entries", [])]
-            elif isinstance(dataset_entry, list):
-                file_list = dataset_entry  # legacy get_repo_files.py format
-            else:
-                print(f"  Warning: unexpected format for {dataset_name}, skipping")
-                continue
-            subjs = count_subjects(file_list)
-            events = check_has_events(file_list)
-            tasks = extract_task_names(file_list)
-            readme = check_has_readme(file_list)
-            datatypes = ""  # legacy schema has no derived datatypes
+            continue
+        subjs = len(dataset_entry.get("subjects", []))
+        datatypes = ",".join(dataset_entry.get("datatypes", []))
+        event_paths = [b.get("path", "") for b in dataset_entry.get("event_files", [])]
+        top_paths = [b.get("path", "") for b in dataset_entry.get("top_level_files", [])]
+        events = "yes" if event_paths else "no"
+        tasks = extract_task_names(event_paths + top_paths)
+        readme = "yes" if any(Path(p).name.lower().startswith("readme") for p in top_paths) else "no"
 
         # Create dataset info record
         info = {
@@ -317,9 +252,7 @@ def print_extraction_summary(dataset_info):
         # Show some examples
         print("\nSample dataset info:")
         for info in dataset_info[:3]:
-            print(
-                f"  {info['name']}: {info['subjs']} subjects, events={info['events']}, readme={info['readme']}"
-            )
+            print(f"  {info['name']}: {info['subjs']} subjects, events={info['events']}, readme={info['readme']}")
             if info["tasks"]:
                 print(f"    Tasks: {info['tasks']}")
 
@@ -412,14 +345,9 @@ def main(argv: "list[str] | None" = None) -> int:
         print(f"Using current pipeline output: {args.repo_contents.resolve()}")
     elif args.legacy_repo_files.exists():
         print(f"Using legacy output: {args.legacy_repo_files.resolve()}")
-        print(
-            "Warning: repo_files.json is from the legacy pipeline. "
-            "Consider running sync_repo_contents first."
-        )
+        print("Warning: repo_files.json is from the legacy pipeline. Consider running sync_repo_contents first.")
     else:
-        print(
-            f"Error: Neither {args.repo_contents} nor {args.legacy_repo_files} found."
-        )
+        print(f"Error: Neither {args.repo_contents} nor {args.legacy_repo_files} found.")
         print("Run sync_repo_contents first.")
         return 1
 
@@ -443,12 +371,8 @@ def main(argv: "list[str] | None" = None) -> int:
     # Re-extract for the per-extraction summary; cheap to do
     # once more so the CLI summary doesn't need to be threaded
     # through the library function.
-    input_used = (
-        args.repo_contents if args.repo_contents.exists() else args.legacy_repo_files
-    )
-    print_extraction_summary(
-        extract_dataset_info(str(input_used), datasets_dir=args.datasets_dir)
-    )
+    input_used = args.repo_contents if args.repo_contents.exists() else args.legacy_repo_files
+    print_extraction_summary(extract_dataset_info(str(input_used), datasets_dir=args.datasets_dir))
     print("\nDataset information extraction complete!")
     return 0
 

@@ -56,24 +56,15 @@ def sort_datasets(df):
 
         def clean_hed_value(value):
             # Convert various empty representations to empty string
-            if (
-                pd.isna(value)
-                or value == ""
-                or str(value).strip() == "[]"
-                or str(value).strip() == ""
-            ):
+            if pd.isna(value) or value == "" or str(value).strip() == "[]" or str(value).strip() == "":
                 return ""
             return str(value)
 
         df_for_sort["HED"] = df_for_sort["HED"].apply(clean_hed_value)
-        print(
-            "Cleaned HED column - empty lists and NaN values converted to empty strings"
-        )
+        print("Cleaned HED column - empty lists and NaN values converted to empty strings")
 
     # Sort by all specified columns in descending order
-    sorted_df = df_for_sort.sort_values(by=sort_columns, ascending=False).reset_index(
-        drop=True
-    )
+    sorted_df = df_for_sort.sort_values(by=sort_columns, ascending=False).reset_index(drop=True)
 
     print(f"Sorted {len(sorted_df)} datasets")
     return sorted_df
@@ -159,9 +150,7 @@ def main(argv: "list[str] | None" = None) -> int:
     """Argparse wrapper around :func:`run_sort`."""
     load_dotenv()
 
-    parser = argparse.ArgumentParser(
-        description="Sort the dataset summary by HED, links, events, and name."
-    )
+    parser = argparse.ArgumentParser(description="Sort the dataset summary by HED, links, events, and name.")
     parser.add_argument(
         "--input",
         type=Path,

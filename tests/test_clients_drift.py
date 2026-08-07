@@ -95,12 +95,8 @@ class TestCrossrefDrift:
 
             result = crossref.lookup_by_doi("10.1038/s41597-022-01407-x", tmp_path)
         # Year from 'published' or 'published-print', date-parts[0][0]
-        year = (result.get("published") or result.get("published-print", {}))[
-            "date-parts"
-        ][0][0]
-        assert year == self.PINNED[1], (
-            f"Crossref year drift: expected {self.PINNED[1]}, got {year}"
-        )
+        year = (result.get("published") or result.get("published-print", {}))["date-parts"][0][0]
+        assert year == self.PINNED[1], f"Crossref year drift: expected {self.PINNED[1]}, got {year}"
 
     def test_title(self, tmp_path):
         fixture = _load_fixture("crossref", self.FIXTURE)
@@ -112,9 +108,7 @@ class TestCrossrefDrift:
 
             result = crossref.lookup_by_doi("10.1038/s41597-022-01407-x", tmp_path)
         title = result["title"][0]
-        assert title == self.PINNED[2], (
-            f"Crossref title drift: expected {self.PINNED[2]!r}, got {title!r}"
-        )
+        assert title == self.PINNED[2], f"Crossref title drift: expected {self.PINNED[2]!r}, got {title!r}"
 
     def test_source_key_added(self, tmp_path):
         fixture = _load_fixture("crossref", self.FIXTURE)
@@ -163,9 +157,7 @@ class TestOpenAlexDrift:
         ):
             from hed_metadata_toolkit.clients import openalex
 
-            result = openalex.lookup_by_doi(
-                "10.1016/j.neuroimage.2021.118411", tmp_path
-            )
+            result = openalex.lookup_by_doi("10.1016/j.neuroimage.2021.118411", tmp_path)
         assert result is not None
         assert isinstance(result, dict)
 
@@ -177,9 +169,7 @@ class TestOpenAlexDrift:
         ):
             from hed_metadata_toolkit.clients import openalex
 
-            result = openalex.lookup_by_doi(
-                "10.1016/j.neuroimage.2021.118411", tmp_path
-            )
+            result = openalex.lookup_by_doi("10.1016/j.neuroimage.2021.118411", tmp_path)
         # OpenAlex uses display_name; last token is the family name convention.
         display_name = result["authorships"][0]["author"]["display_name"]
         family = display_name.rsplit(" ", 1)[-1]
@@ -196,13 +186,9 @@ class TestOpenAlexDrift:
         ):
             from hed_metadata_toolkit.clients import openalex
 
-            result = openalex.lookup_by_doi(
-                "10.1016/j.neuroimage.2021.118411", tmp_path
-            )
+            result = openalex.lookup_by_doi("10.1016/j.neuroimage.2021.118411", tmp_path)
         year = result["publication_year"]
-        assert year == self.PINNED[1], (
-            f"OpenAlex year drift: expected {self.PINNED[1]}, got {year}"
-        )
+        assert year == self.PINNED[1], f"OpenAlex year drift: expected {self.PINNED[1]}, got {year}"
 
     def test_title(self, tmp_path):
         fixture = _load_fixture("openalex", self.FIXTURE)
@@ -212,13 +198,9 @@ class TestOpenAlexDrift:
         ):
             from hed_metadata_toolkit.clients import openalex
 
-            result = openalex.lookup_by_doi(
-                "10.1016/j.neuroimage.2021.118411", tmp_path
-            )
+            result = openalex.lookup_by_doi("10.1016/j.neuroimage.2021.118411", tmp_path)
         title = result["title"]
-        assert title == self.PINNED[2], (
-            f"OpenAlex title drift: expected {self.PINNED[2]!r}, got {title!r}"
-        )
+        assert title == self.PINNED[2], f"OpenAlex title drift: expected {self.PINNED[2]!r}, got {title!r}"
 
     def test_source_key_added(self, tmp_path):
         fixture = _load_fixture("openalex", self.FIXTURE)
@@ -228,9 +210,7 @@ class TestOpenAlexDrift:
         ):
             from hed_metadata_toolkit.clients import openalex
 
-            result = openalex.lookup_by_doi(
-                "10.1016/j.neuroimage.2021.118411", tmp_path
-            )
+            result = openalex.lookup_by_doi("10.1016/j.neuroimage.2021.118411", tmp_path)
         assert result["_source"] == "openalex"
         assert "_doi" in result
 
@@ -296,9 +276,7 @@ class TestEuropePmcDrift:
 
             result = europepmc.lookup_by_pmid("35722095", tmp_path)
         year = int(result["firstPublicationDate"][:4])
-        assert year == self.PINNED[1], (
-            f"EuropePMC year drift: expected {self.PINNED[1]}, got {year}"
-        )
+        assert year == self.PINNED[1], f"EuropePMC year drift: expected {self.PINNED[1]}, got {year}"
 
     def test_title(self, tmp_path):
         fixture = _load_fixture("europepmc", self.FIXTURE)
@@ -310,9 +288,7 @@ class TestEuropePmcDrift:
 
             result = europepmc.lookup_by_pmid("35722095", tmp_path)
         title = result["title"]
-        assert title == self.PINNED[2], (
-            f"EuropePMC title drift: expected {self.PINNED[2]!r}, got {title!r}"
-        )
+        assert title == self.PINNED[2], f"EuropePMC title drift: expected {self.PINNED[2]!r}, got {title!r}"
 
     def test_source_key_added(self, tmp_path):
         fixture = _load_fixture("europepmc", self.FIXTURE)

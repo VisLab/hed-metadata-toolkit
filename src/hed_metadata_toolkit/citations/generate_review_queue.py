@@ -1,8 +1,8 @@
 """generate_review_queue.py — Emit a JSON template for manual curator review.
 
-Curation loop (see src/apply_manual_fills.py for step 3 details):
+Curation loop (see apply_manual_fills.py for step 3 details):
 
-    1. python src/generate_review_queue.py
+    1. hed-generate-review-queue
          → writes datasets/dataset_summaries/manual_review_<date>.json
     2. Curator opens the JSON in an editor.  For each entry, fills ONE of:
          a. {"doi": "10.xxxx/yyyy"}              ← preferred when DOI is found
@@ -12,24 +12,24 @@ Curation loop (see src/apply_manual_fills.py for step 3 details):
          c. {"rejected": "reason text"}          ← when no paper / wrong link
        The curator may also delete entries they don't want to act on this
        round; missing entries simply don't get processed.
-    3. python src/apply_manual_fills.py \\
+    3. hed-apply-manual-fills \\
                --input datasets/dataset_summaries/manual_review_<date>.json \\
                --write-back
-    4. python src/enrich_pub_ids.py --write-back
+    4. hed-enrich-pub-ids --write-back
          → enriches any DOIs the curator just supplied
-    5. python src/generate_review_queue.py
+    5. hed-generate-review-queue
          → writes the next iteration's manual_review_<next-date>.json
          → loops until queue is empty or known-irreducible
 
 Hint computation:
-  - OSF hints: pure cache reads from 2.5C's Path D stable cache (no new API calls).
+  - OSF hints: pure cache reads from the resolver's Path D stable cache (no new API calls).
   - Crossref candidates: fresh title-search query per run, cached date-stamped (30 days).
 
-Usage:
-    python src/generate_review_queue.py [--registry PATH]
-                                        [--output PATH]
-                                        [--no-hints]
-                                        [--limit N]
+Usage (run from the consumer repo root):
+    hed-generate-review-queue [--registry PATH]
+                              [--output PATH]
+                              [--no-hints]
+                              [--limit N]
                                         [--cache-dir PATH]
 """
 
@@ -66,9 +66,7 @@ TERMINAL_STATUSES = {"resolved", "rejected", "not_a_citation"}
 _DEFAULT_CACHE_DIR = _ROOT / "outputs" / "cache"
 _REGISTRY_DEFAULT = _ROOT / "datasets" / "dataset_summaries" / "citation_registry.tsv"
 
-_OSF_URL_RE = re.compile(
-    r"^https?://(www\.)?osf\.io/(?P<rest>[^?&#\s]+)", re.IGNORECASE
-)
+_OSF_URL_RE = re.compile(r"^https?://(www\.)?osf\.io/(?P<rest>[^?&#\s]+)", re.IGNORECASE)
 _CR_API_BASE = "https://api.crossref.org"
 _CR_RATE_SEC = 0.2
 
@@ -173,9 +171,7 @@ def _build_osf_hints(url: str, cache_dir: Path) -> dict:
         typed_data = guid_data
     else:
         # Shape (B): extract referent to get (type, id), then read typed cache.
-        referent = (
-            data_block.get("relationships", {}).get("referent", {}).get("data", {})
-        )
+        referent = data_block.get("relationships", {}).get("referent", {}).get("data", {})
         obj_type_direct = referent.get("type", "")
         obj_id_direct = referent.get("id", "")
         if not obj_type_direct or not obj_id_direct:
@@ -292,10 +288,7 @@ def _candidate_from_item(item: dict, query_title: str) -> dict:
     authors = item.get("author") or []
     first_family = ""
     if authors:
-        fa = (
-            next((a for a in authors if a.get("sequence") == "first"), None)
-            or authors[0]
-        )
+        fa = next((a for a in authors if a.get("sequence") == "first"), None) or authors[0]
         first_family = fa.get("family", "")
 
     overlap = _title_token_overlap(title, query_title)
@@ -336,9 +329,7 @@ def _build_crossref_candidates(
             continue
 
         faf = _ascii_fold_lower(cand["first_author_family"])
-        author_match = bool(family_set) and any(
-            faf == fam or fam in faf or faf in fam for fam in family_set
-        )
+        author_match = bool(family_set) and any(faf == fam or fam in faf or faf in fam for fam in family_set)
         title_match = cand["title_overlap_score"] >= 0.5
 
         if author_match or title_match:
@@ -380,9 +371,7 @@ def build_hints(
     # Build Crossref query from OSF title first, then registry title field.
     query_title = osf_title or (row.get("title") or "").strip()
     if query_title:
-        candidates = _build_crossref_candidates(
-            query_title, osf_families, cache_dir, today, email
-        )
+        candidates = _build_crossref_candidates(query_title, osf_families, cache_dir, today, email)
         if candidates:
             hints["crossref_candidates"] = candidates
 
@@ -594,9 +583,7 @@ def _resolve_cli_cache_dir(arg_value: str | None) -> Path:
 
 def main(argv: list[str] | None = None) -> int:
     """Argparse wrapper around :func:`run_review_queue`."""
-    parser = argparse.ArgumentParser(
-        description="Generate a manual curator review queue from the citation registry."
-    )
+    parser = argparse.ArgumentParser(description="Generate a manual curator review queue from the citation registry.")
     parser.add_argument(
         "--registry",
         default=str(_REGISTRY_DEFAULT),
@@ -624,8 +611,7 @@ def main(argv: list[str] | None = None) -> int:
         "--cache-dir",
         default=None,
         help=(
-            "Cache directory root.  Checked in order: this arg, $HED_CACHE_DIR, "
-            "outputs/cache/ (repo-relative default)."
+            "Cache directory root.  Checked in order: this arg, $HED_CACHE_DIR, outputs/cache/ (repo-relative default)."
         ),
     )
     args = parser.parse_args(argv)
@@ -637,9 +623,7 @@ def main(argv: list[str] | None = None) -> int:
 
     today = today_iso()
     output_path = (
-        Path(args.output)
-        if args.output
-        else _ROOT / "datasets" / "dataset_summaries" / f"manual_review_{today}.json"
+        Path(args.output) if args.output else _ROOT / "datasets" / "dataset_summaries" / f"manual_review_{today}.json"
     )
 
     result = run_review_queue(

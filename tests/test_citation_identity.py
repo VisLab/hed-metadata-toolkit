@@ -1,12 +1,12 @@
 """
-test_identity.py — Parametrized tests for identity.py.
+test_citation_identity.py — Parametrized tests for citation_identity.py.
 
 Run:
-    pytest outputs/literature_search/test_identity.py -v
+    pytest tests/test_citation_identity.py -v
 
 All inputs are literals.  No network, no fixtures, no external dependencies.
-Tests cover the 15 fixture rows specified in
-task_literature_search_phase1_instructions.md §Sub-phase 1.2.
+The 15 rows are the pinned cases for pub_id construction: if any of them
+changes, every pub_id already in a consumer repo has silently changed too.
 
 The three test functions (test_canonical, test_pub_id, test_pdf_filename)
 each exercise all 15 rows.  Row 15 is identical to Row 1 and asserts
@@ -177,13 +177,8 @@ def test_canonical(family, year, title, notes):
 
     if notes == "baseline":
         # §11.7 example: full canonical spelled out
-        expected = (
-            "badre2012cognitivecontrolhierarchyandtherostrocaudal"
-            "organizationofthefrontallobes"
-        )
-        assert cs == expected, (
-            f"Row 1 canonical mismatch:\n  got:      {cs!r}\n  expected: {expected!r}"
-        )
+        expected = "badre2012cognitivecontrolhierarchyandtherostrocaudalorganizationofthefrontallobes"
+        assert cs == expected, f"Row 1 canonical mismatch:\n  got:      {cs!r}\n  expected: {expected!r}"
 
     elif notes == "pre-DOI era":
         assert cs.startswith("stroop1935")
@@ -276,33 +271,21 @@ def test_pdf_filename(family, year, title, notes):
     # Split off the .pdf and split on _ from the right.
     stem = fn[:-4]  # remove .pdf
     parts = stem.rsplit("_", 3)
-    assert len(parts) == 4, (
-        f"filename does not have 4 underscore-separated parts: {fn!r}"
-    )
+    assert len(parts) == 4, f"filename does not have 4 underscore-separated parts: {fn!r}"
     last_part, year_part, title_part, hash_part = parts
 
     # hash_part is 8 hex chars matching pub_id suffix.
-    assert re.fullmatch(r"[0-9a-f]{8}", hash_part), (
-        f"filename hash part wrong: {hash_part!r}"
-    )
-    assert hash_part == _expected_hash8(family, year, title), (
-        "filename hash does not match pub_id hash"
-    )
+    assert re.fullmatch(r"[0-9a-f]{8}", hash_part), f"filename hash part wrong: {hash_part!r}"
+    assert hash_part == _expected_hash8(family, year, title), "filename hash does not match pub_id hash"
 
     # last_part contains only [A-Za-z0-9]
-    assert re.fullmatch(r"[A-Za-z0-9]+", last_part), (
-        f"LastName part contains forbidden chars: {last_part!r}"
-    )
+    assert re.fullmatch(r"[A-Za-z0-9]+", last_part), f"LastName part contains forbidden chars: {last_part!r}"
 
     # title_part contains only [A-Za-z0-9]
-    assert re.fullmatch(r"[A-Za-z0-9]+", title_part), (
-        f"CamelCaseTitle part contains forbidden chars: {title_part!r}"
-    )
+    assert re.fullmatch(r"[A-Za-z0-9]+", title_part), f"CamelCaseTitle part contains forbidden chars: {title_part!r}"
 
     # CamelCaseTitle is at most 100 chars.
-    assert len(title_part) <= 100, (
-        f"CamelCaseTitle exceeds 100 chars ({len(title_part)}): {title_part!r}"
-    )
+    assert len(title_part) <= 100, f"CamelCaseTitle exceeds 100 chars ({len(title_part)}): {title_part!r}"
 
     # ---- Row-specific assertions ----
 
@@ -311,11 +294,7 @@ def test_pdf_filename(family, year, title, notes):
         assert year_part == "2012"
         # Spot-check a few tokens in the title
         assert "CognitiveControl" in title_part
-        assert (
-            "Rostro" in title_part
-            or "Rostrocaudal" in title_part.lower()
-            or "RostroCaudal" in title_part
-        )
+        assert "Rostro" in title_part or "Rostrocaudal" in title_part.lower() or "RostroCaudal" in title_part
 
     elif notes == "pre-DOI era":
         assert last_part == "Stroop"
@@ -361,9 +340,7 @@ def test_pdf_filename(family, year, title, notes):
 
     elif notes == "non-Latin title folds empty":
         # Non-Latin → 'UntitledNonLatin'
-        assert title_part == "UntitledNonLatin", (
-            f"expected 'UntitledNonLatin', got {title_part!r}"
-        )
+        assert title_part == "UntitledNonLatin", f"expected 'UntitledNonLatin', got {title_part!r}"
 
     elif notes == "determinism repeat of row 1":
         row1_fn = build_pdf_filename(

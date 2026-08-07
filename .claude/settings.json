@@ -1,6 +1,11 @@
 {
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "permissions": {
     "allow": [
+      "Bash(python -m ruff *)",
+      "Bash(python -m mdformat *)",
+      "Bash(mdformat *)",
+      "Bash(python3 --version)",
       "Bash(python src/*)",
       "Bash(python -m *)",
       "Bash(python -m pytest *)",
@@ -25,7 +30,6 @@
       "Bash(git branch *)",
       "Bash(git remote -v)",
       "Bash(git ls-files *)",
-      "Bash(git checkout HEAD -- *)",
       "Bash(grep *)",
       "Bash(rg *)",
       "Bash(find *)",
@@ -41,9 +45,23 @@
       "Bash(pwd)",
       "Bash(which *)",
       "Bash(source .venv/Scripts/activate)",
-      "Bash(. .venv/Scripts/activate)"
+      "Bash(. .venv/Scripts/activate)",
+      "Bash(source .venv/bin/activate)",
+      "Bash(. .venv/bin/activate)"
+    ],
+    "ask": [
+      "Bash(git checkout HEAD -- *)",
+      "Bash(git checkout -- *)",
+      "Bash(git restore *)",
+      "Bash(git stash *)",
+      "Bash(git add *)",
+      "Bash(git commit *)"
     ],
     "deny": [
+      "Read(.env)",
+      "Read(.envrc)",
+      "Read(.status/archive/**)",
+      "Read(.status/scratch/**)",
       "Bash(rm -rf *)",
       "Bash(rm -fr *)",
       "Bash(rm -r *)",
@@ -55,6 +73,12 @@
       "Bash(git filter-branch *)",
       "Bash(pip install *)",
       "Bash(pip uninstall *)",
+      "Bash(python -m pip install *)",
+      "Bash(python -m pip uninstall *)",
+      "Bash(python3 -m pip install *)",
+      "Bash(uv pip install *)",
+      "Bash(uv pip uninstall *)",
+      "Bash(uvx *)",
       "Bash(curl *)",
       "Bash(wget *)",
       "Bash(chmod *)",

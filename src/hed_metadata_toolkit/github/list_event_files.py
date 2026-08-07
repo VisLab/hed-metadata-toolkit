@@ -62,15 +62,17 @@ GIT_TREES_URL = "https://api.github.com/repos/{org}/{repo}/git/trees/{sha}"
 RETRY_LIMIT = 4
 RETRY_DELAY = 5  # seconds, doubled on each retry
 
+# Repo-name prefixes processed when none are given. NemarDatasets holds both
+# native NEMAR datasets (nm*) and OpenNeuro datasets mirrored into it (on*).
+DEFAULT_PREFIXES = ("nm", "on")
+
 
 # ---------------------------------------------------------------------------
 # GitHub git-trees fetch (recursive; no file contents)
 # ---------------------------------------------------------------------------
 
 
-def _fetch_recursive_tree(
-    org: str, repo: str, headers: dict
-) -> tuple[list | None, bool, str | None]:
+def _fetch_recursive_tree(org: str, repo: str, headers: dict) -> tuple[list | None, bool, str | None]:
     """Return (blob_entries, truncated, error) for the whole repo (one call).
 
     Each entry is the raw git-trees blob dict (has ``path``, ``sha``, ``size``).
@@ -94,10 +96,7 @@ def _fetch_recursive_tree(
             return None, False, "not_found"
         if resp.status_code == 409:
             return [], False, None  # empty repository (no commits)
-        if (
-            resp.status_code in (403, 429)
-            and resp.headers.get("x-ratelimit-remaining") == "0"
-        ):
+        if resp.status_code in (403, 429) and resp.headers.get("x-ratelimit-remaining") == "0":
             reset = int(resp.headers.get("x-ratelimit-reset", "0") or 0)
             wait = max(0, reset - int(time.time())) + 1
             print(f"  Rate limited; waiting {min(wait, 300)}s...")
@@ -159,8 +158,8 @@ def list_event_files(
     tsv_path: str,
     out_path: str,
     token: str | None,
-    organization: str = "OpenNeuroDatasets",
-    prefix: "str | list[str]" = "ds",
+    organization: str,
+    prefix: "str | list[str] | tuple[str, ...]" = DEFAULT_PREFIXES,
     force: bool = False,
     tsv_out_path: "str | None" = None,
 ) -> dict:
@@ -174,14 +173,11 @@ def list_event_files(
     except Exception as exc:
         print(f"Error reading {tsv_path}: {exc}")
         return {}
-    # prefix may be a single string or a list ("nm" and "on" for NEMAR); an
-    # empty list keeps all repos.
+    # prefix may be a single string or a list; an empty list keeps all repos.
     prefixes = [prefix] if isinstance(prefix, str) else list(prefix or [])
     prefixes = [p for p in prefixes if p]
     if prefixes:
-        df = df[
-            df["name"].apply(lambda n: any(str(n).startswith(p) for p in prefixes))
-        ].reset_index(drop=True)
+        df = df[df["name"].apply(lambda n: any(str(n).startswith(p) for p in prefixes))].reset_index(drop=True)
     label = "/".join(prefixes) if prefixes else "(all)"
     print(f"{len(df)} {label}* repos to consider")
 
@@ -202,13 +198,7 @@ def list_event_files(
         updated_at = str(getattr(row, "updated_at", "") or "")
 
         prev = manifest.get(name)
-        if (
-            not force
-            and prev
-            and prev.get("synced_at")
-            and updated_at
-            and prev["synced_at"] >= updated_at
-        ):
+        if not force and prev and prev.get("synced_at") and updated_at and prev["synced_at"] >= updated_at:
             skipped += 1
             continue
 
@@ -235,10 +225,7 @@ def list_event_files(
         listed += 1
         if truncated:
             truncated_count += 1
-        print(
-            f"[{i}/{n}] {name}: {len(events)} event files"
-            + ("  [TRUNCATED]" if truncated else "")
-        )
+        print(f"[{i}/{n}] {name}: {len(events)} event files" + ("  [TRUNCATED]" if truncated else ""))
         _save_json(manifest, out_path)
 
     if tsv_out_path:
@@ -288,15 +275,15 @@ def main(argv: "list[str] | None" = None) -> int:
     )
     parser.add_argument(
         "--org",
-        default="OpenNeuroDatasets",
-        help="GitHub organization name (default: OpenNeuroDatasets).",
+        required=True,
+        help="GitHub organization name (required; e.g. NemarDatasets).",
     )
     parser.add_argument(
         "--prefix",
         action="append",
         default=None,
-        help="Only process repos whose name starts with this prefix. Repeatable "
-        "(e.g. '--prefix nm --prefix on' for NEMAR). Default: 'ds' (OpenNeuro). "
+        help="Only process repos whose name starts with this prefix. Repeatable. "
+        f"Default: {' '.join(DEFAULT_PREFIXES)} (NEMAR). "
         "Pass '--prefix \"\"' for all.",
     )
     parser.add_argument(
@@ -315,7 +302,7 @@ def main(argv: "list[str] | None" = None) -> int:
     if not token:
         print("Warning: GITHUB_TOKEN not set; requests will be rate-limited.")
 
-    prefixes = args.prefix if args.prefix is not None else ["ds"]
+    prefixes = args.prefix if args.prefix is not None else list(DEFAULT_PREFIXES)
 
     list_event_files(
         tsv_path=args.tsv,

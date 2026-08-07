@@ -42,10 +42,7 @@ logger = logging.getLogger(__name__)
 
 _BASE = "https://api.semanticscholar.org/graph/v1"
 
-_LOOKUP_FIELDS = (
-    "externalIds,title,authors,year,venue,abstract,"
-    "openAccessPdf,isOpenAccess,citationCount"
-)
+_LOOKUP_FIELDS = "externalIds,title,authors,year,venue,abstract,openAccessPdf,isOpenAccess,citationCount"
 
 # Fields for /paper/search (v3 extended set: tldr, influentialCitationCount, fieldsOfStudy, paperId).
 FIELDS_SEARCH = (
@@ -123,9 +120,7 @@ def _get(
         try:
             resp = requests.get(url, params=params, headers=req_headers, timeout=15)
         except requests.RequestException as exc:
-            logger.warning(
-                "semanticscholar network error (attempt %d): %s", attempt + 1, exc
-            )
+            logger.warning("semanticscholar network error (attempt %d): %s", attempt + 1, exc)
             if attempt < 2:
                 time.sleep(2)
                 continue
@@ -256,8 +251,7 @@ def search(
             results = data.get("data") or []
             collected.extend(results)
             logger.info(
-                "semanticscholar search offset=%d page_count=%d total_so_far=%d "
-                "api_total=%s q=%r",
+                "semanticscholar search offset=%d page_count=%d total_so_far=%d api_total=%s q=%r",
                 offset,
                 len(results),
                 len(collected),
@@ -298,9 +292,7 @@ def fetch_citations(
     Returns [] on 404 or HTTP error (logged, not raised).
     Cache key: outputs/cache/semanticscholar/YYYY-MM-DD/cit_<sha1>.json
     """
-    cache_key = (
-        "cit_" + hashlib.sha1(f"{paper_id}|{limit}|{fields}".encode()).hexdigest()
-    )
+    cache_key = "cit_" + hashlib.sha1(f"{paper_id}|{limit}|{fields}".encode()).hexdigest()
 
     def _fetch() -> dict | None:
         url = f"{_BASE}/paper/{paper_id}/citations"
@@ -315,15 +307,12 @@ def fetch_citations(
             # found at all. Both are operationally identical here: cache
             # empty, move on.
             logger.warning(
-                "semanticscholar no citations available for paper_id=%s "
-                "(see preceding INFO line for status)",
+                "semanticscholar no citations available for paper_id=%s (see preceding INFO line for status)",
                 paper_id,
             )
             return {"data": []}
         results = data.get("data") or []
-        logger.info(
-            "semanticscholar citations paper_id=%s raw_count=%d", paper_id, len(results)
-        )
+        logger.info("semanticscholar citations paper_id=%s raw_count=%d", paper_id, len(results))
         return {"data": results[:limit]}
 
     cached = cache_get_or_fetch(
@@ -348,9 +337,7 @@ def fetch_references(
     intents, isInfluential, citedPaper (not citingPaper).
     Currently unwired -- present for future backward-citation expansion.
     """
-    cache_key = (
-        "ref_" + hashlib.sha1(f"{paper_id}|{limit}|{fields}".encode()).hexdigest()
-    )
+    cache_key = "ref_" + hashlib.sha1(f"{paper_id}|{limit}|{fields}".encode()).hexdigest()
 
     def _fetch() -> dict | None:
         url = f"{_BASE}/paper/{paper_id}/references"
@@ -361,8 +348,7 @@ def fetch_references(
             # See fetch_citations() for the rationale on why both 400 and
             # 404 land here and are treated identically.
             logger.warning(
-                "semanticscholar no references available for paper_id=%s "
-                "(see preceding INFO line for status)",
+                "semanticscholar no references available for paper_id=%s (see preceding INFO line for status)",
                 paper_id,
             )
             return {"data": []}

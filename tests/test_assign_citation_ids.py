@@ -259,12 +259,8 @@ def test_idempotency(tmp_path: Path) -> None:
     registry_bytes_2 = registry_path.read_bytes()
     citations_bytes_2 = citations_path.read_bytes()
 
-    assert registry_bytes_1 == registry_bytes_2, (
-        "Registry changed on second run — not idempotent"
-    )
-    assert citations_bytes_1 == citations_bytes_2, (
-        "Mapping file changed on second run — not idempotent"
-    )
+    assert registry_bytes_1 == registry_bytes_2, "Registry changed on second run — not idempotent"
+    assert citations_bytes_1 == citations_bytes_2, "Mapping file changed on second run — not idempotent"
 
 
 # ---------------------------------------------------------------------------
@@ -318,14 +314,14 @@ def test_new_id_follows_existing_max(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Test — source_link secondary index (Phase 2D DOI upgrade scenario)
+# Test — source_link secondary index (DOI upgrade scenario)
 # ---------------------------------------------------------------------------
 
 
 def test_source_link_fallback_after_doi_upgrade(tmp_path: Path) -> None:
     """Registry entry upgraded from URL-only to DOI still matches original raw_link.
 
-    Simulates Phase 2D: a curator added doi='10.1234/xyz' to a registry row
+    Simulates a curator adding doi='10.1234/xyz' to a registry row
     that was originally URL-only (url='https://example.com/paper').  The
     primary key is now ('doi', '10.1234/xyz'); the url column is empty.
     A mapping row still carries the original raw URL.  Without the source_link
@@ -374,8 +370,6 @@ def test_source_link_fallback_after_doi_upgrade(tmp_path: Path) -> None:
     registry, mapping, new_count = assign(registry_path, citations_path, skip_path)
 
     # Must be a no-op: no new ID should be assigned.
-    assert new_count == 0, (
-        "Expected 0 new IDs — source_link fallback should match cit_000001"
-    )
+    assert new_count == 0, "Expected 0 new IDs — source_link fallback should match cit_000001"
     assert len(registry) == 1, "Registry should still have exactly 1 row"
     assert mapping[0]["citation_id"] == "cit_000001"

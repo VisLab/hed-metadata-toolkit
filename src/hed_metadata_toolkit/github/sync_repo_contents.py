@@ -9,7 +9,7 @@ per-repo metadata record into ``datasets/dataset_summaries/repo_contents.json``.
 Output schema (one recursive call per repo):
 
 {
-  "nm000105": {
+  "REPO_NAME": {
     "synced_at":  "2026-06-15T12:00:00Z",
     "updated_at": "2026-06-14T08:00:00Z",
     "truncated":  false,
@@ -74,15 +74,17 @@ GIT_TREES_URL = "https://api.github.com/repos/{org}/{repo}/git/trees/{sha}"
 RETRY_LIMIT = 4
 RETRY_BASE_DELAY = 5  # seconds; doubled on each retry (exponential backoff)
 
+# Repo-name prefixes processed when none are given. NemarDatasets holds both
+# native NEMAR datasets (nm*) and OpenNeuro datasets mirrored into it (on*).
+DEFAULT_PREFIXES = ("nm", "on")
+
 
 # ---------------------------------------------------------------------------
 # Windows-safe file replace
 # ---------------------------------------------------------------------------
 
 
-def _safe_replace(
-    tmp_path: str, target_path: str, retries: int = 5, delay: float = 0.5
-) -> None:
+def _safe_replace(tmp_path: str, target_path: str, retries: int = 5, delay: float = 0.5) -> None:
     """Replace target_path with tmp_path, retrying on Windows permission errors."""
     for attempt in range(1, retries + 1):
         try:
@@ -91,9 +93,7 @@ def _safe_replace(
         except PermissionError:
             if attempt >= retries:
                 raise
-            print(
-                f"    File locked, retrying in {delay}s... (attempt {attempt}/{retries})"
-            )
+            print(f"    File locked, retrying in {delay}s... (attempt {attempt}/{retries})")
             time.sleep(delay)
             delay *= 2
 
@@ -138,9 +138,7 @@ def _wait_for_rate_limit(response) -> None:
 # ---------------------------------------------------------------------------
 
 
-def _fetch_recursive_tree(
-    org: str, repo: str, headers: dict
-) -> "tuple[list | None, bool, str | None]":
+def _fetch_recursive_tree(org: str, repo: str, headers: dict) -> "tuple[list | None, bool, str | None]":
     """Return ``(tree_entries, truncated, error)`` for the whole repo.
 
     ``tree_entries`` is the raw ``tree`` array (both ``blob`` and ``tree``
@@ -237,11 +235,11 @@ def sync_repo_contents(
     tsv_path: str,
     out_path: str,
     token: str | None,
-    organization: str = "OpenNeuroDatasets",
+    organization: str,
     force: bool = False,
     retry_failed: bool = False,
     test_repo: str | None = None,
-    prefix: "str | list[str]" = "ds",
+    prefix: "str | list[str] | tuple[str, ...]" = DEFAULT_PREFIXES,
     include_subdirs: "list[str] | None" = None,
 ) -> None:
     now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -261,14 +259,12 @@ def sync_repo_contents(
         return
 
     # Keep only repos whose name starts with one of the configured prefixes
-    # ("ds" for OpenNeuro; "nm" and "on" for NEMAR). Accepts a single string or
-    # a list; an empty list (or only empty strings) keeps all repos.
+    # ("nm" and "on" for NEMAR). Accepts a single string or a list; an empty
+    # list (or only empty strings) keeps all repos.
     prefixes = [prefix] if isinstance(prefix, str) else list(prefix or [])
     prefixes = [p for p in prefixes if p]
     if prefixes:
-        df = df[
-            df["name"].apply(lambda n: any(str(n).startswith(p) for p in prefixes))
-        ].reset_index(drop=True)
+        df = df[df["name"].apply(lambda n: any(str(n).startswith(p) for p in prefixes))].reset_index(drop=True)
     label = "/".join(prefixes) if prefixes else "(all)"
     print(f"{len(df)} {label}* repos to consider")
 
@@ -332,9 +328,7 @@ def sync_repo_contents(
     # ------------------------------------------------------------------
     n = len(to_fetch)
     fetched = errors = truncated_count = 0
-    updated_lookup = {
-        row["name"]: str(row.get("updated_at", "")) for _, row in df.iterrows()
-    }
+    updated_lookup = {row["name"]: str(row.get("updated_at", "")) for _, row in df.iterrows()}
 
     for i, name in enumerate(to_fetch, 1):
         updated_at = updated_lookup.get(name, "")
@@ -374,18 +368,14 @@ def sync_repo_contents(
         print(
             f"[{i}/{n}] {name}: {len(meta['subjects'])} subjects, "
             f"{len(meta['datatypes'])} datatypes, {len(meta['event_files'])} event files, "
-            f"{len(meta['top_level_files'])} top-level files"
-            + ("  [TRUNCATED]" if truncated else "")
+            f"{len(meta['top_level_files'])} top-level files" + ("  [TRUNCATED]" if truncated else "")
         )
 
         # Save incrementally so a crash mid-run keeps progress.
         _save_json(existing, out_path)
         _save_failures(failures, fail_file)
 
-    print(
-        f"\nDone.  Fetched: {fetched}  |  Errors: {errors}  |  "
-        f"Skipped: {skipped}  |  Truncated: {truncated_count}"
-    )
+    print(f"\nDone.  Fetched: {fetched}  |  Errors: {errors}  |  Skipped: {skipped}  |  Truncated: {truncated_count}")
     if truncated_count:
         print(
             f"  {truncated_count} repo(s) had truncated git-trees — their derived "
@@ -417,8 +407,7 @@ def main(argv: "list[str] | None" = None) -> int:
     parser.add_argument(
         "--retry-failed",
         action="store_true",
-        help="Re-attempt repos in the failures dict "
-        "(repos with skip=true are always excluded)",
+        help="Re-attempt repos in the failures dict (repos with skip=true are always excluded)",
     )
     parser.add_argument(
         "--repo",
@@ -437,15 +426,15 @@ def main(argv: "list[str] | None" = None) -> int:
     )
     parser.add_argument(
         "--org",
-        default="OpenNeuroDatasets",
-        help="GitHub organization name (default: OpenNeuroDatasets).",
+        required=True,
+        help="GitHub organization name (required; e.g. NemarDatasets).",
     )
     parser.add_argument(
         "--prefix",
         action="append",
         default=None,
-        help="Only process repos whose name starts with this prefix. Repeatable "
-        "(e.g. '--prefix nm --prefix on' for NEMAR). Default: 'ds' (OpenNeuro). "
+        help="Only process repos whose name starts with this prefix. Repeatable. "
+        f"Default: {' '.join(DEFAULT_PREFIXES)} (NEMAR). "
         "Pass '--prefix \"\"' for all repos.",
     )
     parser.add_argument(
@@ -467,9 +456,9 @@ def main(argv: "list[str] | None" = None) -> int:
     if not token:
         print("Warning: GITHUB_TOKEN not set; requests will be rate-limited.")
 
-    # No --prefix given -> default to OpenNeuro's "ds". One or more given ->
-    # use them as-is (an explicit '--prefix ""' means "all repos").
-    prefixes = args.prefix if args.prefix is not None else ["ds"]
+    # No --prefix given -> the NEMAR defaults. One or more given -> use them
+    # as-is (an explicit '--prefix ""' means "all repos").
+    prefixes = args.prefix if args.prefix is not None else list(DEFAULT_PREFIXES)
 
     sync_repo_contents(
         tsv_path=args.tsv,

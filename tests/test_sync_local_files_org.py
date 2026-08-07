@@ -1,9 +1,10 @@
 """test_sync_local_files_org.py — regression guard for org threading.
 
 Bug (2026-06-15): `sync_all` accepted an `organization` argument but did not
-pass it to the per-repo `sync_repo(...)` call, which then defaulted to
-`OpenNeuroDatasets`. Every non-OpenNeuro download therefore hit the wrong org
-and 404'd. This test asserts the organization reaches the downloader.
+pass it to the per-repo `sync_repo(...)` call, which then fell back to its own
+default and 404'd against the wrong org. The defaults are gone as of
+2026-08-06 - `organization` is now required - but the threading is still worth
+pinning: a silently wrong org produces empty dataset directories, not an error.
 
 No network: `_download_file` is monkeypatched to capture the org it's given.
 
@@ -24,15 +25,11 @@ def test_sync_all_threads_organization_to_downloader(tmp_path, monkeypatch):
         json.dumps(
             {
                 "nm000105": {
-                    "entries": [
-                        {"name": "README.md", "type": "blob", "size": 10, "sha": "abc"},
-                        {
-                            "name": ".nemar/metadata.json",
-                            "type": "blob",
-                            "size": 5,
-                            "sha": "def",
-                        },
-                    ]
+                    "top_level_files": [
+                        {"path": "README.md", "size": 10, "sha": "abc"},
+                        {"path": ".nemar/metadata.json", "size": 5, "sha": "def"},
+                    ],
+                    "subjects": ["sub-01"],
                 }
             }
         ),
@@ -57,6 +54,4 @@ def test_sync_all_threads_organization_to_downloader(tmp_path, monkeypatch):
     )
 
     assert seen_orgs, "downloader was never called"
-    assert set(seen_orgs) == {"nemarDatasets"}, (
-        f"organization not threaded to downloader: saw {set(seen_orgs)}"
-    )
+    assert set(seen_orgs) == {"nemarDatasets"}, f"organization not threaded to downloader: saw {set(seen_orgs)}"

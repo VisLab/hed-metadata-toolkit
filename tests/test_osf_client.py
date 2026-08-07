@@ -12,7 +12,7 @@ Five fixture cases:
   5. 401 Unauthorized / private project (cache returns {}).
 
 Plus dedicated is_osf_project_doi tests pinning the safety-critical rule
-from .status/phase2_5_thinking_2026-05-06.md §2.1.
+that a 10.17605/OSF.IO/* DOI is a project registration, never a publication.
 
 Run:
     pytest tests/test_osf_client.py -v
@@ -91,9 +91,7 @@ class TestLookupGuid:
                 "relationships": {
                     "referent": {
                         "data": {"id": "bxvhr", "type": "nodes"},
-                        "links": {
-                            "related": {"href": "https://api.osf.io/v2/nodes/bxvhr/"}
-                        },
+                        "links": {"related": {"href": "https://api.osf.io/v2/nodes/bxvhr/"}},
                     }
                 },
                 "attributes": {},
@@ -113,18 +111,14 @@ class TestLookupGuid:
 
     def test_private_project_returns_empty(self, tmp_path):
         """401 private project → cache returns {} → lookup_guid returns {}."""
-        with patch(
-            "hed_metadata_toolkit.clients.osf.cache_get_or_fetch", side_effect=_stub({})
-        ):
+        with patch("hed_metadata_toolkit.clients.osf.cache_get_or_fetch", side_effect=_stub({})):
             from hed_metadata_toolkit.clients.osf import lookup_guid
 
             result = lookup_guid("er5u7", cache_dir=tmp_path)
         assert result == {}
 
     def test_not_found_returns_empty(self, tmp_path):
-        with patch(
-            "hed_metadata_toolkit.clients.osf.cache_get_or_fetch", side_effect=_stub({})
-        ):
+        with patch("hed_metadata_toolkit.clients.osf.cache_get_or_fetch", side_effect=_stub({})):
             from hed_metadata_toolkit.clients.osf import lookup_guid
 
             result = lookup_guid("zzzzz", cache_dir=tmp_path)

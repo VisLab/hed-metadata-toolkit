@@ -58,14 +58,6 @@ jobs:
       - name: Install dependencies
         run: uv pip install -e ".[docs,test]"
 
-      # Run spec tests without coverage for non Python 3.10
-      - name: Run spec_test
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        continue-on-error: true
-        run: |
-          python -m pytest spec_tests -v
-
       # Run pytest
       - name: Test with pytest
         env:

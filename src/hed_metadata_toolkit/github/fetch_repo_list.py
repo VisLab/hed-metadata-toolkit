@@ -4,9 +4,9 @@ fetch_repo_list.py — Retrieve repository list from a GitHub organization.
 Fetches all repositories from a GitHub organization and stores them in a TSV file
 with repository names and updated_at timestamps.
 
-Usage:
-    python fetch_repo_list.py [--org ORGANIZATION] [--token TOKEN]
-                              [--output PATH]
+Usage (run from the consumer repo root):
+    hed-fetch-repo-list --org ORGANIZATION [--token TOKEN]
+                        [--output PATH]
 """
 
 import argparse
@@ -54,9 +54,7 @@ def get_github_organization_repositories(organization, token=None):
                 # No more repositories to fetch
                 break
 
-            repos.extend(
-                (repo["name"], repo["updated_at"]) for repo in current_page_repos
-            )
+            repos.extend((repo["name"], repo["updated_at"]) for repo in current_page_repos)
 
             # If the number of repos returned is less than per_page, it's the last page
             if len(current_page_repos) < per_page:
@@ -98,7 +96,7 @@ def run_fetch(
     Parameters
     ----------
     org_name
-        GitHub organization, e.g. ``"OpenNeuroDatasets"``.
+        GitHub organization, e.g. ``"NemarDatasets"``.
     output_path
         Destination TSV with ``name`` + ``updated_at`` columns.
     token
@@ -131,8 +129,8 @@ def main(argv: "list[str] | None" = None) -> int:
     )
     parser.add_argument(
         "--org",
-        default="OpenNeuroDatasets",
-        help="GitHub organization name.",
+        required=True,
+        help="GitHub organization name (required; e.g. NemarDatasets).",
     )
     parser.add_argument(
         "--output",

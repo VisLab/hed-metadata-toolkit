@@ -3,9 +3,9 @@
 Reads a JSON file of manually curated citation decisions and applies them to
 citation_registry.tsv.  Dry-run by default; pass --write-back to commit.
 
-Usage:
-    python src/apply_manual_fills.py [--input PATH] [--registry PATH]
-                                     [--write-back] [--report PATH]
+Usage (run from the consumer repo root):
+    hed-apply-manual-fills [--input PATH] [--registry PATH]
+                           [--write-back] [--report PATH]
 
 No network calls.  Safe to re-run: idempotent.
 """
@@ -25,6 +25,10 @@ from pathlib import Path
 # Default data/output paths live under the current working directory (run the
 # command from the consumer repo root); all are overridable via CLI flags.
 REPO_ROOT = Path.cwd()
+
+# Run reports go beside the citation data they describe, not into a notes
+# directory: a report is a tracked output of the pipeline, not a working note.
+DEFAULT_REPORT_DIR = "datasets/citations/reports"
 
 _URL_RE = re.compile(r"^(https?://|doi:)", re.IGNORECASE)
 
@@ -78,9 +82,8 @@ def write_registry(path: Path, rows: dict[str, dict], columns: list[str]) -> Non
     atomically renames onto the destination.  This guarantees that a
     partial write (interrupted process, transient I/O failure, file
     handle held by another process) cannot leave the on-disk registry
-    truncated.  See `.status/session_2026-05-06_phase2_5b_fix.md` for
-    the regression that motivated this; mirrors the pattern in
-    `src/cache.py`.
+    truncated.  A non-atomic write did exactly that once, losing rows;
+    mirrors the pattern in `cache.py`.
     """
     tmp_path = path.with_suffix(path.suffix + f".{os.getpid()}.tmp")
     try:
@@ -148,8 +151,7 @@ def _apply_manual_fill(
 
     if not key_count:
         warnings_out.append(
-            f"{cit}: manual_fill present but has no recognised keys "
-            f"(expected doi, family, or rejected); skipping"
+            f"{cit}: manual_fill present but has no recognised keys (expected doi, family, or rejected); skipping"
         )
         return
 
@@ -191,9 +193,7 @@ def _apply_manual_fill(
         try:
             year_str = str(int(year_raw))
         except (TypeError, ValueError):
-            warnings_out.append(
-                f"{cit}: manual_fill year={year_raw!r} is not an integer; skipping"
-            )
+            warnings_out.append(f"{cit}: manual_fill year={year_raw!r} is not an integer; skipping")
             return
 
         # Idempotency: already applied in a prior run.
@@ -313,8 +313,7 @@ def apply_fills(
             if json_resolved_url:
                 if not is_url_shaped(json_resolved_url):
                     warnings_out.append(
-                        f"{cit}: malformed resolved_url (not a URL): "
-                        f"{json_resolved_url[:80]!r}; moved to notes"
+                        f"{cit}: malformed resolved_url (not a URL): {json_resolved_url[:80]!r}; moved to notes"
                     )
                     note_parts.append(f"[malformed resolved_url] {json_resolved_url}")
                 else:
@@ -336,9 +335,7 @@ def apply_fills(
             # All 7 turned out to be PsyArXiv/bioRxiv preprints with
             # journal-published versions Crossref knows about.  Auto-
             # rejecting them was wrong; deferring lets the resolver's
-            # Path B + relation-chase recover them.  See
-            # .status/session_2026-05-06_phase2_5b_truncation_fix.md
-            # for the audit details.
+            # Path B + relation-chase recover them.
             has_intent = bool(json_notes) or bool(json_resolved_url)
             if not has_intent:
                 warnings_out.append(
@@ -350,9 +347,7 @@ def apply_fills(
                 continue
 
             if json_status not in NULL_DOI_STATUSES:
-                warnings_out.append(
-                    f"{cit}: unknown null-doi status={json_status!r}; rejecting anyway"
-                )
+                warnings_out.append(f"{cit}: unknown null-doi status={json_status!r}; rejecting anyway")
 
             r["status"] = "rejected"
             note_parts = [f"manual-reject: {json_status}"]
@@ -525,24 +520,15 @@ def run_apply_fills(
 
 def main(argv: list[str] | None = None) -> int:
     """Argparse wrapper around :func:`run_apply_fills`."""
-    parser = argparse.ArgumentParser(
-        description="Apply curator JSON decisions to the citation registry."
-    )
+    parser = argparse.ArgumentParser(description="Apply curator JSON decisions to the citation registry.")
     parser.add_argument(
         "--input",
-        default=str(
-            REPO_ROOT
-            / "datasets"
-            / "dataset_summaries"
-            / "resolved_references_050526.json"
-        ),
+        default=str(REPO_ROOT / "datasets" / "dataset_summaries" / "resolved_references_050526.json"),
         help="Path to the curator JSON file (default: resolved_references_050526.json)",
     )
     parser.add_argument(
         "--registry",
-        default=str(
-            REPO_ROOT / "datasets" / "dataset_summaries" / "citation_registry.tsv"
-        ),
+        default=str(REPO_ROOT / "datasets" / "dataset_summaries" / "citation_registry.tsv"),
         help="Path to citation_registry.tsv",
     )
     parser.add_argument(
@@ -553,15 +539,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--report",
         default=None,
-        help="Path for the Markdown run report (default: .status/apply_manual_fills_run_<date>.md)",
+        help=(f"Path for the Markdown run report (default: {DEFAULT_REPORT_DIR}/apply_manual_fills_run_<date>.md)"),
     )
     args = parser.parse_args(argv)
 
     today = today_iso()
     report_path = (
-        Path(args.report)
-        if args.report
-        else REPO_ROOT / ".status" / f"apply_manual_fills_run_{today}.md"
+        Path(args.report) if args.report else REPO_ROOT / DEFAULT_REPORT_DIR / f"apply_manual_fills_run_{today}.md"
     )
 
     result = run_apply_fills(

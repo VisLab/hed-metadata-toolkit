@@ -3,7 +3,7 @@
 Convert citation PDFs to Markdown by invoking ``marker_single`` for each PDF
 that does not yet have a corresponding directory in the Markdown output tree.
 
-Shared toolkit tool (moved here from openneuro-metadata).  Like the other
+Like the other
 ``hed-*`` pipeline commands it resolves paths relative to the **current working
 directory** — run it from the consumer repo's root.  Both directories are
 overridable so repos with a different layout can point it elsewhere.
@@ -40,8 +40,7 @@ DEFAULT_MD_DIR = "datasets/citations/citation_mds"
 
 def parse_args(argv: "list[str] | None" = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Convert PDFs to Markdown via marker_single, skipping any "
-        "that already have an output directory.",
+        description="Convert PDFs to Markdown via marker_single, skipping any that already have an output directory.",
     )
     parser.add_argument(
         "--pdf-dir",
@@ -76,9 +75,7 @@ def main(argv: "list[str] | None" = None) -> int:
     # marker_single is happiest run from the directory holding the PDF.
     os.chdir(pdf_dir)
 
-    pdf_files = sorted(
-        p for p in Path(".").iterdir() if p.is_file() and p.suffix.lower() == ".pdf"
-    )
+    pdf_files = sorted(p for p in Path(".").iterdir() if p.is_file() and p.suffix.lower() == ".pdf")
 
     if not pdf_files:
         print(f"No PDF files found in {pdf_dir}.")
@@ -119,8 +116,7 @@ def main(argv: "list[str] | None" = None) -> int:
             continue
         except subprocess.CalledProcessError as e:
             print(
-                f"[fail] marker_single failed for {pdf.name} "
-                f"(exit code {e.returncode})",
+                f"[fail] marker_single failed for {pdf.name} (exit code {e.returncode})",
                 file=sys.stderr,
             )
             failures += 1
@@ -138,10 +134,7 @@ def main(argv: "list[str] | None" = None) -> int:
                 file=sys.stderr,
             )
 
-    print(
-        f"Done. Total PDFs: {total}, processed: {processed}, "
-        f"skipped: {skipped}, failures: {failures}"
-    )
+    print(f"Done. Total PDFs: {total}, processed: {processed}, skipped: {skipped}, failures: {failures}")
     return 0 if failures == 0 else 2
 
 

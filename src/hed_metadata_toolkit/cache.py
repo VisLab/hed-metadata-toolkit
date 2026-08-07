@@ -37,7 +37,8 @@ for one call (which makes the lookback include today only — a
 file from yesterday will not match) or delete the matching
 `<source>/<YYYY-MM-DD>/<hash>.json` files older than today.
 
-This mirrors the raw/ convention in OpenAlex/pull_openalex.py.
+Every client in this package goes through this function; none of them
+should call `requests` directly.
 
 Error semantics:
     fetch() returning None  → server/network error; do NOT write to disk so

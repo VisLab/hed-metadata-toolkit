@@ -156,7 +156,6 @@ venv/
 ENV/
 env.bak/
 venv.bak/
-.status/
 
 # Spyder project settings
 .spyderproject
@@ -201,6 +200,9 @@ cython_debug/
 #   and can be added to the global gitignore or merged into this file. However, if you prefer, 
 #   you could uncomment the following to ignore the entire vscode folder
 # .vscode/
+# Untracked as of 2026-08-07: it held a machine-specific cache path in a public
+# repo. .vscode/settings.example.json is the sharable version - copy it.
+.vscode/settings.json
 # Temporary file for partial code execution
 tempCodeRunnerFile.py
 
@@ -218,5 +220,15 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
-# Claude Code (machine-specific local settings; shared settings.json is committed)
+# Claude Code
+# Shared and portable -> committed:  CLAUDE.md, .claude/settings.json,
+#                                    .claude/rules/, .claude/skills/, .claude/agents/
+# Machine-specific    -> ignored:    everything below.
 .claude/settings.local.json
+CLAUDE.local.md
+
+# Working notes, plans, and decision records. Deliberately NOT committed:
+# this repo is public and .status/ holds half-formed thinking. The consequence
+# is that it lives on one machine only and is absent from fresh clones and
+# from `claude --worktree` worktrees.
+.status/

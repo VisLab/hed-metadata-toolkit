@@ -1,11 +1,11 @@
 """
 sync_local_files.py
 
-Downloads every top-level *file* (blob) for each ds* repository listed in
+Downloads every top-level *file* (blob) for each repository listed in
 datasets/dataset_summaries/repo_contents.json into a matching datasets/dataset_repos/<repo>/ directory.
 
-Improvements over download_repo_files.py:
-  - Downloads ALL top-level blobs, not just four specific patterns.
+Behaviour:
+  - Downloads ALL top-level blobs, not a fixed set of filename patterns.
   - SHA-based incremental skip: if the local file's stored SHA matches the
     entry in repo_contents.json the file is not re-downloaded.
   - Parallel downloads via ThreadPoolExecutor (default 10 workers).
@@ -16,7 +16,7 @@ Improvements over download_repo_files.py:
   - Appends failures to datasets/download_failed.log.tsv.
 
 Usage:
-    python sync_local_files.py [--repo ds000001] [--workers N]
+    hed-sync-local-files --org ORG [--repo REPO_NAME] [--workers N]
                                [--max-size BYTES] [--force]
                                [--contents PATH] [--datasets PATH]
 
@@ -65,9 +65,7 @@ FAILURES_FILENAME = "download_failures.json"
 # ---------------------------------------------------------------------------
 
 
-def _safe_replace(
-    tmp_path: str, target_path: str, retries: int = 5, delay: float = 0.5
-) -> None:
+def _safe_replace(tmp_path: str, target_path: str, retries: int = 5, delay: float = 0.5) -> None:
     """
     Replace target_path with tmp_path, retrying on Windows permission errors.
 
@@ -82,9 +80,7 @@ def _safe_replace(
         except PermissionError:
             if attempt >= retries:
                 raise  # exhausted retries
-            print(
-                f"    File locked, retrying in {delay}s... (attempt {attempt}/{retries})"
-            )
+            print(f"    File locked, retrying in {delay}s... (attempt {attempt}/{retries})")
             time.sleep(delay)
             delay *= 2  # exponential backoff
 
@@ -234,9 +230,7 @@ def _download_file(
 
 
 def _failures_path(contents_path: str) -> str:
-    return os.path.join(
-        os.path.dirname(os.path.abspath(contents_path)), FAILURES_FILENAME
-    )
+    return os.path.join(os.path.dirname(os.path.abspath(contents_path)), FAILURES_FILENAME)
 
 
 def _load_failures(contents_path: str) -> dict:
@@ -265,33 +259,29 @@ def _save_failures(failures: dict, contents_path: str) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Schema normalization (supports both repo_contents.json shapes)
+# Schema normalization
 # ---------------------------------------------------------------------------
 
 
 def _repo_blob_entries(meta) -> list[dict]:
     """Return top-level blob entries as ``{name, type, size, sha}`` dicts.
 
-    Supports both schemas:
-      - new: ``meta["top_level_files"]`` = list of ``{path, size, sha}`` (the
-        ``path`` becomes ``name``, so ``.nemar/metadata.json`` downloads into the
-        right nested location).
-      - legacy: ``meta["entries"]`` = list of ``{name, type, size, sha}``.
+    ``meta["top_level_files"]`` is a list of ``{path, size, sha}``. The ``path``
+    becomes ``name``, so ``.nemar/metadata.json`` downloads into the right
+    nested location.
     """
     if not isinstance(meta, dict):
         return []
-    if "top_level_files" in meta:
-        return [
-            {
-                "name": b.get("path"),
-                "type": "blob",
-                "size": b.get("size"),
-                "sha": b.get("sha"),
-            }
-            for b in meta.get("top_level_files", [])
-            if b.get("path")
-        ]
-    return meta.get("entries", [])
+    return [
+        {
+            "name": b.get("path"),
+            "type": "blob",
+            "size": b.get("size"),
+            "sha": b.get("sha"),
+        }
+        for b in meta.get("top_level_files", [])
+        if b.get("path")
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -310,7 +300,7 @@ def sync_repo(
     failures_lock: threading.Lock,
     retry_failed: bool,
     workers: int,
-    organization: str = "OpenNeuroDatasets",
+    organization: str,
 ) -> dict:
     """Sync all blob entries for one repository. Returns stats dict."""
     repo_dir = os.path.join(datasets_dir, repo_name)
@@ -351,18 +341,11 @@ def sync_repo(
                 return
 
         # SHA-based skip
-        if (
-            not force
-            and remote_sha
-            and sha_cache.get(name) == remote_sha
-            and os.path.exists(local_path)
-        ):
+        if not force and remote_sha and sha_cache.get(name) == remote_sha and os.path.exists(local_path):
             stats["skipped_sha"] += 1
             return
 
-        success, returned_sha, err = _download_file(
-            organization, repo_name, name, local_path, remote_sha, headers
-        )
+        success, returned_sha, err = _download_file(organization, repo_name, name, local_path, remote_sha, headers)
 
         if success:
             stats["downloaded"] += 1
@@ -409,7 +392,7 @@ def sync_all(
     contents_path: str,
     datasets_dir: str,
     token: str | None,
-    organization: str = "OpenNeuroDatasets",
+    organization: str,
     test_repo: str | None = None,
     workers: int = DEFAULT_WORKERS,
     max_size: int = DEFAULT_MAX_SIZE,
@@ -439,9 +422,7 @@ def sync_all(
     # Load failures dict
     failures = _load_failures(contents_path)
     perm_skipped = sum(1 for v in failures.values() if v.get("skip"))
-    print(
-        f"Failures dict: {len(failures)} entries ({perm_skipped} permanently skipped)"
-    )
+    print(f"Failures dict: {len(failures)} entries ({perm_skipped} permanently skipped)")
 
     failures_lock = threading.Lock()
     totals = {
@@ -541,8 +522,7 @@ def main(argv: "list[str] | None" = None) -> int:
     parser.add_argument(
         "--retry-failed",
         action="store_true",
-        help="Re-attempt files recorded in the failures dict "
-        "(skip=true entries excluded)",
+        help="Re-attempt files recorded in the failures dict (skip=true entries excluded)",
     )
     parser.add_argument(
         "--contents",
@@ -561,8 +541,8 @@ def main(argv: "list[str] | None" = None) -> int:
     )
     parser.add_argument(
         "--org",
-        default="OpenNeuroDatasets",
-        help="GitHub organization name (default: OpenNeuroDatasets).",
+        required=True,
+        help="GitHub organization name (required; e.g. NemarDatasets).",
     )
     args = parser.parse_args(argv)
 

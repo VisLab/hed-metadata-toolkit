@@ -5,17 +5,15 @@ Two entry points:
   lookup_by_pmcid(pmcid, cache_dir)  — fetch a BioC JSON document
                                        for a PMC Open Access article.
   fetch_image(pmcid, filename)       — fetch figure bytes for a
-                                       BioC-referenced filename
-                                       (added 2026-05-30 for PR-G,
-                                       plan v2 §13 figure-bytes pass;
-                                       see "PMC image URL story"
-                                       below).
+                                       BioC-referenced filename; see
+                                       "PMC image URL story" below,
+                                       which explains why this needs
+                                       two requests.
 
 Fresh sync implementation written to match this project's client
 family (sibling of ``crossref.py``); not vendored from opencite
 because opencite's PMC client is async and importing async code into
-this otherwise-synchronous pipeline is brittle.  See
-``.status/plan_2026-05-19_rec1_v2.md`` §3.5 for the rationale.
+this otherwise-synchronous pipeline is brittle.
 
 The PMC BioC OA endpoint:
 
@@ -39,12 +37,12 @@ parsed BioC collection — a dict with ``documents``, ``source``,
 PMC image URL story (post 2024 restructure)
 ============================================================
 
-Plan v2 §13's original sketch had us hit
-``https://www.ncbi.nlm.nih.gov/pmc/articles/<PMCID>/bin/<filename>``
-for figure bytes.  That URL still resolves, but only as a
+The obvious URL for figure bytes,
+``https://www.ncbi.nlm.nih.gov/pmc/articles/<PMCID>/bin/<filename>``,
+still resolves, but only as a
 redirect to the article landing page (PMC restructured their
-image hosting and binary URLs in 2024 — see PR-G wet-run notes
-in ``.status/session_2026-05-30_pr_g_session1.md``).  Image
+image hosting and binary URLs in 2024, confirmed against the live
+API).  Image
 bytes now live on a CDN at hash-based paths like
 ``https://cdn.ncbi.nlm.nih.gov/pmc/blobs/<shard>/<digits>/<hash>/<filename>``;
 the shard and per-image hash are not predictable from PMCID
@@ -388,9 +386,7 @@ def lookup_oa_pdf_url(
         logger.info("source=pmc_oa pmcid=%s status=not_found", canonical)
         return None
     if cached.get("_error_code"):
-        logger.info(
-            "source=pmc_oa pmcid=%s status=%s", canonical, cached["_error_code"]
-        )
+        logger.info("source=pmc_oa pmcid=%s status=%s", canonical, cached["_error_code"])
         return None
 
     for link in cached.get("links") or []:
@@ -398,9 +394,7 @@ def lookup_oa_pdf_url(
         if fmt.startswith("pdf"):
             href = _normalise_oa_href(link.get("href") or "")
             if href:
-                logger.info(
-                    "source=pmc_oa pmcid=%s status=200 href=%s", canonical, href
-                )
+                logger.info("source=pmc_oa pmcid=%s status=200 href=%s", canonical, href)
                 return href
 
     logger.info("source=pmc_oa pmcid=%s status=200_no_pdf_link", canonical)
@@ -408,7 +402,7 @@ def lookup_oa_pdf_url(
 
 
 # ---------------------------------------------------------------------------
-# PMC image two-stage fetcher  (PR-G, plan v2 §13)
+# PMC image two-stage fetcher
 # ---------------------------------------------------------------------------
 
 
@@ -569,9 +563,7 @@ def fetch_image(
         logger.info("source=pmc_image pmcid=%r status=invalid", pmcid)
         return None
     if not isinstance(filename, str) or not filename.strip():
-        logger.info(
-            "source=pmc_image pmcid=%s filename=%r status=invalid", canonical, filename
-        )
+        logger.info("source=pmc_image pmcid=%s filename=%r status=invalid", canonical, filename)
         return None
     filename = filename.strip()
 
@@ -636,9 +628,7 @@ def fetch_image(
             )
             return None
 
-        body = _stream_body(
-            resp, max_bytes=max_bytes, label=f"pmc_image {canonical}/{filename}"
-        )
+        body = _stream_body(resp, max_bytes=max_bytes, label=f"pmc_image {canonical}/{filename}")
         if body is None:
             return None
     finally:

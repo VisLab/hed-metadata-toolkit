@@ -155,14 +155,12 @@ def parse_args(argv: "list[str] | None" = None) -> argparse.Namespace:
         dirprefix.
     """
     parser = argparse.ArgumentParser(
-        description="Summarize the top-level README of each subdirectory of a "
-        "datasets directory into a JSON corpus.",
+        description="Summarize the top-level README of each subdirectory of a datasets directory into a JSON corpus.",
     )
     parser.add_argument(
         "--repos-dir",
         default=DEFAULT_REPOS_DIR,
-        help=f"Directory whose immediate subdirectories are scanned "
-        f"(default: {DEFAULT_REPOS_DIR}).",
+        help=f"Directory whose immediate subdirectories are scanned (default: {DEFAULT_REPOS_DIR}).",
     )
     parser.add_argument(
         "--output",

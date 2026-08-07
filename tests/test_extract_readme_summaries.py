@@ -123,9 +123,7 @@ MIT License
 def test_extract_readme_info_captures_full_content(tmp_path: Path) -> None:
     """Verify that content field contains the complete file."""
     readme_file = tmp_path / "README.md"
-    original_content = (
-        "# Test\n\nFull test content with all lines preserved.\n\n- Item 1\n- Item 2"
-    )
+    original_content = "# Test\n\nFull test content with all lines preserved.\n\n- Item 1\n- Item 2"
     readme_file.write_text(original_content)
 
     info = extract_readme_info(readme_file)
@@ -447,9 +445,7 @@ def test_main_output_json_validity(tmp_path: Path) -> None:
 
     ds1 = repos_dir / "ds_one"
     ds1.mkdir()
-    (ds1 / "README.md").write_text(
-        "# Dataset One\n\nDescription.\n- Point A\n- Point B"
-    )
+    (ds1 / "README.md").write_text("# Dataset One\n\nDescription.\n- Point A\n- Point B")
 
     ds2 = repos_dir / "ds_two"
     ds2.mkdir()

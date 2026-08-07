@@ -1,16 +1,13 @@
 """
 clients/osf.py — OSF (Open Science Framework) API client.
 
-Written for openneuro-metadata Phase 2.5A; no upstream equivalent in
-task-research (OSF-specific to the OpenNeuro citation workstream).
-
 Public surface:
     lookup_guid(guid, *, cache_dir, today)         — /v2/guids/<guid>/
     lookup_typed(obj_type, obj_id, *, cache_dir, today) — /v2/<type>/<id>/
     extract_publication_metadata(typed_response)   — parse a typed response
     is_osf_project_doi(doi)                        — filter 10.17605/OSF.IO/*
 
-Design notes (see .status/phase2_5_thinking_2026-05-06.md §2.1, §2.2):
+Design notes:
   - OSF project DOIs (prefix 10.17605/OSF.IO/) are DataCite registrations
     for the project itself, NOT publication DOIs.  They must be filtered out
     of any candidate list.
@@ -34,10 +31,10 @@ from hed_metadata_toolkit.cache import cache_get_or_fetch
 logger = logging.getLogger(__name__)
 
 _API_BASE = "https://api.osf.io/v2"
-_USER_AGENT = "HED-openneuro-metadata/0.1 (mailto:hedannotation@gmail.com)"
+_USER_AGENT = "HED-metadata-toolkit/0.1 (mailto:hedannotation@gmail.com)"
 
 # OSF DataCite project DOI prefix — case-insensitive.
-# See thinking doc §2.1: these are project DOIs, not publication DOIs.
+# These are registrations for the project itself, not publication DOIs.
 _OSF_PROJECT_DOI_RE = re.compile(r"^10\.17605/OSF\.IO/", re.IGNORECASE)
 
 # Conservative DOI regex for description text mining.
@@ -48,8 +45,8 @@ def is_osf_project_doi(doi: str) -> bool:
     """True iff the DOI starts with '10.17605/OSF.IO/' (case-insensitive).
 
     These are OSF's DataCite-registered project DOIs and are NOT
-    publication DOIs.  See thinking doc §2.1.  Uses match against
-    a compiled regex; no network call.
+    publication DOIs, so they must never reach a citation registry as
+    one.  Uses match against a compiled regex; no network call.
     """
     return bool(_OSF_PROJECT_DOI_RE.match(doi))
 
@@ -183,12 +180,7 @@ def extract_publication_metadata(typed_response: dict) -> dict:
     for contrib in contrib_embed.get("data", []):
         # Embedded contributor shape:
         # {"embeds": {"users": {"data": {"attributes": {"family_name": "Smith"}}}}}
-        user_attrs = (
-            contrib.get("embeds", {})
-            .get("users", {})
-            .get("data", {})
-            .get("attributes", {})
-        )
+        user_attrs = contrib.get("embeds", {}).get("users", {}).get("data", {}).get("attributes", {})
         family = user_attrs.get("family_name", "")
         if not family:
             full = user_attrs.get("full_name", "")

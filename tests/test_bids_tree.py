@@ -94,9 +94,7 @@ def test_derive_top_level_files_includes_root_and_subdir():
     assert ".bidsignore" not in paths
     assert "phenotype/age.tsv" not in paths
     # blob shape preserved
-    dd = next(
-        b for b in out["top_level_files"] if b["path"] == "dataset_description.json"
-    )
+    dd = next(b for b in out["top_level_files"] if b["path"] == "dataset_description.json")
     assert dd == {"path": "dataset_description.json", "size": 120, "sha": "dd"}
 
 

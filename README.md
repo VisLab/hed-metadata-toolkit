@@ -15,11 +15,10 @@ ______________________________________________________________________
 
 ## Consumer repositories
 
-| Repo                                                                       | GitHub org it catalogues                      | Status                                                         |
-| -------------------------------------------------------------------------- | --------------------------------------------- | -------------------------------------------------------------- |
-| [`openneuro-metadata`](https://github.com/hed-standard/openneuro-metadata) | `OpenNeuroDatasets`                           | live; migrated from sync-from-upstream pattern                 |
-| `nemar-metadata`                                                           | `NemarDatasets`                               | new; standing up on the toolkit from day one                   |
-| [`task-research`](https://github.com/hed-standard/task-research)           | (no GitHub org — cognitive-process catalogue) | consumes the shared subset (cache, clients, citation identity) |
+| Repo                                                             | GitHub org it catalogues                      | Status                                                         |
+| ---------------------------------------------------------------- | --------------------------------------------- | -------------------------------------------------------------- |
+| `nemar-metadata`                                                 | `NemarDatasets`                               | live; the only GitHub-org consumer                             |
+| [`task-research`](https://github.com/hed-standard/task-research) | (no GitHub org — cognitive-process catalogue) | consumes the shared subset (cache, clients, citation identity) |
 
 Each consumer holds its own `config.toml`, citation skip list, and data directories (`datasets/`, `citations/`). All pipeline logic lives in this toolkit; the consumer repos are configuration + data.
 
@@ -54,7 +53,7 @@ ______________________________________________________________________
 
 ## Shared API-response cache
 
-Every client in this toolkit goes through `cache.cache_get_or_fetch`, which writes to a configurable cache root with the layout described in `.status/cache_convention.md` (the same convention used by the consumer repos). The root is resolved with this precedence, highest first:
+Every client in this toolkit goes through `cache.cache_get_or_fetch`, which writes to a configurable cache root using the same layout in every consumer repo. The module docstring of [`src/hed_metadata_toolkit/cache.py`](src/hed_metadata_toolkit/cache.py) is the specification: both bucket layouts, the staleness window, the self-describing file format, and the atomic-write semantics. The root is resolved with this precedence, highest first:
 
 1. `--cache-dir PATH` argument (any script that takes one).
 2. `$HED_CACHE_DIR` environment variable.
@@ -77,7 +76,7 @@ export HED_CACHE_DIR="$HOME/HED-cache"
 
 The directory is created on first write. The cache is **ephemeral** — nothing in it is canonical data. Delete it any time without losing project state; the next run rebuilds whatever it needs.
 
-See `.status/cache_convention.md` for the full layout, staleness window, atomic-write semantics, and the troubleshooting note for VS Code integrated terminals that show the variable as empty after setting it.
+If VS Code's integrated terminal reports `HED_CACHE_DIR` as empty after you set it, restart the window: the terminal inherits the environment VS Code was launched with, and a `[Environment]::SetEnvironmentVariable(...)` call does not reach an already-running process.
 
 ______________________________________________________________________
 
@@ -99,8 +98,8 @@ src/hed_metadata_toolkit/
 │   └── unpaywall.py
 │
 ├── github/               # GitHub-organization dataset discovery
-│   ├── fetch_repo_list.py    # list every ds* repo in the org
-│   ├── sync_repo_contents.py # GraphQL batch of top-level file listings
+│   ├── fetch_repo_list.py    # list every repo in the org
+│   ├── sync_repo_contents.py # one recursive git-tree per repo -> repo_contents.json
 │   ├── sync_local_files.py   # SHA-based download of top-level blobs
 │   └── sync_repo_file_contents.py  # recursive per-participant events
 │
@@ -126,7 +125,7 @@ from hed_metadata_toolkit.clients import crossref, openalex, europepmc
 from hed_metadata_toolkit.citations.enrich_pub_ids import enrich_registry
 ```
 
-A `hed-metadata` CLI dispatcher (`src/hed_metadata_toolkit/cli.py`) is planned but not yet wired up — see the commented-out `[project.scripts]` block in `pyproject.toml`. For now consumers invoke each step as a script.
+Every pipeline step is also a console command (`hed-fetch-repo-list`, `hed-sync-repo-contents`, `hed-collect-citations`, …), declared in `[project.scripts]` in `pyproject.toml`. Consumer repos call those commands from their own root rather than vendoring wrapper scripts; each step resolves its default paths relative to the current working directory.
 
 ______________________________________________________________________
 
@@ -159,7 +158,7 @@ ______________________________________________________________________
 
 - **Tests must pass before tagging.** Consumers update their pinned tag in their own PR after seeing the new version's tests are green.
 
-- Design notes and migration history live in `.status/` (gitignored working notes, not part of the published package).
+- **Committed files never reference working notes.** Design rationale that belongs in the published record goes in a module docstring or in this README; local working notes are gitignored and must not be cited from anything that ships, because the reference is dead for every reader but its author.
 
 ______________________________________________________________________
 

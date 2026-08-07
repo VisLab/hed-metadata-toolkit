@@ -81,9 +81,7 @@ class TestGetGithubOrganizationRepositories:
         """Test handling of 404 response."""
         mock_response = MagicMock()
         mock_response.status_code = 404
-        mock_response.raise_for_status.side_effect = requests.exceptions.HTTPError(
-            response=mock_response
-        )
+        mock_response.raise_for_status.side_effect = requests.exceptions.HTTPError(response=mock_response)
         mock_get.return_value = mock_response
 
         result = get_github_organization_repositories("NonExistentOrg")
@@ -116,9 +114,7 @@ class TestRunFetch:
     """Tests for run_fetch() library entry point."""
 
     @patch.dict(os.environ, {}, clear=True)
-    @patch(
-        "hed_metadata_toolkit.github.fetch_repo_list.get_github_organization_repositories"
-    )
+    @patch("hed_metadata_toolkit.github.fetch_repo_list.get_github_organization_repositories")
     def test_run_fetch_success(self, mock_get_repos, tmp_path):
         """Test successful fetch and TSV writing."""
         mock_get_repos.return_value = [
@@ -145,9 +141,7 @@ class TestRunFetch:
         assert row1[1] == "2026-01-01T00:00:00Z"
 
     @patch.dict(os.environ, {}, clear=True)
-    @patch(
-        "hed_metadata_toolkit.github.fetch_repo_list.get_github_organization_repositories"
-    )
+    @patch("hed_metadata_toolkit.github.fetch_repo_list.get_github_organization_repositories")
     def test_run_fetch_empty_result(self, mock_get_repos, tmp_path):
         """Test handling of empty organization."""
         mock_get_repos.return_value = []
@@ -159,9 +153,7 @@ class TestRunFetch:
         assert not output_path.exists()
 
     @patch.dict(os.environ, {"GITHUB_TOKEN": "env-token"}, clear=True)
-    @patch(
-        "hed_metadata_toolkit.github.fetch_repo_list.get_github_organization_repositories"
-    )
+    @patch("hed_metadata_toolkit.github.fetch_repo_list.get_github_organization_repositories")
     def test_run_fetch_uses_env_token(self, mock_get_repos, tmp_path):
         """Test that token falls back to $GITHUB_TOKEN."""
         mock_get_repos.return_value = [
@@ -175,9 +167,7 @@ class TestRunFetch:
         mock_get_repos.assert_called_once_with("TestOrg", token="env-token")
 
     @patch.dict(os.environ, {"GITHUB_TOKEN": "env-token"}, clear=True)
-    @patch(
-        "hed_metadata_toolkit.github.fetch_repo_list.get_github_organization_repositories"
-    )
+    @patch("hed_metadata_toolkit.github.fetch_repo_list.get_github_organization_repositories")
     def test_run_fetch_explicit_token_overrides_env(self, mock_get_repos, tmp_path):
         """Test that explicit token overrides $GITHUB_TOKEN."""
         mock_get_repos.return_value = [
@@ -190,9 +180,7 @@ class TestRunFetch:
         # Verify explicit token was used
         mock_get_repos.assert_called_once_with("TestOrg", token="explicit-token")
 
-    @patch(
-        "hed_metadata_toolkit.github.fetch_repo_list.get_github_organization_repositories"
-    )
+    @patch("hed_metadata_toolkit.github.fetch_repo_list.get_github_organization_repositories")
     def test_run_fetch_creates_parent_directory(self, mock_get_repos, tmp_path):
         """Test that parent directories are created."""
         mock_get_repos.return_value = [

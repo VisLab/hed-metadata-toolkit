@@ -1,12 +1,13 @@
 """
 identity.py — Deterministic pub_id, canonical_string, and PDF filename generation.
 
-Every other module in the literature-search workstream imports from here.
+Every module that builds or compares citation identities imports from here.
 These are pure functions: same inputs always produce the same outputs.
 No network calls, no I/O, no global state.
 
-Algorithm source: literature_search_plan_2026-04-21.md §11.7 (authoritative)
-and pdf_naming_thinking_2026-04-21.md §5.
+The three functions below are the specification: a pub_id is reproducible
+from (first author family name, year, title) alone, on any machine, forever.
+Changing how any of them folds its input renumbers every existing pub_id.
 
   build_canonical_string(first_author_family, year, title) -> str
       Returns the ≤100-char lowercase alphanumeric string that is the SHA-1
@@ -18,7 +19,7 @@ and pdf_naming_thinking_2026-04-21.md §5.
   build_pdf_filename(first_author_family, year, title) -> str
       Returns '<LastName>_<Year>_<CamelCaseTitle>_<hash8>.pdf'.
 
-TODO (Phase 6): when writing a new pub_id into publications.json, check
+TODO: when writing a new pub_id into publications.json, check
 for 8-char hash collisions and bump to 10 chars for any colliding pair.
 """
 

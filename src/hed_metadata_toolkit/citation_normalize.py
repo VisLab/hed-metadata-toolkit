@@ -2,16 +2,9 @@ r"""
 citation_normalize.py — DOI/URL canonicalisation and junk-link detection.
 
 Pure functions; the only I/O is `load_skip_list`, which reads a text file.
-No network calls.  This module is the building block for both the
-one-shot `migrate_citations.py` (Session 2B) and the permanent
-`assign_citation_ids.py` (Session 2C).
-
-Algorithm sources:
-  - .status/citation_id_design_v2.md §4 (current spec, including
-    §4.3 publisher → DOI synthesis patterns and §4.3.2 whitespace
-    handling)
-  - .status/citation_id_design.md §2 (v1; v2 inherits §2 unchanged)
-  - .status/cross_repo_id_thinking_2026-05-01.md §3-5 (rationale)
+No network calls.  `assign_citation_ids` and `enrich_pub_ids` both build on
+these: canonicalisation decides whether two raw links are the same citation,
+so a change here changes which links collapse together.
 
 Public surface:
 

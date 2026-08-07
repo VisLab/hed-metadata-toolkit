@@ -1,7 +1,7 @@
 """
 sync_repo_file_contents.py
 
-For each ds* repository listed in datasets/dataset_summaries/repo_contents.json:
+For each repository listed in datasets/dataset_summaries/repo_contents.json:
   1. Checks for a local participants.tsv in datasets/dataset_repos/<repo>/.
      If absent, logs a message and skips the repository.
   2. Reads the participant_id column and finds the first ID that matches a
@@ -14,8 +14,8 @@ For each ds* repository listed in datasets/dataset_summaries/repo_contents.json:
   5. Downloads only *_events.tsv and *_events.json files (with SHA-based
      incremental skip) into datasets/dataset_repos/<repo>/<participant_dir>/...
 
-Usage:
-    python sync_repo_file_contents.py [--repo NAME] [--workers N] [--force]
+Usage (run from the consumer repo root):
+    hed-sync-repo-file-contents --org ORG [--repo NAME] [--workers N] [--force]
                                       [--retry-failed]
                                       [--contents PATH] [--datasets PATH]
                                       [--out PATH]
@@ -34,8 +34,8 @@ Options:
 
 Failure tracking (datasets/dataset_summaries/repo_file_contents_failures.json):
     Files that fail to download are recorded keyed by
-    "<repo>/<participant_dir>/<rel_path>" (e.g.
-    "ds007640/sub-01/func/sub-01_task-foo_events.tsv").
+    "REPO_NAME/<participant_dir>/<rel_path>" (e.g.
+    "REPO_NAME/sub-01/func/sub-01_task-foo_events.tsv").
     On a subsequent successful download the entry is removed.  To permanently
     skip a file, set its "skip" field to true — it will then be ignored even
     with --retry-failed.
@@ -75,9 +75,7 @@ EVENTS_SUFFIXES = ("_events.tsv", "_events.json")
 # ---------------------------------------------------------------------------
 
 
-def _safe_replace(
-    tmp_path: str, target_path: str, retries: int = 5, delay: float = 0.5
-) -> None:
+def _safe_replace(tmp_path: str, target_path: str, retries: int = 5, delay: float = 0.5) -> None:
     """
     Replace target_path with tmp_path, retrying on Windows permission errors.
 
@@ -92,9 +90,7 @@ def _safe_replace(
         except PermissionError:
             if attempt >= retries:
                 raise  # exhausted retries
-            print(
-                f"    File locked, retrying in {delay}s... (attempt {attempt}/{retries})"
-            )
+            print(f"    File locked, retrying in {delay}s... (attempt {attempt}/{retries})")
             time.sleep(delay)
             delay *= 2  # exponential backoff
 
@@ -246,9 +242,7 @@ def _read_participant_ids(tsv_path: str) -> list[str]:
         return []
 
 
-def _find_participant_dir(
-    participant_ids: list[str], repo_entries: list[dict]
-) -> str | None:
+def _find_participant_dir(participant_ids: list[str], repo_entries: list[dict]) -> str | None:
     """
     Return the first participant_id that has a matching top-level tree entry.
     """
@@ -262,15 +256,12 @@ def _find_participant_dir(
 def _repo_tree_entries(meta) -> list[dict]:
     """Return top-level directory entries as ``{name, type: "tree"}`` dicts.
 
-    Supports both repo_contents.json schemas:
-      - new: ``meta["subjects"]`` = list of ``sub-*`` directory names.
-      - legacy: ``meta["entries"]`` = mixed blob/tree entries (trees kept).
+    ``meta["subjects"]`` is the list of top-level ``sub-*`` directory names in
+    repo_contents.json.
     """
     if not isinstance(meta, dict):
         return []
-    if "subjects" in meta:
-        return [{"name": s, "type": "tree"} for s in meta.get("subjects", [])]
-    return meta.get("entries", [])
+    return [{"name": s, "type": "tree"} for s in meta.get("subjects", [])]
 
 
 # ---------------------------------------------------------------------------
@@ -278,9 +269,7 @@ def _repo_tree_entries(meta) -> list[dict]:
 # ---------------------------------------------------------------------------
 
 
-def _fetch_root_tree(
-    org: str, repo: str, headers: dict
-) -> tuple[list[dict] | None, str | None]:
+def _fetch_root_tree(org: str, repo: str, headers: dict) -> tuple[list[dict] | None, str | None]:
     """
     Fetch the top-level tree entries for a repository via the git-trees API.
     Returns (entries, error_message).  Entries include trees and blobs with SHAs.
@@ -315,9 +304,7 @@ def _fetch_root_tree(
     return None, "max retries exceeded"
 
 
-def _fetch_recursive_tree(
-    org: str, repo: str, tree_sha: str, headers: dict
-) -> tuple[list[dict] | None, str | None]:
+def _fetch_recursive_tree(org: str, repo: str, tree_sha: str, headers: dict) -> tuple[list[dict] | None, str | None]:
     """
     Fetch a fully recursive listing for a directory tree by its SHA.
     Returns (entries, error_message).
@@ -444,7 +431,7 @@ def sync_repo(
     failures_lock: threading.Lock,
     retry_failed: bool,
     workers: int,
-    organization: str = "OpenNeuroDatasets",
+    organization: str,
 ) -> tuple[dict, dict | None]:
     """
     Sync one repository.
@@ -486,10 +473,7 @@ def sync_repo(
     # ------------------------------------------------------------------
     participant_dir = _find_participant_dir(participant_ids, repo_entries)
     if not participant_dir:
-        print(
-            f"  No participant_id matches a top-level directory "
-            f"(checked {len(participant_ids)} IDs) — skipping"
-        )
+        print(f"  No participant_id matches a top-level directory (checked {len(participant_ids)} IDs) — skipping")
         return stats, None
 
     print(f"  Using participant directory: {participant_dir}", end=" ... ", flush=True)
@@ -509,17 +493,13 @@ def sync_repo(
             break
 
     if not participant_sha:
-        print(
-            f"\n  Could not find tree SHA for '{participant_dir}' in root tree — skipping"
-        )
+        print(f"\n  Could not find tree SHA for '{participant_dir}' in root tree — skipping")
         return stats, None
 
     # ------------------------------------------------------------------
     # 5. Fetch recursive file listing for the participant directory
     # ------------------------------------------------------------------
-    tree_entries, err = _fetch_recursive_tree(
-        organization, repo_name, participant_sha, headers
-    )
+    tree_entries, err = _fetch_recursive_tree(organization, repo_name, participant_sha, headers)
     if err:
         print(f"\n  Error fetching recursive tree: {err}")
         return stats, None
@@ -573,18 +553,11 @@ def sync_repo(
                 return
 
         # SHA-based incremental skip
-        if (
-            not force
-            and remote_sha
-            and sha_cache.get(cache_key) == remote_sha
-            and os.path.exists(local_path)
-        ):
+        if not force and remote_sha and sha_cache.get(cache_key) == remote_sha and os.path.exists(local_path):
             stats["skipped_sha"] += 1
             return
 
-        success, returned_sha, dl_err = _download_file(
-            organization, repo_name, full_rel, local_path, headers
-        )
+        success, returned_sha, dl_err = _download_file(organization, repo_name, full_rel, local_path, headers)
 
         if success:
             stats["downloaded"] += 1
@@ -631,7 +604,7 @@ def sync_all(
     datasets_dir: str,
     out_path: str,
     token: str | None,
-    organization: str = "OpenNeuroDatasets",
+    organization: str,
     test_repo: str | None = None,
     workers: int = DEFAULT_WORKERS,
     force: bool = False,
@@ -670,9 +643,7 @@ def sync_all(
     # ------------------------------------------------------------------
     failures = _load_failures(out_path)
     perm_skipped = sum(1 for v in failures.values() if v.get("skip"))
-    print(
-        f"Failures dict: {len(failures)} entries ({perm_skipped} permanently skipped)"
-    )
+    print(f"Failures dict: {len(failures)} entries ({perm_skipped} permanently skipped)")
 
     failures_lock = threading.Lock()
     totals = {
@@ -801,8 +772,8 @@ def main(argv: "list[str] | None" = None) -> int:
     )
     parser.add_argument(
         "--org",
-        default="OpenNeuroDatasets",
-        help="GitHub organization name (default: OpenNeuroDatasets).",
+        required=True,
+        help="GitHub organization name (required; e.g. NemarDatasets).",
     )
     args = parser.parse_args(argv)
 

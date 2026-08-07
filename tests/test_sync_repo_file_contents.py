@@ -19,9 +19,7 @@ class TestParticipantIdReading:
     def test_read_participant_ids_valid_tsv(self, tmp_path):
         """Test reading participant IDs from valid TSV file."""
         tsv_file = tmp_path / "participants.tsv"
-        tsv_file.write_text(
-            "participant_id\tage\tsex\nsub-01\t25\tM\nsub-02\t30\tF\nsub-03\t28\tM\n"
-        )
+        tsv_file.write_text("participant_id\tage\tsex\nsub-01\t25\tM\nsub-02\t30\tF\nsub-03\t28\tM\n")
 
         result = _read_participant_ids(str(tsv_file))
 
@@ -289,9 +287,7 @@ class TestParticipantDirStructure:
 
         # Verify event files
         event_suffixes = ("_events.tsv", "_events.json")
-        event_files = [
-            p for p in expected_paths if any(p.endswith(s) for s in event_suffixes)
-        ]
+        event_files = [p for p in expected_paths if any(p.endswith(s) for s in event_suffixes)]
 
         assert len(event_files) == 3
         assert "sub-01_task-rest_events.tsv" in event_files[0]

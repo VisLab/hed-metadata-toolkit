@@ -460,9 +460,7 @@ def test_already_resolved_pub_id_skipped():
     reg = _reg(_row("cit_000001", pub_id="pub_abc12345", doi="10.1000/existing"))
     original = copy.deepcopy(reg["cit_000001"])
     warns: list[str] = []
-    stats = apply_fills(
-        [_entry("cit_000001", doi="10.1000/existing")], reg, TODAY, warns
-    )
+    stats = apply_fills([_entry("cit_000001", doi="10.1000/existing")], reg, TODAY, warns)
     assert reg["cit_000001"] == original
     assert "cit_000001" in stats["skipped_already_resolved"]
 
@@ -471,9 +469,7 @@ def test_already_resolved_pub_id_conflicting_doi_warns():
     """Resolved row with mismatched doi in JSON → warning, still skipped."""
     reg = _reg(_row("cit_000001", pub_id="pub_abc12345", doi="10.1000/old"))
     warns: list[str] = []
-    stats = apply_fills(
-        [_entry("cit_000001", doi="10.1000/different")], reg, TODAY, warns
-    )
+    stats = apply_fills([_entry("cit_000001", doi="10.1000/different")], reg, TODAY, warns)
     assert reg["cit_000001"]["doi"] == "10.1000/old"  # unchanged
     assert "cit_000001" in stats["skipped_already_resolved"]
     assert any("cit_000001" in w for w in warns)
@@ -503,7 +499,7 @@ def test_is_url_shaped_invalid():
 # ---------------------------------------------------------------------------
 
 # ---------------------------------------------------------------------------
-# Tests: manual_fill sub-object schema (new in Session 2.5D)
+# Tests: manual_fill sub-object schema
 # ---------------------------------------------------------------------------
 # These test the new manual_fill field that generate_review_queue.py emits.
 # When manual_fill is not None, it takes precedence over top-level fields.
@@ -663,9 +659,7 @@ def test_manual_fill_doi_idempotency():
 def test_manual_fill_family_idempotency():
     """Applying manual_fill family/year/title twice leaves the registry unchanged."""
     reg = _reg(_row("cit_000001"))
-    entry = _mf_entry(
-        "cit_000001", {"family": "Jones", "year": 2020, "title": "Test Title"}
-    )
+    entry = _mf_entry("cit_000001", {"family": "Jones", "year": 2020, "title": "Test Title"})
     apply_fills([entry], reg, TODAY, [])
     import copy
 

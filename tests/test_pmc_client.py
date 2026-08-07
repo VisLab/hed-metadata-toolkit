@@ -1,23 +1,17 @@
 """
-clients/test_pmc.py — Tests for clients/pmc.py.
+test_pmc_client.py — Tests for clients/pmc.py.
 
-PR-G focus (2026-05-30): the new ``fetch_image`` two-stage flow.
-PMC restructured their image hosting in 2024 so the figure-bytes
-fetch now goes through the article landing page on
-``pmc.ncbi.nlm.nih.gov`` first, parses ``<img src>`` for CDN URLs,
-then downloads from ``cdn.ncbi.nlm.nih.gov``.  Tests exercise both
-stages via an injected fake session that serves responses in
-order.
-
-``lookup_by_pmcid`` is covered indirectly by
-``acquire/test_acquire_markdown.py`` and the existing PR-B smoke
-tests; no direct coverage gap to fill here.
+Focus: the ``fetch_image`` two-stage flow.  PMC restructured their
+image hosting in 2024 so the figure-bytes fetch now goes through the
+article landing page on ``pmc.ncbi.nlm.nih.gov`` first, parses
+``<img src>`` for CDN URLs, then downloads from
+``cdn.ncbi.nlm.nih.gov``.  Tests exercise both stages via an
+injected fake session that serves responses in order.
 
 No network: every test injects a fake ``Session`` (via the
 ``session=`` parameter on :func:`pmc.fetch_image` /
 :func:`pmc._fetch_image_url_map`) whose ``.get`` returns
-controllable responses.  Pattern matches ``acquire/test_fetch.py``
-so test fixtures stay readable across the project.
+controllable responses.
 """
 
 from __future__ import annotations
@@ -40,12 +34,8 @@ PMCID = "PMC4097944"
 PMCID_DIGITS = "4097944"
 GR1 = "fnhum-08-00443-g0001.jpg"
 GR2 = "fnhum-08-00443-g0002.jpg"
-CDN_GR1 = (
-    f"https://cdn.ncbi.nlm.nih.gov/pmc/blobs/b194/{PMCID_DIGITS}/aa45e06da37a/{GR1}"
-)
-CDN_GR2 = (
-    f"https://cdn.ncbi.nlm.nih.gov/pmc/blobs/b194/{PMCID_DIGITS}/4b981b33c3d2/{GR2}"
-)
+CDN_GR1 = f"https://cdn.ncbi.nlm.nih.gov/pmc/blobs/b194/{PMCID_DIGITS}/aa45e06da37a/{GR1}"
+CDN_GR2 = f"https://cdn.ncbi.nlm.nih.gov/pmc/blobs/b194/{PMCID_DIGITS}/4b981b33c3d2/{GR2}"
 
 JPG_BYTES1 = b"\xff\xd8\xff\xe0\x00\x10JFIF" + b"\x01" * 64
 JPG_BYTES2 = b"\xff\xd8\xff\xe0\x00\x10JFIF" + b"\x02" * 64
@@ -91,11 +81,10 @@ class FakeResp:
 class FakeSession:
     """Captures get-call args; serves queued responses in order.
 
-    Unlike the existing acquire/test_fetch.py FakeSession (which
-    re-serves a single response indefinitely), this one strictly
-    pops — once the queue is empty, ``.get()`` raises.  PR-G tests
-    rely on call-count being exact to verify the cache short-
-    circuits the second landing-page fetch.
+    This one strictly pops — once the queue is empty, ``.get()``
+    raises — because the image tests rely on call-count being exact
+    to verify the cache short-circuits the second landing-page
+    fetch.
     """
 
     def __init__(
@@ -147,35 +136,20 @@ def _landing_html(*figures: tuple[str, str], off_host: bool = False) -> bytes:
     ``example.com`` so the host-filter test can confirm it's excluded.
     """
     figure_tags = "".join(f'<img alt="Fig" src="{url}"/>' for _name, url in figures)
-    extra = (
-        '<img alt="off-host" src="https://example.com/foo.png"/>' if off_host else ""
-    )
-    html = (
-        "<html><head><title>Test</title></head><body>"
-        + extra
-        + figure_tags
-        + "</body></html>"
-    )
+    extra = '<img alt="off-host" src="https://example.com/foo.png"/>' if off_host else ""
+    html = "<html><head><title>Test</title></head><body>" + extra + figure_tags + "</body></html>"
     return html.encode("utf-8")
 
 
-def _landing_resp(
-    *figures: tuple[str, str], status: int = 200, off_host: bool = False
-) -> FakeResp:
+def _landing_resp(*figures: tuple[str, str], status: int = 200, off_host: bool = False) -> FakeResp:
     return FakeResp(
         status=status,
         headers={"Content-Type": "text/html; charset=utf-8"},
-        body=(
-            _landing_html(*figures, off_host=off_host)
-            if status == 200
-            else b"<html>err</html>"
-        ),
+        body=(_landing_html(*figures, off_host=off_host) if status == 200 else b"<html>err</html>"),
     )
 
 
-def _image_resp(
-    body: bytes = JPG_BYTES1, status: int = 200, content_type: str = "image/jpeg"
-) -> FakeResp:
+def _image_resp(body: bytes = JPG_BYTES1, status: int = 200, content_type: str = "image/jpeg") -> FakeResp:
     return FakeResp(
         status=status,
         headers={"Content-Type": content_type},
@@ -411,9 +385,7 @@ class TestFetchImageFailures:
         sess = FakeSession(
             responses=[
                 _landing_resp((GR1, CDN_GR1)),
-                _image_resp(
-                    status=200, content_type="text/html", body=b"<html>err</html>"
-                ),
+                _image_resp(status=200, content_type="text/html", body=b"<html>err</html>"),
             ]
         )
         assert P.fetch_image(PMCID, GR1, session=sess) is None
@@ -422,9 +394,7 @@ class TestFetchImageFailures:
         sess = FakeSession(
             responses=[
                 _landing_resp((GR1, CDN_GR1)),
-                _image_resp(
-                    status=200, content_type="application/octet-stream", body=JPG_BYTES1
-                ),
+                _image_resp(status=200, content_type="application/octet-stream", body=JPG_BYTES1),
             ]
         )
         assert P.fetch_image(PMCID, GR1, session=sess) is None
@@ -476,7 +446,7 @@ class TestFetchImageFailures:
 
 class TestThrottleSharing:
     """``fetch_image`` shares the per-host throttle map with
-    ``lookup_by_pmcid``.  PR-G's two-stage flow hits the same
+    ``lookup_by_pmcid``.  The two-stage flow hits the same
     host twice (landing + image), so a cold call records the
     timestamp on each leg and a warm second call (cached landing)
     only records once for the image."""
@@ -510,9 +480,7 @@ class TestThrottleSharing:
         # 0.34), third at 10.34 sees gap=0.24 (sleeps 0.10).
         with (
             patch.object(P.time, "sleep") as fake_sleep,
-            patch.object(
-                P.time, "monotonic", side_effect=[10.0, 10.0, 10.1, 10.34, 10.34, 10.44]
-            ),
+            patch.object(P.time, "monotonic", side_effect=[10.0, 10.0, 10.1, 10.34, 10.34, 10.44]),
         ):
             P.fetch_image(PMCID, GR1, session=sess)
             P.fetch_image(PMCID, GR2, session=sess)
@@ -598,17 +566,13 @@ class TestLookupOaPdfUrl:
     def test_oa_hit_returns_https_pdf_url(self, tmp_path: Path, monkeypatch):
         _stub_requests_get(monkeypatch, text=OA_XML_PDF_OK)
         out = P.lookup_oa_pdf_url("PMC4097944", tmp_path)
-        assert out == (
-            "https://ftp.ncbi.nlm.nih.gov/pub/pmc/oa_pdf/08/56/fnhum-08-00443.pdf"
-        )
+        assert out == ("https://ftp.ncbi.nlm.nih.gov/pub/pmc/oa_pdf/08/56/fnhum-08-00443.pdf")
 
     def test_not_oa_returns_none(self, tmp_path: Path, monkeypatch):
         _stub_requests_get(monkeypatch, text=OA_XML_NOT_OA)
         assert P.lookup_oa_pdf_url("PMC4598943", tmp_path) is None
 
-    def test_oa_response_without_pdf_link_returns_none(
-        self, tmp_path: Path, monkeypatch
-    ):
+    def test_oa_response_without_pdf_link_returns_none(self, tmp_path: Path, monkeypatch):
         _stub_requests_get(monkeypatch, text=OA_XML_PDF_MISSING)
         assert P.lookup_oa_pdf_url("PMC0000000", tmp_path) is None
 
@@ -631,9 +595,7 @@ class TestLookupOaPdfUrl:
         P.lookup_oa_pdf_url("PMC4097944", tmp_path)
         assert len(calls) == 1
 
-    def test_network_error_returns_none_and_does_not_cache(
-        self, tmp_path: Path, monkeypatch
-    ):
+    def test_network_error_returns_none_and_does_not_cache(self, tmp_path: Path, monkeypatch):
         def fake_get(url, **kwargs):
             raise requests.ConnectionError("DNS failure")
 
