@@ -1,6 +1,16 @@
 """
 sync_repo_file_contents.py
 
+Samples ONE subject directory per dataset. This is deliberate, not a limitation
+to be fixed: a dataset with 100 subjects contributes one, and the point is to see
+what a subject directory looks like and to have a few real event files locally,
+at two API calls per dataset.
+
+For the complete list of every event file in every subject, read the
+``event_files`` field of repo_contents.json, or run hed-list-event-files. Neither
+downloads anything. This module is the only one that fetches event-file content,
+and it will never fetch all of it.
+
 For each repository listed in datasets/dataset_summaries/repo_contents.json:
   1. Checks for a local participants.tsv in datasets/dataset_repos/<repo>/.
      If absent, logs a message and skips the repository.
