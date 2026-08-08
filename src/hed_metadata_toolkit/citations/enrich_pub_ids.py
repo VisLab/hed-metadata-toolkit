@@ -38,6 +38,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 
+from dotenv import load_dotenv
+
 # Default data/output paths live under the current working directory (run the
 # command from the consumer repo root); all are overridable via CLI flags.
 _ROOT = Path.cwd()
@@ -1101,6 +1103,8 @@ def main(argv: list[str] | None = None) -> int:
     config, a Python dict, etc.) should NOT call ``main`` — call
     :func:`enrich_registry` directly with explicit arguments.
     """
+    load_dotenv()  # so HED_CACHE_DIR may be set in the consumer repo's .env
+
     parser = argparse.ArgumentParser(description="Enrich citation registry rows with pub_ids.")
     parser.add_argument(
         "--registry",

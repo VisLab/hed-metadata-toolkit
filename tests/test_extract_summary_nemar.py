@@ -1,12 +1,13 @@
-"""test_extract_summary_nemar.py — dataset summary against the new schema.
+"""test_extract_summary_nemar.py — dataset summary and .nemar enrichment.
 
-extract_summary_info now derives the ``datatypes`` column from the repository
-tree (repo_contents.json ``datatypes`` field), NOT from NEMAR. A dataset's local
-``.nemar/metadata.json`` still fills ``title`` and ``links`` (its ``modalities``
-field is ignored). Datasets without that file (e.g. OpenNeuro) keep title/links
-blank, and passing no ``datasets_dir`` skips the .nemar read entirely.
+extract_summary_info derives the ``datatypes`` column from the repository tree
+(repo_contents.json's ``datatypes`` field), NOT from NEMAR. A dataset's local
+``.nemar/metadata.json`` fills ``title`` and ``links`` only; its ``modalities``
+field is ignored. Datasets without that file keep title and links blank, and
+passing no ``datasets_dir`` skips the .nemar read entirely.
 
-Also checks legacy ``entries`` schema still parses (datatypes blank there).
+Also checks that an entry the current reader cannot use is skipped, not
+half-parsed.
 
 No network; all IO via tmp_path.
 
@@ -112,11 +113,10 @@ def test_no_datasets_dir_skips_nemar(tmp_path):
 
 
 def test_legacy_entries_schema_is_skipped(tmp_path, capsys):
-    """Pre-2026-06-15 entries are skipped loudly, not parsed half-way.
+    """An entry with no ``subjects`` field is skipped loudly, not parsed half-way.
 
-    Legacy support was dropped on 2026-08-06 with openneuro-metadata. A stale
-    repo_contents.json must produce no rows and say why, rather than emitting a
-    row with a blank datatypes column that looks real.
+    Such a file must produce no rows and say why, rather than emitting a row
+    with a blank datatypes column that looks real.
     """
     contents = tmp_path / "repo_contents.json"
     contents.write_text(

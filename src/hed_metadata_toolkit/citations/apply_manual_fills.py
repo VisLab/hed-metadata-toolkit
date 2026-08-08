@@ -328,14 +328,13 @@ def apply_fills(
             # deferral (auto-staged placeholder) based on whether the
             # curator left any intent in `notes` or `resolved_url`.
             #
-            # Rationale (audit 2026-05-06): the JSON contained 7 rows
-            # with status='preprint_only' and ALL other fields empty
-            # (notes, resolved_url, doi).  These were auto-staged by
-            # an earlier classification step, not curator decisions.
-            # All 7 turned out to be PsyArXiv/bioRxiv preprints with
-            # journal-published versions Crossref knows about.  Auto-
-            # rejecting them was wrong; deferring lets the resolver's
-            # Path B + relation-chase recover them.
+            # A row with status='preprint_only' and no notes, no
+            # resolved_url, and no doi was staged by a classification
+            # step, not decided by a curator, so it carries no intent to
+            # reject.  Preprints of this kind usually do have a
+            # journal-published version that Crossref knows about, so
+            # deferring lets the resolver's Path B and relation-chase
+            # find it; rejecting would discard a resolvable citation.
             has_intent = bool(json_notes) or bool(json_resolved_url)
             if not has_intent:
                 warnings_out.append(

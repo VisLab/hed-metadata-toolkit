@@ -65,8 +65,8 @@ hed-convert-pdfs           = "hed_metadata_toolkit.citations.convert_pdfs:main"
 where = ["src"]
 
 [tool.ruff]
-# 120, not ruff's default of 88. Set 2026-08-07; the one-off reformat it caused
-# is its own commit.
+# 120, not ruff's default of 88. Changing this reformats most of src/ in one
+# diff, so do it alone rather than mixed into other work.
 line-length = 120
 
 [tool.ruff.lint]

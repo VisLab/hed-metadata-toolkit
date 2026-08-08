@@ -3,10 +3,9 @@
 Covers:
   - Each recognised JSON status value (with and without DOI)
   - Curator-intent gate: status-only no-DOI entries with empty notes
-    AND empty resolved_url are deferred to the resolver, not rejected
-    (the 2026-05-06 audit found 7 PsyArXiv/bioRxiv preprint_only rows
-    of this shape that were auto-staged by an earlier classification
-    step; auto-rejecting them was wrong).
+    AND empty resolved_url are deferred to the resolver, not rejected,
+    because such a row was staged by a classification step rather than
+    decided by a curator.
   - Malformed resolved_url (cit_000445 case)
   - cit_id not in registry
   - Idempotency (two runs → identical registry)
@@ -166,9 +165,8 @@ def test_valid_resolved_url_included_in_notes():
 # Tests: null-DOI statuses with curator intent (notes filled) → rejected
 # ---------------------------------------------------------------------------
 # These tests intentionally include a `notes` argument so they exercise the
-# rejection path under the post-2026-05-06 policy: rejection requires that
-# the curator left some intent (notes or resolved_url).  See the audit-
-# triggered policy fix below for the no-intent (deferral) tests.
+# rejection path: rejection requires that the curator left some intent
+# (notes or resolved_url).  The no-intent deferral tests are below.
 
 
 def test_supplement_no_doi_rejected():
@@ -290,18 +288,17 @@ def test_preprint_only_no_doi_rejected_with_notes():
 # ---------------------------------------------------------------------------
 # Tests: null-DOI status-only entries (no curator intent) → DEFERRED
 # ---------------------------------------------------------------------------
-# These pin the 2026-05-06 audit-triggered policy.  A JSON entry with
-# status set but empty notes AND empty resolved_url AND null doi is
-# treated as auto-staged from a previous classification step rather
-# than as a curator decision.  Such entries must be deferred to the
-# resolver (which can extract preprint DOIs from PsyArXiv/bioRxiv URLs
-# via Path B), not auto-rejected.
+# A JSON entry with status set but empty notes AND empty resolved_url
+# AND null doi was staged by a classification step, not decided by a
+# curator.  Such entries must be deferred to the resolver, which can
+# extract preprint DOIs from PsyArXiv and bioRxiv URLs via Path B, and
+# must not be auto-rejected.
 
 
 def test_status_only_preprint_only_deferred_to_resolver():
     """preprint_only with no notes, no doi, no resolved_url → deferred,
-    NOT rejected.  Catches the 7 PsyArXiv/bioRxiv auto-stagers found
-    in resolved_references_050526.json on 2026-05-06."""
+    NOT rejected: a preprint row with no curator intent is usually
+    resolvable to its journal version."""
     reg = _reg(_row("cit_000992"))  # status='auto' from _row default
     warns: list[str] = []
     stats = apply_fills(

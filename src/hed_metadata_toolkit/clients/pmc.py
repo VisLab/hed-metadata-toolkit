@@ -66,8 +66,8 @@ failure (network error, non-200 status, non-image content-type,
 oversize body, filename not in landing page).  No exceptions
 surface.
 
-Per D-G5 (locked 2026-05-30) there is no on-disk binary cache
-in v1 — the in-process map cache covers the per-PMCID
+There is deliberately no on-disk binary cache
+— the in-process map cache covers the per-PMCID
 amortisation, and the orchestrator's idempotency
 (``should_skip`` on the ``.md`` path) keeps re-fetches off the
 network across full runs.
@@ -95,10 +95,9 @@ _BASE = "https://www.ncbi.nlm.nih.gov/research/bionlp/RESTful/pmcoa.cgi/BioC_jso
 
 # PMC OA Web Service — returns XML listing the OA-distributable
 # download URLs (PDF + TGZ + source XML) for articles in the PMC
-# Open Access subset.  PR-H5 (2026-06-04): this is the principled
-# way to discover PMC PDF URLs.  The old approach (guessing
-# /pmc/articles/<PMCID>/pdf/) was broken by the 2024 PMC viewer
-# migration; the new viewer gates plain HTTP behind reCAPTCHA and
+# Open Access subset.  This is the only reliable way to discover a
+# PMC PDF URL: guessing /pmc/articles/<PMCID>/pdf/ does not work,
+# because the PMC viewer gates plain HTTP behind reCAPTCHA and
 # JS, but the OA service is a separate XML API designed for
 # programmatic access and is not captcha-gated.  Articles not in
 # the OA subset (e.g. NIH-deposited manuscripts whose publisher
@@ -291,7 +290,7 @@ def lookup_by_pmcid(
 
 
 # ---------------------------------------------------------------------------
-# PMC OA Web Service (PR-H5, 2026-06-04)
+# PMC OA Web Service
 # ---------------------------------------------------------------------------
 
 

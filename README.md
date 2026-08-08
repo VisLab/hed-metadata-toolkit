@@ -59,24 +59,18 @@ Every client in this toolkit goes through `cache.cache_get_or_fetch`, which writ
 2. `$HED_CACHE_DIR` environment variable.
 3. `<consumer-repo>/outputs/cache/` default.
 
-To share the cache across every HED metadata repo on a single machine, set `HED_CACHE_DIR` once in your shell profile:
-
-```powershell
-# Windows PowerShell — both lines.  The first persists the value;
-# the second makes it visible inside VS Code's integrated terminal.
-[Environment]::SetEnvironmentVariable("HED_CACHE_DIR", "H:\HED-cache", "User")
-# Then add to $PROFILE:
-$env:HED_CACHE_DIR = "H:\HED-cache"
-```
+Set it in the consumer repo's `.env`, alongside `GITHUB_TOKEN`. Copy [`.env.example`](.env.example) to `.env` and fill both in; every `hed-*` command loads `.env` from the directory it runs in, and `.env` is gitignored so no local path is committed.
 
 ```bash
-# macOS / Linux / git-bash — append to ~/.bashrc or ~/.zshrc
-export HED_CACHE_DIR="$HOME/HED-cache"
+GITHUB_TOKEN=ghp_...
+HED_CACHE_DIR=/absolute/path/to/shared-cache
 ```
 
-The directory is created on first write. The cache is **ephemeral** — nothing in it is canonical data. Delete it any time without losing project state; the next run rebuilds whatever it needs.
+Point every HED metadata repo's `.env` at the same cache root, so a DOI resolved in one repo is not fetched again in another.
 
-If VS Code's integrated terminal reports `HED_CACHE_DIR` as empty after you set it, restart the window: the terminal inherits the environment VS Code was launched with, and a `[Environment]::SetEnvironmentVariable(...)` call does not reach an already-running process.
+An exported `HED_CACHE_DIR` in your shell environment works too and takes the same precedence, but `.env` is preferred: it is per-repo, survives a new terminal, and needs no shell profile or VS Code restart.
+
+The directory is created on first write. The cache is **ephemeral** — nothing in it is canonical data. Delete it any time without losing project state; the next run rebuilds whatever it needs.
 
 ______________________________________________________________________
 

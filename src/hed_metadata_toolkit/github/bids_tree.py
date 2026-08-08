@@ -13,7 +13,7 @@ stored per repo in ``repo_contents.json``:
   - ``event_files``     — ``*_events.tsv`` / ``*_events.json`` blobs at the repo
     root or anywhere beneath a top-level ``sub-*`` directory.
 
-BIDS layout assumed (maintainer-confirmed 2026-06-15): ``sub-XXX`` dirs are one
+BIDS layout assumed: ``sub-XXX`` dirs are one
 level below the root, an optional ``ses-YYY`` dir sits under the subject, the
 datatype directory is 2 or 3 levels down, and data files are 3 or 4 levels down.
 ``derivatives/`` (and any other non-``sub-`` top-level directory) is ignored for

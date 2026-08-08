@@ -1,9 +1,9 @@
 """test_sync_repo_contents_subdir.py — recursive-tree producer behavior.
 
-Covers the 2026-06-15 rewrite of sync_repo_contents (GraphQL shallow listing ->
-one recursive git-tree per repo, new per-repo schema):
+Covers what sync_repo_contents writes for each repository, from one recursive
+git-tree call:
   - prefix filter (``nm`` and ``on``, the two prefixes in NemarDatasets)
-  - new schema fields: top_level_files / subjects / datatypes / event_files,
+  - the fields recorded: top_level_files / subjects / datatypes / event_files,
     plus synced_at / updated_at / truncated
   - include_subdirs (e.g. ``.nemar``): blobs under it are kept as top-level files
   - incremental skip (synced_at >= updated_at) and ``force``

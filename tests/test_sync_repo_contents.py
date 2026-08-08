@@ -1,10 +1,10 @@
 """Tests for github.sync_repo_contents — recursive git-tree fetch layer.
 
-The 2026-06-15 rewrite replaced the shallow batched GraphQL listing with one
-recursive REST git-tree call per repo. These tests cover ``_fetch_recursive_tree``
-response handling; the end-to-end producer behavior (prefix, schema, incremental,
-truncated, failures) is in ``test_sync_repo_contents_subdir.py`` and the BIDS
-derivation in ``test_bids_tree.py``.
+``sync_repo_contents`` makes one recursive REST git-tree call per repository.
+These tests cover ``_fetch_recursive_tree`` response handling; the end-to-end
+producer behavior (prefix, fields, incremental, truncated, failures) is in
+``test_sync_repo_contents_subdir.py`` and the BIDS derivation in
+``test_bids_tree.py``.
 
 No network: ``requests.get`` is monkeypatched.
 """

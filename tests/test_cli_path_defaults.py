@@ -1,10 +1,10 @@
-"""test_cli_path_defaults.py — Regression guard for the __file__-relative bug.
+"""test_cli_path_defaults.py — CLI defaults must be cwd-relative, not package-relative.
 
-The citation CLI modules used to anchor their default data/config paths to
-``Path(__file__).resolve().parent.parent``.  That was the repo root when the
-scripts lived in a consumer's ``src/`` directory, but once the toolkit is
-installed it resolves to ``.../site-packages/hed_metadata_toolkit``, so a real
-run looked for ``datasets/`` and ``config/`` *inside the package* and failed.
+A default path built from ``Path(__file__).resolve().parent.parent`` resolves to
+``.../site-packages/hed_metadata_toolkit`` once the toolkit is installed, so the
+command looks for ``datasets/`` and ``config/`` *inside the package* and fails on
+any real run.  Defaults must be anchored to the current working directory, which
+is the consumer repo's root.
 
 These tests assert that each CLI's default paths are NOT located inside the
 installed package — i.e. they are anchored to the current working directory.

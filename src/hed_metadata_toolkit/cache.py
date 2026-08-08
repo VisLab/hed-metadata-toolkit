@@ -10,8 +10,9 @@ Two cache layouts, picked per-call via the `stable` flag:
       Writes go into today's bucket.  Reads scan every date-stamped
       bucket and serve the newest copy whose date is within
       `max_age_days` (default 30).  Earlier date subdirectories are
-      retained as an audit trail of when each fetch happened; they are
-      no longer treated as stale just because the calendar rolled over.
+      retained as an audit trail of when each fetch happened; a bucket
+      is stale only once it falls outside `max_age_days`, not merely
+      because the date changed.
       Use for search endpoints, where new papers appear over time but
       not so fast that a 30-day-old result is misleading.
 

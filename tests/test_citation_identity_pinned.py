@@ -5,12 +5,11 @@ src/citation_identity.py is a synced copy of task-research's identity.py.
 The two copies must compute the same pub_id for the same input or the
 cross-repo bridge to task-research/publications.json silently breaks.
 
-These tests pin three known (family, year, title) -> pub_id triples.
-The expected pub_id values were computed from the upstream identity.py
-on 2026-05-01 and copied here as literals.  If a future edit to either
-copy changes any of the helper functions in a way that affects pub_id,
-one of these assertions will fail and the diff between the two copies
-needs to be reconciled.
+These tests pin three known (family, year, title) -> pub_id triples as
+literals.  If an edit to either copy changes a helper in a way that
+affects pub_id, one of these assertions fails and the two copies must be
+reconciled.  Never update a literal to match new output: that hides the
+break and renumbers every pub_id already stored in a consumer.
 
 The triples are chosen to exercise:
   - a short title (Posner 1980)
@@ -37,9 +36,9 @@ from hed_metadata_toolkit.citation_identity import build_canonical_string, build
 # ---------------------------------------------------------------------------
 # (family, year, title, expected_pub_id, expected_canonical_prefix)
 #
-# expected_pub_id was generated on 2026-05-01 by running
-# task-research/Claude-research/code/literature_search/identity.py
-# build_pub_id() on the inputs.  expected_canonical_prefix is the first
+# expected_pub_id comes from task-research's copy of build_pub_id() run
+# on the inputs; it is the value the bridge between the two repos relies
+# on.  expected_canonical_prefix is the first
 # 30 chars of the canonical string, which is enough to detect helper
 # drift in _canonical_lastname, _canonical_year, or _canonical_title
 # without pinning the entire 100-char string.

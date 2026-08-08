@@ -1,10 +1,9 @@
 """test_sync_local_files_org.py — regression guard for org threading.
 
-Bug (2026-06-15): `sync_all` accepted an `organization` argument but did not
-pass it to the per-repo `sync_repo(...)` call, which then fell back to its own
-default and 404'd against the wrong org. The defaults are gone as of
-2026-08-06 - `organization` is now required - but the threading is still worth
-pinning: a silently wrong org produces empty dataset directories, not an error.
+`sync_all` must pass its `organization` argument through to every per-repo
+`sync_repo(...)` call. If it does not, requests go to the wrong organization,
+which 404s per file and leaves empty dataset directories behind instead of
+raising - a failure that looks like "the datasets are empty upstream".
 
 No network: `_download_file` is monkeypatched to capture the org it's given.
 

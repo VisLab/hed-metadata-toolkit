@@ -1,11 +1,10 @@
-"""test_apply_manual_fills_atomic.py — Regression tests for the
-2026-05-06 truncation bug.
+"""test_apply_manual_fills_atomic.py — The registry write must be atomic.
 
-Background: an early version of `write_registry` opened the destination
-file directly with `open("w", ...)` and streamed rows.  In production a
-write was truncated mid-stream, leaving the registry with 1187 of its
-1296 rows and the boundary row's status field cut off after "needs"
-(the leading characters of "needs_review").  The fix is atomic
+Writing the destination file directly with `open("w", ...)` and streaming
+rows risks a truncated registry: an interrupted write leaves a partial
+file, with the boundary row cut off mid-field, and the rows after it
+gone.  A truncated citation registry is silent data loss, since the file
+still parses.  The guard is atomic
 write-tmp-then-rename with fsync.  These tests pin the contract.
 
 Kept in a separate file from `test_apply_manual_fills.py` so the

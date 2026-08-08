@@ -64,9 +64,9 @@ FIELDS_SEARCH = (
 # `{"error":"Unrecognized or unsupported fields: [tldr]"}`. If TLDRs are
 # needed for citing papers, fetch them in a separate /paper/{id} call.
 #
-# An earlier version of this constant listed paper fields without the
-# `citingPaper.` prefix; S2 returns 400 on those too. Diagnosed via the
-# response-body logging added 2026-04-28 in `_get()`.
+# Every field here needs the `citingPaper.` prefix; S2 returns 400 for a
+# bare paper field in this request. `_get()` logs the response body, which
+# is where the reason for a 400 shows up.
 FIELDS_CITATIONS = (
     "intents,isInfluential,"
     "citingPaper.title,citingPaper.abstract,"

@@ -200,9 +200,9 @@ cython_debug/
 #   and can be added to the global gitignore or merged into this file. However, if you prefer, 
 #   you could uncomment the following to ignore the entire vscode folder
 # .vscode/
-# Untracked as of 2026-08-07: it held a machine-specific cache path in a public
-# repo. .vscode/settings.example.json is the sharable version - copy it.
-.vscode/settings.json
+# .vscode/settings.json IS committed, and holds only portable settings. Keep
+# machine-specific values out of it: put an interpreter path in your VS Code
+# User settings and HED_CACHE_DIR in .env.
 # Temporary file for partial code execution
 tempCodeRunnerFile.py
 

@@ -1,6 +1,6 @@
 """test_collect_citations.py — Tests for the citation-link collector.
 
-Covers the previously-untested ``collect_citations`` module:
+Covers the ``collect_citations`` module:
   - link extraction / cleaning helpers
   - HowToAcknowledge ("unlinked ack") detection
   - run_collection end-to-end (dry-run vs write-back, skip-list filtering,

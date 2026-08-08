@@ -1,10 +1,10 @@
-"""test_consumers_schema.py - downloaders read the repo_contents.json schema.
+"""test_consumers_schema.py - downloaders read the repo_contents.json fields.
 
-The 2026-06-15 producer rewrite changed repo_contents.json from a flat
-``entries`` list to ``top_level_files`` / ``subjects`` / ``datatypes`` /
-``event_files``. The legacy shape was supported until 2026-08-06, when
-openneuro-metadata was abandoned; nemar-metadata has only ever used the current
-shape. These tests pin the normalization the downloaders depend on.
+A repo_contents.json entry describes a dataset with four fields:
+``top_level_files`` / ``subjects`` / ``datatypes`` / ``event_files``. The
+downloaders normalize those into the dicts they walk, and these tests pin that
+normalization. An entry carrying only a flat ``entries`` array is not readable
+and must yield nothing rather than partial results.
 
 Run:
     pytest tests/test_consumers_schema.py -v
@@ -32,7 +32,7 @@ def test_blob_entries_from_current_schema():
 
 
 def test_blob_entries_ignore_legacy_entries():
-    """A pre-2026-06-15 entry yields nothing rather than half-working."""
+    """An entry with only a flat ``entries`` array yields nothing, not half of it."""
     meta = {
         "entries": [
             {"name": "README", "type": "blob", "size": 1, "sha": "x"},
@@ -49,7 +49,7 @@ def test_tree_entries_from_current_schema():
         {"name": "sub-01", "type": "tree"},
         {"name": "sub-02", "type": "tree"},
     ]
-    # _find_participant_dir consumes exactly this shape
+    # _find_participant_dir consumes exactly these dicts
     assert srfc._find_participant_dir(["sub-02"], out) == "sub-02"
 
 
