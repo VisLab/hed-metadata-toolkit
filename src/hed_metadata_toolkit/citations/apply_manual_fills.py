@@ -47,7 +47,7 @@ NULL_DOI_STATUSES = {
 }
 
 
-def is_url_shaped(s: str) -> bool:
+def is_url_or_doi(s: str) -> bool:
     """True iff s looks like a URL or doi: reference."""
     return bool(_URL_RE.match(s))
 
@@ -311,7 +311,7 @@ def apply_fills(
                 note_parts.append(json_notes)
 
             if json_resolved_url:
-                if not is_url_shaped(json_resolved_url):
+                if not is_url_or_doi(json_resolved_url):
                     warnings_out.append(
                         f"{cit}: malformed resolved_url (not a URL): {json_resolved_url[:80]!r}; moved to notes"
                     )

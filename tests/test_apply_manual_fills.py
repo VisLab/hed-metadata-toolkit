@@ -11,7 +11,7 @@ Covers:
   - Idempotency (two runs → identical registry)
   - Conflicting DOI (registry has X, JSON has Y → warn + JSON wins)
   - Already-resolved row (pub_id set → skipped)
-  - is_url_shaped edge cases
+  - is_url_or_doi edge cases
 
 No network.  No file I/O (uses in-memory dicts except where testing write_registry).
 
@@ -27,7 +27,7 @@ from pathlib import Path
 
 from hed_metadata_toolkit.citations.apply_manual_fills import (  # noqa: E402
     apply_fills,
-    is_url_shaped,
+    is_url_or_doi,
     load_registry,
     write_registry,
 )
@@ -473,22 +473,22 @@ def test_already_resolved_pub_id_conflicting_doi_warns():
 
 
 # ---------------------------------------------------------------------------
-# Test: is_url_shaped
+# Test: is_url_or_doi
 # ---------------------------------------------------------------------------
 
 
-def test_is_url_shaped_valid():
-    assert is_url_shaped("https://example.com") is True
-    assert is_url_shaped("http://example.com/path?q=1") is True
-    assert is_url_shaped("doi:10.1000/test") is True
-    assert is_url_shaped("DOI:10.1000/test") is True  # case-insensitive
+def test_is_url_or_doi_valid():
+    assert is_url_or_doi("https://example.com") is True
+    assert is_url_or_doi("http://example.com/path?q=1") is True
+    assert is_url_or_doi("doi:10.1000/test") is True
+    assert is_url_or_doi("DOI:10.1000/test") is True  # case-insensitive
 
 
-def test_is_url_shaped_invalid():
-    assert is_url_shaped("Some Paper Title") is False
-    assert is_url_shaped("") is False
-    assert is_url_shaped("10.1000/bare-doi") is False  # no doi: prefix
-    assert is_url_shaped("ftp://not-accepted.example.com") is False
+def test_is_url_or_doi_invalid():
+    assert is_url_or_doi("Some Paper Title") is False
+    assert is_url_or_doi("") is False
+    assert is_url_or_doi("10.1000/bare-doi") is False  # no doi: prefix
+    assert is_url_or_doi("ftp://not-accepted.example.com") is False
 
 
 # ---------------------------------------------------------------------------

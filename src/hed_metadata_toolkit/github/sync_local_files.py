@@ -26,8 +26,8 @@ Options:
     --max-size BYTES   Skip blobs larger than this (default: 524288 = 512 KB)
     --force            Re-download even if SHA matches
     --retry-failed     Re-attempt files recorded in the failures dict (skip=true entries excluded)
-    --contents PATH    Path to repo_contents.json (default: ../datasets/dataset_summaries/repo_contents.json)
-    --datasets PATH    Root directory for local dataset folders (default: ../datasets/dataset_repos)
+    --contents PATH    Path to repo_contents.json (default: datasets/dataset_summaries/repo_contents.json)
+    --datasets PATH    Root directory for local dataset folders (default: datasets/dataset_repos)
 
 Failure tracking (datasets/dataset_summaries/download_failures.json):
     Files that fail to download are recorded in a companion JSON dict keyed by

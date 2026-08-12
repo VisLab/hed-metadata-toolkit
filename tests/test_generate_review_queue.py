@@ -290,7 +290,7 @@ def test_osf_hints_populated_from_cache(tmp_path):
     title = "Test OSF Project Title for Neuroscience"
     description = "A study with DOI https://doi.org/10.1038/s41597-021-01234-5 in it."
 
-    # Write a fake GUID cache that is the node itself (shape A from our code)
+    # Write a fake GUID cache that is the node itself (form A in generate_review_queue)
     node_response = _osf_node_guid_response(guid, title, description)
     _write_stable_cache(tmp_path, "osf", f"guid:{guid}", node_response)
 

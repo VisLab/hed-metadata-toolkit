@@ -30,7 +30,7 @@ def read_dataset_description(dataset_dir):
         return {}
 
 
-def update_title_and_hed(summary_df, datasets_base_dir="../datasets/dataset_repos"):
+def update_title_and_hed(summary_df, datasets_base_dir="datasets/dataset_repos"):
     """Update title and HED columns from dataset_description.json files.
 
     Parameters:

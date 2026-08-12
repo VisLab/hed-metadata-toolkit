@@ -36,11 +36,11 @@ Options:
     --force            Re-download even if SHA matches
     --retry-failed     Re-attempt files in the failures dict (skip=true excluded)
     --contents PATH    Path to repo_contents.json
-                       (default: ../datasets/dataset_summaries/repo_contents.json)
+                       (default: datasets/dataset_summaries/repo_contents.json)
     --datasets PATH    Root directory for local dataset folders
-                       (default: ../datasets/dataset_repos)
+                       (default: datasets/dataset_repos)
     --out PATH         Path to repo_file_contents.json
-                       (default: ../datasets/dataset_summaries/repo_file_contents.json)
+                       (default: datasets/dataset_summaries/repo_file_contents.json)
 
 Failure tracking (datasets/dataset_summaries/repo_file_contents_failures.json):
     Files that fail to download are recorded keyed by

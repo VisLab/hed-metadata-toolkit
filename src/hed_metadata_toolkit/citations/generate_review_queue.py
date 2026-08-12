@@ -161,18 +161,18 @@ def _build_osf_hints(url: str, cache_dir: Path) -> dict:
             return {"osf_private": True}
         return {}
 
-    # Two possible GUID response shapes from the OSF API:
-    # (A) GUID response IS the object: data.type in {nodes, registrations, ...}
-    # (B) GUID response contains a referent link: data.relationships.referent.data
+    # The OSF API answers a GUID lookup in one of two forms:
+    # (A) the response is the object itself: data.type in {nodes, registrations, ...}
+    # (B) the response holds a referent link: data.relationships.referent.data
     data_block = guid_data.get("data", {})
     obj_type_direct = data_block.get("type", "")
     obj_id_direct = data_block.get("id", "")
 
     if obj_type_direct in ("nodes", "registrations", "preprints", "files"):
-        # Shape (A): GUID response is the object — use it directly.
+        # Form (A): the GUID response is the object - use it directly.
         typed_data = guid_data
     else:
-        # Shape (B): extract referent to get (type, id), then read typed cache.
+        # Form (B): follow the referent to (type, id), then read the typed cache.
         referent = data_block.get("relationships", {}).get("referent", {}).get("data", {})
         obj_type_direct = referent.get("type", "")
         obj_id_direct = referent.get("id", "")
