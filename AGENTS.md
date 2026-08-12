@@ -22,6 +22,8 @@ Shared Python library for the HED metadata repositories: a disk cache for biblio
 
 ## Commands
 
+Test framework: pytest. Never convert the suite from one style to the other as a side effect of other work.
+
 Run from the repo root. `python` must be an interpreter with this package installed (`pip install -e ".[dev]"`).
 
 | Task                             | Command                                                                          |
@@ -128,12 +130,13 @@ A change to a function these repos call, or to a file they read, is a breaking c
 - `.status/plans/*.md` - active plans. Check the `Status:` header and the `[ ]` / `[x]` markers before starting work.
 - `.status/notes/*.md` - dated records of what happened. Write-once reference material, not instructions.
 - `.status/local-environment.md` - this machine's paths, interpreter, and quirks. Tool-agnostic, because more than one assistant works here. Never copy its contents into a committed file.
-- IMPORTANT: do not read `.status/archive/` unless a file is named for you. Nothing new is created at the `.status/` root - new material goes in `plans/`, `notes/`, or `scratch/`.
+- IMPORTANT: do not read `.status/archive/` unless a file is named for you. Nothing new is created at the `.status/` root - new material goes in `plans/`, `prompts/`, `notes/`, or `scratch/`.
 
 ## Working agreements
 
 - **IMPORTANT: every file written to `.status/` opens with a `For humans:` summary.** Three or four sentences, at the very top, before any other heading: what this file is, and the one or two things a person needs to take away from it. Everything below it may be written for an assistant to consume; that block is not. Write it plainly - no throat-clearing, no restating the title, no listing what the document will cover. The same applies to a long answer in a session: lead with the conclusion.
 - IMPORTANT: never delete or rewrite a file under `.status/` without asking first. Appending is fine.
+- IMPORTANT: temporary scripts, experiments, and one-off test files go in `.status/scratch/` - never the repository root. Anything in `scratch/` may be deleted unread.
 - Show evidence, not assertions: the command you ran and its actual output. For metadata work, include counts and a sample of records.
 - For a change spanning more than three files, write a plan to `.status/plans/` and stop for review before editing.
 - When you are guessing about an external API's response, say so. Prefer adding a fixture under `tests/fixtures/` over guessing twice.
