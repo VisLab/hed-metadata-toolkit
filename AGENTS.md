@@ -26,15 +26,15 @@ Test framework: pytest. Never convert the suite from one style to the other as a
 
 Run from the repo root. `python` must be an interpreter with this package installed (`pip install -e ".[dev]"`).
 
-| Task                             | Command                                                                          |
-| -------------------------------- | -------------------------------------------------------------------------------- |
-| Offline tests (the gate)         | `python -m pytest tests -v`                                                      |
-| One test file                    | `python -m pytest tests/test_cache.py -v`                                        |
-| One test                         | `python -m pytest tests/test_cache.py::test_round_trip_writes_and_reads_back -v` |
-| Lint                             | `python -m ruff check .`                                                         |
-| Format check                     | `python -m ruff format --check .`                                                |
-| Markdown format check            | `python -m mdformat --check --wrap no --number *.md`                             |
-| Integration tests (real network) | `python -m pytest tests/integration/ --integration -v`                           |
+| Task                             | Command                                                                                                        |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Offline tests (the gate)         | `python -m pytest tests -v`                                                                                    |
+| One test file                    | `python -m pytest tests/test_cache.py -v`                                                                      |
+| One test                         | `python -m pytest tests/test_cache.py::test_round_trip_writes_and_reads_back -v`                               |
+| Lint                             | `python -m ruff check .`                                                                                       |
+| Format check                     | `python -m ruff format --check .`                                                                              |
+| Markdown format check            | `python -m mdformat --check --wrap no --number *.md .github/*.md .github/instructions/*.md .claude/rules/*.md` |
+| Integration tests (real network) | `python -m pytest tests/integration/ --integration -v`                                                         |
 
 The integration tests need `--integration` and a `GITHUB_TOKEN`, hit the live GitHub API, and are skipped by the normal gate. CI runs the same four checks on Ubuntu across Python 3.10-3.14 (`.github/workflows/`), using `uvx ruff` and `uvx mdformat`. If the four commands above pass locally, CI passes.
 
@@ -97,7 +97,7 @@ Three commands read this inventory instead of the network: `hed-sync-local-files
 - **Nothing that ships may reference `.status/`.** It is gitignored, so such a pointer is a dead link for every reader but its author. The exception is the files whose job is to orient a tool - this file, `CLAUDE.md`, `.gitignore`, the files under `.claude/` (`settings.json`, `rules/`), and those under `.github/` (`copilot-instructions.md`, `instructions/`) - which may name `.status/` paths as places to look.
 - **No committed file contains a local path or a drive letter.** Those go in `.status/local-environment.md`.
 - **Examples use placeholders.** `REPO_NAME`, not a real dataset ID, in docstrings and help text. Concrete IDs belong in tests, where they are data.
-- Root-level `*.md` is formatted by `mdformat --wrap no --number` and is CI-checked. Files under `.github/` are not.
+- Root-level `*.md`, plus the markdown under `.github/` and `.claude/rules/`, is formatted by `mdformat --wrap no --number` and is CI-checked. The two `status_conduct` files carry frontmatter, so local runs need `mdformat-front-matters` installed, as CI has.
 - `ruff format` is the authority on Python formatting: `line-length = 120`, `line-ending = "lf"`, and `E501` disabled so unsplittable strings, URLs, and comments may exceed the limit.
 
 ## Rules that are easy to get wrong
