@@ -34,12 +34,15 @@ def _sample_tree():
     return [
         _blob("dataset_description.json", size=12, sha="dd"),
         _blob("participants.tsv", size=8, sha="pt"),
+        _blob("task-foo_events.json", size=9, sha="tj"),  # root events sidecar -> kept
+        _blob("task-foo_eeg.json", size=5, sha="tx"),  # root datatype sidecar -> excluded
         _blob(".bidsignore", size=2, sha="bi"),  # hidden root -> excluded
         _tree(".nemar"),
         _blob(".nemar/metadata.json", size=20, sha="nm"),
         _tree("sub-01"),
         _tree("sub-01/eeg"),
         _blob("sub-01/eeg/sub-01_task-foo_events.tsv", size=30, sha="e1"),
+        _blob("sub-01/eeg/sub-01_task-foo_events.json", size=7, sha="e2"),
         _blob("sub-01/eeg/sub-01_task-foo_eeg.json", size=5, sha="x1"),
         _tree("derivatives"),
         _blob("derivatives/sub-01/sub-01_task-foo_events.tsv", sha="d1"),  # ignored
@@ -58,7 +61,7 @@ def _write_tsv(tmp_path):
     return tsv
 
 
-def test_prefix_filter_and_new_schema(tmp_path, monkeypatch):
+def test_prefix_filter_and_new_schema(tmp_path, monkeypatch, capsys):
     tsv = _write_tsv(tmp_path)
     out = tmp_path / "repo_contents.json"
 
@@ -85,15 +88,26 @@ def test_prefix_filter_and_new_schema(tmp_path, monkeypatch):
     rec = data["nm000103"]
     assert rec["subjects"] == ["sub-01"]
     assert rec["datatypes"] == ["eeg"]
-    assert [b["path"] for b in rec["event_files"]] == ["sub-01/eeg/sub-01_task-foo_events.tsv"]
+    assert [b["path"] for b in rec["event_files"]] == [
+        "sub-01/eeg/sub-01_task-foo_events.json",
+        "sub-01/eeg/sub-01_task-foo_events.tsv",
+        "task-foo_events.json",
+    ]
     tlf = [b["path"] for b in rec["top_level_files"]]
     assert tlf == [
         ".nemar/metadata.json",
         "dataset_description.json",
         "participants.tsv",
+        "task-foo_events.json",
     ]
     assert rec["truncated"] is False
     assert rec["synced_at"] and rec["updated_at"] == "2026-01-01T00:00:00Z"
+    # The per-repo report separates events.tsv, top-level events.json,
+    # sub-level events.json, and the remaining top-level files.
+    assert (
+        "1 subjects, 1 datatypes, 1 events.tsv, 1 top-level events.json, "
+        "1 sub-level events.json, 3 other top-level files"
+    ) in capsys.readouterr().out
 
 
 def test_multiple_prefixes_match_any(tmp_path, monkeypatch):

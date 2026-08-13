@@ -26,7 +26,9 @@ Output schema (one recursive call per repo):
   ...
 }
 
-``top_level_files`` are root-level (non-hidden) blobs plus blobs under any
+``top_level_files`` are root-level (non-hidden) blobs - except root ``.json``
+files, which are kept only when they end in ``_events.json`` or are named
+``dataset_description.json`` / ``participants.json`` - plus all blobs under any
 ``--include-subdir`` (e.g. ``.nemar``). ``subjects`` / ``datatypes`` /
 ``event_files`` are derived from the BIDS layout under each top-level ``sub-*``
 directory (``derivatives/`` and other non-``sub-`` top-level dirs are ignored;
@@ -365,10 +367,18 @@ def sync_repo_contents(
         fetched += 1
         if truncated:
             truncated_count += 1
+        # Root *_events.json blobs sit in both event_files and top_level_files;
+        # count them once, under their own label.
+        ev_paths = [b["path"] or "" for b in meta["event_files"]]
+        top_events_json = sum(1 for p in ev_paths if "/" not in p and p.endswith("_events.json"))
+        sub_events_json = sum(1 for p in ev_paths if "/" in p and p.endswith("_events.json"))
+        events_tsv = sum(1 for p in ev_paths if p.endswith("_events.tsv"))
+        other_top = len(meta["top_level_files"]) - top_events_json
         print(
             f"[{i}/{n}] {name}: {len(meta['subjects'])} subjects, "
-            f"{len(meta['datatypes'])} datatypes, {len(meta['event_files'])} event files, "
-            f"{len(meta['top_level_files'])} top-level files" + ("  [TRUNCATED]" if truncated else "")
+            f"{len(meta['datatypes'])} datatypes, {events_tsv} events.tsv, "
+            f"{top_events_json} top-level events.json, {sub_events_json} sub-level events.json, "
+            f"{other_top} other top-level files" + ("  [TRUNCATED]" if truncated else "")
         )
 
         # Save incrementally so a crash mid-run keeps progress.

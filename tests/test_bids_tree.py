@@ -56,8 +56,11 @@ def _sample_tree():
     return [
         # root files
         _blob("dataset_description.json", size=120, sha="dd"),
+        _blob("participants.json", size=40, sha="pj"),
         _blob("participants.tsv", size=50, sha="pt"),
         _blob("README", size=10, sha="rd"),
+        _blob("task-foo_events.json", size=90, sha="tj"),  # root events sidecar -> kept
+        _blob("task-foo_eeg.json", size=70, sha="tx"),  # root datatype sidecar -> excluded
         _blob(".bidsignore", size=5, sha="bi"),  # hidden root -> excluded
         # included subdir (.nemar)
         _tree(".nemar"),
@@ -88,11 +91,15 @@ def test_derive_top_level_files_includes_root_and_subdir():
         ".nemar/metadata.json",
         "README",
         "dataset_description.json",
+        "participants.json",
         "participants.tsv",
+        "task-foo_events.json",
     ]
-    # hidden root entry excluded; phenotype/age.tsv is not top-level
+    # hidden root entry excluded; phenotype/age.tsv is not top-level;
+    # a root .json that is not an events sidecar is excluded
     assert ".bidsignore" not in paths
     assert "phenotype/age.tsv" not in paths
+    assert "task-foo_eeg.json" not in paths
     # blob shape preserved
     dd = next(b for b in out["top_level_files"] if b["path"] == "dataset_description.json")
     assert dd == {"path": "dataset_description.json", "size": 120, "sha": "dd"}
@@ -111,9 +118,34 @@ def test_derive_event_files_root_and_sub_only():
     assert paths == [
         "sub-001/eeg/sub-001_task-foo_events.tsv",
         "sub-002/ses-01/emg/sub-002_ses-01_task-bar_events.json",
+        "task-foo_events.json",
     ]
     # the derivatives events file is excluded
     assert all("derivatives" not in p for p in paths)
+
+
+def test_root_json_kept_only_for_events_and_named_files():
+    tree = [
+        _blob("dataset_description.json"),
+        _blob("participants.json"),
+        _blob("participants.tsv"),
+        _blob("task-foo_events.json"),
+        _blob("task-foo_eeg.json"),
+        _blob("task-bar_bold.json"),
+        _blob("samples.json"),
+        _blob("README.md"),
+        _blob("CHANGES"),
+    ]
+    out = bt.derive_repo_metadata(tree)
+    paths = [b["path"] for b in out["top_level_files"]]
+    assert paths == [
+        "CHANGES",
+        "README.md",
+        "dataset_description.json",
+        "participants.json",
+        "participants.tsv",
+        "task-foo_events.json",
+    ]
 
 
 def test_no_include_subdirs_excludes_nemar():

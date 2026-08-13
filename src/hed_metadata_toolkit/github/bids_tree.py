@@ -5,8 +5,10 @@ entries of a repository's recursive git-tree
 (``GET /repos/{org}/{repo}/git/trees/HEAD?recursive=1``), derive the fields
 stored per repo in ``repo_contents.json``:
 
-  - ``top_level_files`` — root-level (non-hidden) blobs, plus blobs under any
-    explicitly included subdirectory (e.g. ``.nemar``).
+  - ``top_level_files`` — root-level (non-hidden) blobs, excluding root
+    ``.json`` files other than ``*_events.json``, ``dataset_description.json``,
+    and ``participants.json``; plus all blobs under any explicitly included
+    subdirectory (e.g. ``.nemar``), which the exclusion does not apply to.
   - ``subjects``        — sorted top-level ``sub-*`` directory names.
   - ``datatypes``       — sorted BIDS *datatype* directory names found beneath a
     top-level ``sub-*`` directory (see ``ALLOWED_DATATYPES``).
@@ -52,6 +54,22 @@ ALLOWED_DATATYPES = frozenset(
 
 EVENTS_SUFFIXES = ("_events.tsv", "_events.json")
 
+# Root-level .json files kept in top_level_files by name. Any other root .json
+# that is not a *_events.json is excluded: datatype sidecars (task-X_eeg.json,
+# task-X_bold.json, ...) are numerous and nothing in the pipeline reads them.
+KEPT_ROOT_JSON = frozenset({"dataset_description.json", "participants.json"})
+
+
+def _keep_root_blob(name: str) -> bool:
+    """True when a non-hidden root blob belongs in ``top_level_files``.
+
+    Every root file is kept except ``.json`` files; a root ``.json`` is kept
+    only when it ends in ``_events.json`` or is named in ``KEPT_ROOT_JSON``.
+    """
+    if not name.endswith(".json"):
+        return True
+    return name.endswith("_events.json") or name in KEPT_ROOT_JSON
+
 
 def is_event_file(path: str) -> bool:
     """True for a BIDS event file at the repo root or under a top-level ``sub-*``.
@@ -87,7 +105,8 @@ def derive_repo_metadata(tree_entries: list, include_subdirs: "list[str] | None"
             ``sha`` are used).
         include_subdirs: directories whose blobs should also be treated as
             "top level" (e.g. ``[".nemar"]``). Their blobs are recorded with the
-            full ``<subdir>/<file>`` path.
+            full ``<subdir>/<file>`` path, and all of them are kept - the root
+            ``.json`` exclusion does not apply under an included subdir.
 
     Returns:
         ``{"top_level_files": [...], "subjects": [...], "datatypes": [...],
@@ -119,9 +138,10 @@ def derive_repo_metadata(tree_entries: list, include_subdirs: "list[str] | None"
         if entry.get("type") != "blob":
             continue
 
-        # top_level_files: non-hidden root blobs + blobs under an included subdir.
+        # top_level_files: non-hidden root blobs passing the .json filter, plus
+        # all blobs under an included subdir.
         if "/" not in path:
-            if not path.startswith("."):
+            if not path.startswith(".") and _keep_root_blob(path):
                 top_level_files.append(_blob_obj(entry))
         elif first in include:
             top_level_files.append(_blob_obj(entry))
