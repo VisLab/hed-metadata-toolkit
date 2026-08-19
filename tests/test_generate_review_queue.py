@@ -24,7 +24,6 @@ import hashlib
 import json
 from pathlib import Path
 
-
 from hed_metadata_toolkit.citations.generate_review_queue import (  # noqa: E402
     _parse_osf_guid,
     generate_queue,

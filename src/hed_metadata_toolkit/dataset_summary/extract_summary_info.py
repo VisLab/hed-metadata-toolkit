@@ -95,7 +95,7 @@ def _load_nemar_metadata(datasets_dir, dataset_name):
     if not path.is_file():
         return None
     try:
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             return json.load(f)
     except Exception as exc:
         print(f"  Warning: could not read {path}: {exc}")
@@ -134,7 +134,7 @@ def extract_dataset_info(repo_contents_json_path, datasets_dir=None):
     """
     # Load the repository contents data
     try:
-        with open(repo_contents_json_path, "r", encoding="utf-8") as f:
+        with open(repo_contents_json_path, encoding="utf-8") as f:
             repo_data = json.load(f)
         print(f"Loaded data for {len(repo_data)} repositories from {repo_contents_json_path}")
     except Exception as e:

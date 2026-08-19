@@ -33,7 +33,6 @@ from hed_metadata_toolkit.citation_normalize import (
     load_skip_list,
 )
 
-
 REGISTRY_COLUMNS = [
     "citation_id",
     "doi",

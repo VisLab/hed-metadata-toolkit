@@ -36,7 +36,6 @@ import re
 from pathlib import Path
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
-
 # ---------------------------------------------------------------------------
 # DOI patterns
 # ---------------------------------------------------------------------------

@@ -14,7 +14,6 @@ Run:
 
 from __future__ import annotations
 
-
 import pytest
 
 from hed_metadata_toolkit.citations.enrich_pub_ids import _canonicalise_doi  # noqa: E402

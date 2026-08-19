@@ -24,7 +24,7 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import patch
 
-
+from hed_metadata_toolkit.citation_identity import build_pub_id  # noqa: E402
 from hed_metadata_toolkit.citations.enrich_pub_ids import (  # noqa: E402
     _extract_journal_doi_from_openalex,
     _extract_relation_doi,
@@ -37,7 +37,6 @@ from hed_metadata_toolkit.citations.enrich_pub_ids import (  # noqa: E402
     load_registry,
     write_registry,
 )
-from hed_metadata_toolkit.citation_identity import build_pub_id  # noqa: E402
 
 TODAY = "2026-05-06"
 CACHE = Path("/fake/cache")

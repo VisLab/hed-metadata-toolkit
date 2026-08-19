@@ -4,11 +4,10 @@ import base64
 from pathlib import Path
 from unittest.mock import MagicMock
 
-
 from hed_metadata_toolkit.github.sync_local_files import (
+    _is_rate_limited,
     _load_sha_cache,
     _save_sha_cache,
-    _is_rate_limited,
 )
 
 

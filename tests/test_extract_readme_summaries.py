@@ -21,7 +21,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-
 from hed_metadata_toolkit.dataset_summary.extract_readme_summaries import (
     build_corpus,
     extract_readme_info,
@@ -29,7 +28,6 @@ from hed_metadata_toolkit.dataset_summary.extract_readme_summaries import (
     main,
     parse_args,
 )
-
 
 # ---------------------------------------------------------------------------
 # extract_readme_info tests

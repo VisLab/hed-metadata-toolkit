@@ -88,7 +88,6 @@ except ImportError as err:
 
 from hed_metadata_toolkit.cache import cache_get_or_fetch
 
-
 logger = logging.getLogger(__name__)
 
 _BASE = "https://www.ncbi.nlm.nih.gov/research/bionlp/RESTful/pmcoa.cgi/BioC_json"
@@ -406,7 +405,7 @@ def lookup_oa_pdf_url(
 
 
 def _stream_body(
-    resp: "requests.Response",
+    resp: requests.Response,
     *,
     max_bytes: int,
     label: str,
@@ -437,7 +436,7 @@ def _fetch_image_url_map(
     timeout: float = 30.0,
     max_bytes: int = _LANDING_MAX_BYTES_DEFAULT,
     email: str = "hedannotation@gmail.com",
-    session: "requests.Session | None" = None,
+    session: requests.Session | None = None,
 ) -> dict[str, str] | None:
     """Return the ``{filename → CDN URL}`` map for ``pmcid``,
     fetching and parsing the landing page on first call.
@@ -517,7 +516,7 @@ def fetch_image(
     timeout: float = 30.0,
     max_bytes: int = _IMAGE_MAX_BYTES_DEFAULT,
     email: str = "hedannotation@gmail.com",
-    session: "requests.Session | None" = None,
+    session: requests.Session | None = None,
 ) -> bytes | None:
     """Fetch a figure's bytes given a PMCID + filename.
 

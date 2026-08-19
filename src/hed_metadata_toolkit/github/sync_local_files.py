@@ -38,12 +38,12 @@ Failure tracking (datasets/dataset_summaries/download_failures.json):
 
 import argparse
 import base64
-from datetime import datetime, timezone
 import json
 import os
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime, timezone
 
 import requests
 from dotenv import load_dotenv
@@ -136,7 +136,7 @@ def _load_sha_cache(repo_dir: str) -> dict:
     path = os.path.join(repo_dir, SHA_CACHE_FILENAME)
     if os.path.exists(path):
         try:
-            with open(path, "r", encoding="utf-8") as fh:
+            with open(path, encoding="utf-8") as fh:
                 return json.load(fh)
         except Exception:
             pass
@@ -238,7 +238,7 @@ def _load_failures(contents_path: str) -> dict:
     path = _failures_path(contents_path)
     if os.path.exists(path):
         try:
-            with open(path, "r", encoding="utf-8") as fh:
+            with open(path, encoding="utf-8") as fh:
                 return json.load(fh)
         except Exception as exc:
             print(f"Warning: could not read {path}: {exc}")
@@ -405,7 +405,7 @@ def sync_all(
 
     # Load repo_contents.json
     try:
-        with open(contents_path, "r", encoding="utf-8") as fh:
+        with open(contents_path, encoding="utf-8") as fh:
             repo_contents: dict = json.load(fh)
         print(f"Loaded {len(repo_contents)} repos from {contents_path}")
     except Exception as exc:

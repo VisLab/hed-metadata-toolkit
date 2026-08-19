@@ -38,7 +38,7 @@ DEFAULT_PDF_DIR = "datasets/citations/citation_pdfs"
 DEFAULT_MD_DIR = "datasets/citations/citation_mds"
 
 
-def parse_args(argv: "list[str] | None" = None) -> argparse.Namespace:
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Convert PDFs to Markdown via marker_single, skipping any that already have an output directory.",
     )
@@ -60,7 +60,7 @@ def parse_args(argv: "list[str] | None" = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def main(argv: "list[str] | None" = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
 
     pdf_dir = Path(args.pdf_dir).resolve()

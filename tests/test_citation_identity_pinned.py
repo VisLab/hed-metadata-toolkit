@@ -25,11 +25,9 @@ No network, no fixtures, no external dependencies.
 
 from __future__ import annotations
 
-
 import pytest
 
 from hed_metadata_toolkit.citation_identity import build_canonical_string, build_pub_id  # noqa: E402
-
 
 # ---------------------------------------------------------------------------
 # Pinned triples

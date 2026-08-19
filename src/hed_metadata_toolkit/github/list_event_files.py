@@ -159,9 +159,9 @@ def list_event_files(
     out_path: str,
     token: str | None,
     organization: str,
-    prefix: "str | list[str] | tuple[str, ...]" = DEFAULT_PREFIXES,
+    prefix: str | list[str] | tuple[str, ...] = DEFAULT_PREFIXES,
     force: bool = False,
-    tsv_out_path: "str | None" = None,
+    tsv_out_path: str | None = None,
 ) -> dict:
     """Build/update the event-file manifest. Returns the manifest dict."""
     headers = {"Accept": "application/vnd.github.v3+json"}
@@ -184,7 +184,7 @@ def list_event_files(
     manifest: dict = {}
     if os.path.exists(out_path):
         try:
-            with open(out_path, "r", encoding="utf-8") as fh:
+            with open(out_path, encoding="utf-8") as fh:
                 manifest = json.load(fh)
         except Exception as exc:
             print(f"Warning: could not read existing {out_path}: {exc}")
@@ -251,7 +251,7 @@ def list_event_files(
 # ---------------------------------------------------------------------------
 
 
-def main(argv: "list[str] | None" = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     load_dotenv()
 
     parser = argparse.ArgumentParser(

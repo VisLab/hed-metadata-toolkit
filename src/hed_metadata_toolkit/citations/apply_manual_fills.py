@@ -21,7 +21,6 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-
 # Default data/output paths live under the current working directory (run the
 # command from the consumer repo root); all are overridable via CLI flags.
 REPO_ROOT = Path.cwd()

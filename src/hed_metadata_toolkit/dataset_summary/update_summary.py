@@ -1,8 +1,7 @@
 import argparse
-from pathlib import Path
-
 import json
 import os
+from pathlib import Path
 
 import pandas as pd
 from dotenv import load_dotenv
@@ -21,7 +20,7 @@ def read_dataset_description(dataset_dir):
 
     try:
         if os.path.exists(json_path):
-            with open(json_path, "r", encoding="utf-8") as f:
+            with open(json_path, encoding="utf-8") as f:
                 return json.load(f)
         else:
             return {}
