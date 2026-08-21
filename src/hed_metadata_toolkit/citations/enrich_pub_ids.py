@@ -34,9 +34,9 @@ import logging
 import os
 import re
 import unicodedata
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable
 
 from dotenv import load_dotenv
 
@@ -50,7 +50,7 @@ DEFAULT_REPORT_DIR = "datasets/citations/reports"
 
 from hed_metadata_toolkit.citation_identity import build_pub_id  # noqa: E402
 from hed_metadata_toolkit.citation_normalize import synthesise_doi_from_url  # noqa: E402
-from hed_metadata_toolkit.clients import crossref, openalex, europepmc, osf  # noqa: E402
+from hed_metadata_toolkit.clients import crossref, europepmc, openalex, osf  # noqa: E402
 
 logger = logging.getLogger(__name__)
 

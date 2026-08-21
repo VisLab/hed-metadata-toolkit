@@ -10,10 +10,9 @@ Usage (run from the consumer repo root):
 """
 
 import argparse
-from pathlib import Path
-
 import os
 import time
+from pathlib import Path
 
 import pandas as pd
 import requests

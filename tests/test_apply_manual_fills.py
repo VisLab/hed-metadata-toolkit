@@ -24,7 +24,6 @@ from __future__ import annotations
 import copy
 from pathlib import Path
 
-
 from hed_metadata_toolkit.citations.apply_manual_fills import (  # noqa: E402
     apply_fills,
     is_url_or_doi,

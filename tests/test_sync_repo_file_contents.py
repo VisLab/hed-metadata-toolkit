@@ -3,13 +3,12 @@
 from pathlib import Path
 from unittest.mock import MagicMock
 
-
 from hed_metadata_toolkit.github.sync_repo_file_contents import (
-    _load_sha_cache,
-    _save_sha_cache,
-    _read_participant_ids,
     _find_participant_dir,
     _is_rate_limited,
+    _load_sha_cache,
+    _read_participant_ids,
+    _save_sha_cache,
 )
 
 

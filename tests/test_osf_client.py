@@ -24,7 +24,6 @@ import json
 from pathlib import Path
 from unittest.mock import patch
 
-
 _ROOT = Path(__file__).resolve().parent.parent
 
 _FIXTURES = _ROOT / "tests" / "fixtures" / "osf"

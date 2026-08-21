@@ -53,12 +53,12 @@ Failure tracking (datasets/dataset_summaries/repo_file_contents_failures.json):
 
 import argparse
 import base64
-from datetime import datetime, timezone
 import json
 import os
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime, timezone
 
 import requests
 from dotenv import load_dotenv
@@ -153,7 +153,7 @@ def _load_sha_cache(repo_dir: str) -> dict:
     path = os.path.join(repo_dir, SHA_CACHE_FILENAME)
     if os.path.exists(path):
         try:
-            with open(path, "r", encoding="utf-8") as fh:
+            with open(path, encoding="utf-8") as fh:
                 return json.load(fh)
         except Exception:
             pass
@@ -182,7 +182,7 @@ def _load_failures(out_path: str) -> dict:
     path = _failures_path(out_path)
     if os.path.exists(path):
         try:
-            with open(path, "r", encoding="utf-8") as fh:
+            with open(path, encoding="utf-8") as fh:
                 return json.load(fh)
         except Exception as exc:
             print(f"Warning: could not read {path}: {exc}")
@@ -209,7 +209,7 @@ def _save_failures(failures: dict, out_path: str) -> None:
 def _load_file_contents(out_path: str) -> dict:
     if os.path.exists(out_path):
         try:
-            with open(out_path, "r", encoding="utf-8") as fh:
+            with open(out_path, encoding="utf-8") as fh:
                 return json.load(fh)
         except Exception as exc:
             print(f"Warning: could not read {out_path}: {exc}")
@@ -234,7 +234,7 @@ def _read_participant_ids(tsv_path: str) -> list[str]:
     Returns an empty list on any error.
     """
     try:
-        with open(tsv_path, "r", encoding="utf-8") as fh:
+        with open(tsv_path, encoding="utf-8") as fh:
             header = fh.readline().rstrip("\n").split("\t")
             if "participant_id" not in header:
                 return []
@@ -628,7 +628,7 @@ def sync_all(
     # Load repo_contents.json  (source of repo list and top-level entries)
     # ------------------------------------------------------------------
     try:
-        with open(contents_path, "r", encoding="utf-8") as fh:
+        with open(contents_path, encoding="utf-8") as fh:
             repo_contents: dict = json.load(fh)
         print(f"Loaded {len(repo_contents)} repos from {contents_path}")
     except Exception as exc:

@@ -18,14 +18,12 @@ from __future__ import annotations
 import csv
 from pathlib import Path
 
-
 from hed_metadata_toolkit.citations.assign_citation_ids import (  # noqa: E402
     MAPPING_COLUMNS,
     REGISTRY_COLUMNS,
     assign,
     write_tsv,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers

@@ -140,7 +140,7 @@ def _wait_for_rate_limit(response) -> None:
 # ---------------------------------------------------------------------------
 
 
-def _fetch_recursive_tree(org: str, repo: str, headers: dict) -> "tuple[list | None, bool, str | None]":
+def _fetch_recursive_tree(org: str, repo: str, headers: dict) -> tuple[list | None, bool, str | None]:
     """Return ``(tree_entries, truncated, error)`` for the whole repo.
 
     ``tree_entries`` is the raw ``tree`` array (both ``blob`` and ``tree``
@@ -202,7 +202,7 @@ def _failures_path(out_path: str) -> str:
 def _load_failures(path: str) -> dict:
     if os.path.exists(path):
         try:
-            with open(path, "r", encoding="utf-8") as fh:
+            with open(path, encoding="utf-8") as fh:
                 return json.load(fh)
         except Exception as exc:
             print(f"Warning: could not read {path}: {exc}")
@@ -241,8 +241,8 @@ def sync_repo_contents(
     force: bool = False,
     retry_failed: bool = False,
     test_repo: str | None = None,
-    prefix: "str | list[str] | tuple[str, ...]" = DEFAULT_PREFIXES,
-    include_subdirs: "list[str] | None" = None,
+    prefix: str | list[str] | tuple[str, ...] = DEFAULT_PREFIXES,
+    include_subdirs: list[str] | None = None,
 ) -> None:
     now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -283,7 +283,7 @@ def sync_repo_contents(
     existing: dict = {}
     if os.path.exists(out_path):
         try:
-            with open(out_path, "r", encoding="utf-8") as fh:
+            with open(out_path, encoding="utf-8") as fh:
                 existing = json.load(fh)
             print(f"Loaded existing data for {len(existing)} repos from {out_path}")
         except Exception as exc:
@@ -401,7 +401,7 @@ def sync_repo_contents(
 # ---------------------------------------------------------------------------
 
 
-def main(argv: "list[str] | None" = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     """Argparse wrapper around :func:`sync_repo_contents`."""
     load_dotenv()
 

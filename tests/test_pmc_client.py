@@ -16,15 +16,14 @@ controllable responses.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable
 from unittest.mock import patch
 
 import pytest
 import requests
 
 from hed_metadata_toolkit.clients import pmc as P  # noqa: E402, N812  module under test
-
 
 # ---------------------------------------------------------------------------
 # Constants

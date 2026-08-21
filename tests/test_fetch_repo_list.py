@@ -129,7 +129,7 @@ class TestRunFetch:
         assert output_path.exists()
 
         # Read TSV file without pandas
-        with open(output_path, "r") as f:
+        with open(output_path) as f:
             lines = f.readlines()
 
         assert len(lines) == 3  # header + 2 data rows

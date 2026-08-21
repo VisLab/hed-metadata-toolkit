@@ -31,7 +31,6 @@ from hed_metadata_toolkit.citation_normalize import (  # noqa: E402
     synthesise_doi_from_url,
 )
 
-
 # canonicalize_doi -----------------------------------------------------------
 
 

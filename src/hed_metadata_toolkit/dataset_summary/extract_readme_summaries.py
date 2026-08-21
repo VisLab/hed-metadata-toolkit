@@ -44,7 +44,7 @@ def extract_readme_info(filepath: Path) -> dict:
         key_information (list[str]), content_length (int), and
         content (str) containing the full file contents.
     """
-    with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
+    with open(filepath, encoding="utf-8", errors="ignore") as f:
         content = f.read()
 
     lines = content.split("\n")
@@ -93,7 +93,7 @@ def extract_readme_info(filepath: Path) -> dict:
     }
 
 
-def find_readme(folder: Path) -> "Path | None":
+def find_readme(folder: Path) -> Path | None:
     """Return the first matching top-level README in *folder*, else None.
 
     Search for README files in order of preference: README.md, README, README.txt.
@@ -144,7 +144,7 @@ def build_corpus(repos_dir: Path, dirprefix: str = "") -> list[dict]:
     return results
 
 
-def parse_args(argv: "list[str] | None" = None) -> argparse.Namespace:
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     """Parse command-line arguments for the README extraction tool.
 
     Parameters:
@@ -176,7 +176,7 @@ def parse_args(argv: "list[str] | None" = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def main(argv: "list[str] | None" = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     """Main entry point for the README extraction tool.
 
     Parse arguments, scan the repos directory for READMEs, extract summaries,

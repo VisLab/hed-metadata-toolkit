@@ -32,7 +32,6 @@ import pytest
 
 from hed_metadata_toolkit.cache import cache_get_or_fetch
 
-
 # ---------------------------------------------------------------------------
 # Round-trip behaviour
 # ---------------------------------------------------------------------------

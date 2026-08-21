@@ -13,7 +13,6 @@ Run:
 
 from __future__ import annotations
 
-
 import pytest
 
 from hed_metadata_toolkit.citations.enrich_pub_ids import (  # noqa: E402
@@ -22,7 +21,6 @@ from hed_metadata_toolkit.citations.enrich_pub_ids import (  # noqa: E402
     _synth_psyarxiv,
     _try_synth,
 )
-
 
 # ---------------------------------------------------------------------------
 # PsyArXiv synthesiser
