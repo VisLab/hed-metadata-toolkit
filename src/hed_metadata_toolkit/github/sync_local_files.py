@@ -46,7 +46,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 
 import requests
-from dotenv import load_dotenv
+from dotenv import find_dotenv, load_dotenv
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -492,7 +492,7 @@ def main(argv: "list[str] | None" = None) -> int:
     ``sync_all`` is the library entry point; consumers can call it
     directly with their own paths and config.
     """
-    load_dotenv()
+    load_dotenv(find_dotenv(usecwd=True))
 
     parser = argparse.ArgumentParser(
         description="Download top-level files for every dataset repo.",

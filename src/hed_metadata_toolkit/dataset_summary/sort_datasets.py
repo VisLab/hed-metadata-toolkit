@@ -2,7 +2,7 @@ import argparse
 from pathlib import Path
 
 import pandas as pd
-from dotenv import load_dotenv
+from dotenv import find_dotenv, load_dotenv
 
 
 def read_dataset_summary(summary_path):
@@ -148,7 +148,7 @@ def run_sort(*, input_path: "Path | str", output_path: "Path | str") -> int:
 
 def main(argv: "list[str] | None" = None) -> int:
     """Argparse wrapper around :func:`run_sort`."""
-    load_dotenv()
+    load_dotenv(find_dotenv(usecwd=True))
 
     parser = argparse.ArgumentParser(description="Sort the dataset summary by HED, links, events, and name.")
     parser.add_argument(

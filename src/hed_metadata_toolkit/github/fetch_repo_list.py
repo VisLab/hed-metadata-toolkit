@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pandas as pd
 import requests
-from dotenv import load_dotenv
+from dotenv import find_dotenv, load_dotenv
 
 
 def get_github_organization_repositories(organization, token=None):
@@ -121,7 +121,7 @@ def run_fetch(
 
 def main(argv: "list[str] | None" = None) -> int:
     """Argparse wrapper around :func:`run_fetch`."""
-    load_dotenv()
+    load_dotenv(find_dotenv(usecwd=True))
 
     parser = argparse.ArgumentParser(
         description="Fetch every repository in a GitHub organization.",

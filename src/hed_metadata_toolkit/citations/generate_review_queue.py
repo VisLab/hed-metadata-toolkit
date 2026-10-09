@@ -48,7 +48,7 @@ import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
 
-from dotenv import load_dotenv
+from dotenv import find_dotenv, load_dotenv
 
 # Default data/output paths live under the current working directory (run the
 # command from the consumer repo root); all are overridable via CLI flags.
@@ -585,7 +585,7 @@ def _resolve_cli_cache_dir(arg_value: str | None) -> Path:
 
 def main(argv: list[str] | None = None) -> int:
     """Argparse wrapper around :func:`run_review_queue`."""
-    load_dotenv()  # so HED_CACHE_DIR may be set in the consumer repo's .env
+    load_dotenv(find_dotenv(usecwd=True))  # so HED_CACHE_DIR may be set in the consumer repo's .env
 
     parser = argparse.ArgumentParser(description="Generate a manual curator review queue from the citation registry.")
     parser.add_argument(
