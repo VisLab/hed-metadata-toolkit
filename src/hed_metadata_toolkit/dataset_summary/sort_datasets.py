@@ -4,12 +4,16 @@ from pathlib import Path
 import pandas as pd
 from dotenv import load_dotenv
 
+UPDATED_SUMMARY = Path("datasets/dataset_summaries/dataset_summary_updated.tsv")
+RAW_SUMMARY = Path("datasets/dataset_summaries/dataset_summary.tsv")
+
 
 def read_dataset_summary(summary_path):
     """Read the dataset summary TSV file into a pandas DataFrame.
 
     Parameters:
-        summary_path: Path to the dataset_summary_updated.tsv file.
+        summary_path: Path to the summary TSV, normally
+            dataset_summary_updated.tsv (the only one with a HED column).
 
     Returns:
         Dataset summary DataFrame, or None if error.
@@ -154,8 +158,11 @@ def main(argv: "list[str] | None" = None) -> int:
     parser.add_argument(
         "--input",
         type=Path,
-        default=Path("datasets/dataset_summaries/dataset_summary.tsv"),
-        help="Path to the dataset_summary.tsv file.",
+        default=None,
+        help=(
+            f"Path to the summary TSV. Default: {UPDATED_SUMMARY} if it exists "
+            f"(written by hed-update-summary, carries the HED column), else {RAW_SUMMARY}."
+        ),
     )
     parser.add_argument(
         "--output",
@@ -164,6 +171,8 @@ def main(argv: "list[str] | None" = None) -> int:
         help="Destination path for the sorted TSV.",
     )
     args = parser.parse_args(argv)
+    if args.input is None:
+        args.input = UPDATED_SUMMARY if UPDATED_SUMMARY.exists() else RAW_SUMMARY
 
     print("Sorting datasets by HED, links, events, and name...")
     print(f"Input file:  {args.input.resolve()}")

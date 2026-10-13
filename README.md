@@ -99,7 +99,7 @@ src/hed_metadata_toolkit/
 │
 ├── dataset_summary/          # per-dataset TSV builders
 │   ├── extract_summary_info.py
-│   ├── update_summary.py     # enrich with titles, HED versions, link counts
+│   ├── update_summary.py     # titles, HED versions; link counts if citations exist
 │   └── sort_datasets.py
 │
 └── citations/                # citation pipeline
