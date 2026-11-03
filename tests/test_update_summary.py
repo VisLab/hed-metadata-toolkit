@@ -15,7 +15,6 @@ Run:
 from __future__ import annotations
 
 import json
-import os
 
 import pandas as pd
 import pytest
@@ -164,25 +163,50 @@ def test_sort_default_input_prefers_updated_summary(tmp_path, monkeypatch, run_u
         assert sorted_df.loc[0, "name"] == "nm000001"
 
 
-def test_sort_default_input_skips_stale_updated_summary(tmp_path, monkeypatch, capsys):
-    """A raw summary newer than the updated one means extraction was rerun: sort the raw file and warn."""
+def test_update_writes_provenance_of_the_raw_summary(tmp_path, monkeypatch):
     summaries = _write_consumer(tmp_path)
     monkeypatch.chdir(tmp_path)
     assert us.main([]) == 0
-    updated = summaries / "dataset_summary_updated.tsv"
+
+    sidecar = summaries / "dataset_summary_updated.provenance.json"
+    record = json.loads(sidecar.read_text(encoding="utf-8"))
+    assert record["source"] == "dataset_summary.tsv"
+    assert record["source_sha256"] == us.file_sha256(summaries / "dataset_summary.tsv")
+
+
+def test_sort_default_input_skips_stale_updated_summary(tmp_path, monkeypatch, capsys):
+    """A raw summary that changed after the update means extraction was rerun: sort the raw file and warn."""
+    summaries = _write_consumer(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    assert us.main([]) == 0
     raw = summaries / "dataset_summary.tsv"
 
-    # Rerun extraction: a new dataset row lands in the raw summary, dated after the update.
+    # Rerun extraction: a new dataset row lands in the raw summary. No timestamps are
+    # involved; the provenance fingerprint no longer matches.
     with raw.open("a", encoding="utf-8") as f:
         f.write("nm000003\t3\t\tREADME\t1\t\t\t\t\t\n")
-    newer = updated.stat().st_mtime + 60
-    os.utime(raw, (newer, newer))
 
     assert sd.main([]) == 0
     out = capsys.readouterr().out
-    assert "stale" in out and "rerun hed-update-summary" in out
+    assert "has changed since" in out and "rerun hed-update-summary" in out
 
     sorted_df = pd.read_csv(summaries / "dataset_summary_sorted.tsv", sep="\t", keep_default_na=False)
     assert "HED" not in sorted_df.columns
     assert "nm000003" in set(sorted_df["name"])
     assert len(sorted_df) == 3
+
+
+def test_sort_default_input_skips_updated_summary_without_provenance(tmp_path, monkeypatch, capsys):
+    """An updated summary with no sidecar (written before provenance existed, or restored alone) is not trusted."""
+    summaries = _write_consumer(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    assert us.main([]) == 0
+    (summaries / "dataset_summary_updated.provenance.json").unlink()
+
+    assert sd.main([]) == 0
+    out = capsys.readouterr().out
+    assert "is missing" in out and "rerun hed-update-summary" in out
+
+    sorted_df = pd.read_csv(summaries / "dataset_summary_sorted.tsv", sep="\t", keep_default_na=False)
+    assert "HED" not in sorted_df.columns
+    assert len(sorted_df) == 2

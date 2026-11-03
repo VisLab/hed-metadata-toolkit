@@ -1,8 +1,11 @@
 import argparse
+import json
 from pathlib import Path
 
 import pandas as pd
 from dotenv import find_dotenv, load_dotenv
+
+from hed_metadata_toolkit.dataset_summary.update_summary import file_sha256, provenance_path
 
 UPDATED_SUMMARY = Path("datasets/dataset_summaries/dataset_summary_updated.tsv")
 RAW_SUMMARY = Path("datasets/dataset_summaries/dataset_summary.tsv")
@@ -150,22 +153,44 @@ def run_sort(*, input_path: "Path | str", output_path: "Path | str") -> int:
 # ---------------------------------------------------------------------------
 
 
+def updated_summary_is_current() -> "str | None":
+    """Say why ``dataset_summary_updated.tsv`` cannot be trusted, or None if it can.
+
+    ``hed-update-summary`` writes a provenance sidecar holding the SHA-256 of
+    the raw summary it read.  The updated summary is current only when that
+    sidecar exists and its fingerprint matches the raw summary on disk now.
+    Modification times are not used: a consumer may track these files in git,
+    and a checkout gives them arbitrary times.
+    """
+    sidecar = provenance_path(UPDATED_SUMMARY)
+    if not sidecar.exists():
+        return f"{sidecar} is missing"
+    try:
+        recorded = json.loads(sidecar.read_text(encoding="utf-8")).get("source_sha256")
+    except (OSError, ValueError):
+        return f"{sidecar} is unreadable"
+    if recorded != file_sha256(RAW_SUMMARY):
+        return f"{RAW_SUMMARY} has changed since {UPDATED_SUMMARY} was written"
+    return None
+
+
 def default_input() -> Path:
     """Pick the summary to sort when ``--input`` is not given.
 
     Prefers ``dataset_summary_updated.tsv`` (the only summary with a HED
-    column) but only while it is at least as new as the raw summary it was
-    built from.  Both files are pipeline outputs that are never committed, so
-    their modification times reflect the order the steps ran in.  If the raw
-    summary is newer, extraction has been rerun since the last update and the
-    updated file may be missing datasets or carry stale values; sorting then
-    falls back to the raw summary and says so.
+    column) when it exists and its provenance sidecar proves it was built from
+    the raw summary now on disk.  Otherwise extraction may have been rerun
+    since the last update, so the updated file could omit datasets or carry
+    stale values; sorting then falls back to the raw summary and says so.
     """
     if not UPDATED_SUMMARY.exists():
         return RAW_SUMMARY
-    if RAW_SUMMARY.exists() and RAW_SUMMARY.stat().st_mtime > UPDATED_SUMMARY.stat().st_mtime:
+    if not RAW_SUMMARY.exists():
+        return UPDATED_SUMMARY
+    reason = updated_summary_is_current()
+    if reason is not None:
         print(
-            f"Warning: {RAW_SUMMARY} is newer than {UPDATED_SUMMARY}, so the updated summary is stale. "
+            f"Warning: {reason}, so the updated summary cannot be trusted. "
             f"Sorting the raw summary (no HED column); rerun hed-update-summary to sort with HED."
         )
         return RAW_SUMMARY
@@ -182,9 +207,9 @@ def main(argv: "list[str] | None" = None) -> int:
         type=Path,
         default=None,
         help=(
-            f"Path to the summary TSV. Default: {UPDATED_SUMMARY} if it exists and is "
-            f"at least as new as {RAW_SUMMARY} (written by hed-update-summary, carries "
-            f"the HED column), else {RAW_SUMMARY}."
+            f"Path to the summary TSV. Default: {UPDATED_SUMMARY} if it exists and its "
+            f"provenance sidecar matches {RAW_SUMMARY} (written by hed-update-summary, "
+            f"carries the HED column), else {RAW_SUMMARY}."
         ),
     )
     parser.add_argument(

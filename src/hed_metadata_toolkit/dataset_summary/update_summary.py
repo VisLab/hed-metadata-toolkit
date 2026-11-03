@@ -1,4 +1,5 @@
 import argparse
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -7,6 +8,37 @@ import pandas as pd
 from dotenv import find_dotenv, load_dotenv
 
 DEFAULT_CITATIONS = Path("datasets/dataset_summaries/dataset_citations.tsv")
+
+
+def file_sha256(path) -> str:
+    """Return the SHA-256 hex digest of a file's bytes."""
+    digest = hashlib.sha256()
+    with Path(path).open("rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def provenance_path(output_path) -> Path:
+    """The sidecar that records which raw summary an updated summary was built from.
+
+    ``dataset_summary_updated.tsv`` gets ``dataset_summary_updated.provenance.json``.
+    """
+    return Path(output_path).with_suffix(".provenance.json")
+
+
+def write_provenance(summary_path, output_path) -> Path:
+    """Record the raw summary's fingerprint next to the updated summary.
+
+    ``hed-sort-datasets`` compares this fingerprint with the raw summary it
+    finds before trusting the updated one, so a rerun of extraction cannot
+    leave a stale updated summary in use. Modification times cannot do this
+    job: a consumer may track these files, and a checkout rewrites the times.
+    """
+    sidecar = provenance_path(output_path)
+    record = {"source": Path(summary_path).name, "source_sha256": file_sha256(summary_path)}
+    sidecar.write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
+    return sidecar
 
 
 def read_dataset_description(dataset_dir):
@@ -315,6 +347,7 @@ def run_update(
     if sorted_citations is not None:
         final_summary = merge_citations_efficiently(final_summary, sorted_citations)
     save_updated_summary(final_summary, str(output_path))
+    write_provenance(summary_path, output_path)
     return final_summary
 
 
