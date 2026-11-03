@@ -150,6 +150,28 @@ def run_sort(*, input_path: "Path | str", output_path: "Path | str") -> int:
 # ---------------------------------------------------------------------------
 
 
+def default_input() -> Path:
+    """Pick the summary to sort when ``--input`` is not given.
+
+    Prefers ``dataset_summary_updated.tsv`` (the only summary with a HED
+    column) but only while it is at least as new as the raw summary it was
+    built from.  Both files are pipeline outputs that are never committed, so
+    their modification times reflect the order the steps ran in.  If the raw
+    summary is newer, extraction has been rerun since the last update and the
+    updated file may be missing datasets or carry stale values; sorting then
+    falls back to the raw summary and says so.
+    """
+    if not UPDATED_SUMMARY.exists():
+        return RAW_SUMMARY
+    if RAW_SUMMARY.exists() and RAW_SUMMARY.stat().st_mtime > UPDATED_SUMMARY.stat().st_mtime:
+        print(
+            f"Warning: {RAW_SUMMARY} is newer than {UPDATED_SUMMARY}, so the updated summary is stale. "
+            f"Sorting the raw summary (no HED column); rerun hed-update-summary to sort with HED."
+        )
+        return RAW_SUMMARY
+    return UPDATED_SUMMARY
+
+
 def main(argv: "list[str] | None" = None) -> int:
     """Argparse wrapper around :func:`run_sort`."""
     load_dotenv(find_dotenv(usecwd=True))
@@ -160,8 +182,9 @@ def main(argv: "list[str] | None" = None) -> int:
         type=Path,
         default=None,
         help=(
-            f"Path to the summary TSV. Default: {UPDATED_SUMMARY} if it exists "
-            f"(written by hed-update-summary, carries the HED column), else {RAW_SUMMARY}."
+            f"Path to the summary TSV. Default: {UPDATED_SUMMARY} if it exists and is "
+            f"at least as new as {RAW_SUMMARY} (written by hed-update-summary, carries "
+            f"the HED column), else {RAW_SUMMARY}."
         ),
     )
     parser.add_argument(
@@ -172,7 +195,7 @@ def main(argv: "list[str] | None" = None) -> int:
     )
     args = parser.parse_args(argv)
     if args.input is None:
-        args.input = UPDATED_SUMMARY if UPDATED_SUMMARY.exists() else RAW_SUMMARY
+        args.input = default_input()
 
     print("Sorting datasets by HED, links, events, and name...")
     print(f"Input file:  {args.input.resolve()}")
