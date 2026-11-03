@@ -1,15 +1,22 @@
 import argparse
+import json
 from pathlib import Path
 
 import pandas as pd
 from dotenv import find_dotenv, load_dotenv
+
+from hed_metadata_toolkit.dataset_summary.update_summary import file_sha256, provenance_path
+
+UPDATED_SUMMARY = Path("datasets/dataset_summaries/dataset_summary_updated.tsv")
+RAW_SUMMARY = Path("datasets/dataset_summaries/dataset_summary.tsv")
 
 
 def read_dataset_summary(summary_path):
     """Read the dataset summary TSV file into a pandas DataFrame.
 
     Parameters:
-        summary_path: Path to the dataset_summary_updated.tsv file.
+        summary_path: Path to the summary TSV, normally
+            dataset_summary_updated.tsv (the only one with a HED column).
 
     Returns:
         Dataset summary DataFrame, or None if error.
@@ -146,6 +153,52 @@ def run_sort(*, input_path: "Path | str", output_path: "Path | str") -> int:
 # ---------------------------------------------------------------------------
 
 
+def updated_summary_is_current() -> "str | None":
+    """Say why ``dataset_summary_updated.tsv`` cannot be trusted, or None if it can.
+
+    ``hed-update-summary`` writes a provenance sidecar holding the SHA-256 of
+    the raw summary it read.  The updated summary is current only when that
+    sidecar exists and its fingerprint matches the raw summary on disk now.
+    Modification times are not used: a consumer may track these files in git,
+    and a checkout gives them arbitrary times.
+    """
+    sidecar = provenance_path(UPDATED_SUMMARY)
+    if not sidecar.exists():
+        return f"{sidecar} is missing"
+    try:
+        record = json.loads(sidecar.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return f"{sidecar} is unreadable"
+    if not isinstance(record, dict) or not isinstance(record.get("source_sha256"), str):
+        return f"{sidecar} does not hold a provenance record"
+    if record["source_sha256"] != file_sha256(RAW_SUMMARY):
+        return f"{RAW_SUMMARY} has changed since {UPDATED_SUMMARY} was written"
+    return None
+
+
+def default_input() -> Path:
+    """Pick the summary to sort when ``--input`` is not given.
+
+    Prefers ``dataset_summary_updated.tsv`` (the only summary with a HED
+    column) when it exists and its provenance sidecar proves it was built from
+    the raw summary now on disk.  Otherwise extraction may have been rerun
+    since the last update, so the updated file could omit datasets or carry
+    stale values; sorting then falls back to the raw summary and says so.
+    """
+    if not UPDATED_SUMMARY.exists():
+        return RAW_SUMMARY
+    if not RAW_SUMMARY.exists():
+        return UPDATED_SUMMARY
+    reason = updated_summary_is_current()
+    if reason is not None:
+        print(
+            f"Warning: {reason}, so the updated summary cannot be trusted. "
+            f"Sorting the raw summary (no HED column); rerun hed-update-summary to sort with HED."
+        )
+        return RAW_SUMMARY
+    return UPDATED_SUMMARY
+
+
 def main(argv: "list[str] | None" = None) -> int:
     """Argparse wrapper around :func:`run_sort`."""
     load_dotenv(find_dotenv(usecwd=True))
@@ -154,8 +207,12 @@ def main(argv: "list[str] | None" = None) -> int:
     parser.add_argument(
         "--input",
         type=Path,
-        default=Path("datasets/dataset_summaries/dataset_summary.tsv"),
-        help="Path to the dataset_summary.tsv file.",
+        default=None,
+        help=(
+            f"Path to the summary TSV. Default: {UPDATED_SUMMARY} if it exists and its "
+            f"provenance sidecar matches {RAW_SUMMARY} (written by hed-update-summary, "
+            f"carries the HED column), else {RAW_SUMMARY}."
+        ),
     )
     parser.add_argument(
         "--output",
@@ -164,6 +221,8 @@ def main(argv: "list[str] | None" = None) -> int:
         help="Destination path for the sorted TSV.",
     )
     args = parser.parse_args(argv)
+    if args.input is None:
+        args.input = default_input()
 
     print("Sorting datasets by HED, links, events, and name...")
     print(f"Input file:  {args.input.resolve()}")
