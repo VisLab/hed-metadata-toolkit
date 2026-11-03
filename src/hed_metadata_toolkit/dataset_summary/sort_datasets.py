@@ -166,10 +166,12 @@ def updated_summary_is_current() -> "str | None":
     if not sidecar.exists():
         return f"{sidecar} is missing"
     try:
-        recorded = json.loads(sidecar.read_text(encoding="utf-8")).get("source_sha256")
+        record = json.loads(sidecar.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return f"{sidecar} is unreadable"
-    if recorded != file_sha256(RAW_SUMMARY):
+    if not isinstance(record, dict) or not isinstance(record.get("source_sha256"), str):
+        return f"{sidecar} does not hold a provenance record"
+    if record["source_sha256"] != file_sha256(RAW_SUMMARY):
         return f"{RAW_SUMMARY} has changed since {UPDATED_SUMMARY} was written"
     return None
 

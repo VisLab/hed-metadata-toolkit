@@ -250,12 +250,15 @@ def save_updated_summary(updated_df, output_path):
     Parameters:
         updated_df: Updated summary DataFrame.
         output_path: Path to save the output file.
+
+    Raises ``RuntimeError`` if the file cannot be written, so that the caller
+    never records provenance for an updated summary that was not saved.
     """
     try:
         updated_df.to_csv(output_path, sep="\t", index=False)
-        print(f"Updated summary saved to {output_path}")
-    except Exception as e:
-        print(f"Error saving file: {e}")
+    except OSError as e:
+        raise RuntimeError(f"failed to save {output_path}: {e}") from e
+    print(f"Updated summary saved to {output_path}")
 
 
 def print_update_summary(original_df, updated_df, citations_merged=True):

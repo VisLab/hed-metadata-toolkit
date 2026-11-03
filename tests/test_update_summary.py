@@ -210,3 +210,31 @@ def test_sort_default_input_skips_updated_summary_without_provenance(tmp_path, m
     sorted_df = pd.read_csv(summaries / "dataset_summary_sorted.tsv", sep="\t", keep_default_na=False)
     assert "HED" not in sorted_df.columns
     assert len(sorted_df) == 2
+
+
+@pytest.mark.parametrize("sidecar_text", ["null", "[]", '"abc"', '{"source_sha256": 7}', "{not json"])
+def test_sort_default_input_rejects_malformed_provenance(tmp_path, monkeypatch, capsys, sidecar_text):
+    """A sidecar that is not a provenance record is untrusted, not a crash: sort the raw file and warn."""
+    summaries = _write_consumer(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    assert us.main([]) == 0
+    (summaries / "dataset_summary_updated.provenance.json").write_text(sidecar_text, encoding="utf-8")
+
+    assert sd.main([]) == 0
+    out = capsys.readouterr().out
+    assert "rerun hed-update-summary" in out
+
+    sorted_df = pd.read_csv(summaries / "dataset_summary_sorted.tsv", sep="\t", keep_default_na=False)
+    assert "HED" not in sorted_df.columns
+    assert len(sorted_df) == 2
+
+
+def test_update_failed_save_writes_no_provenance(tmp_path, monkeypatch):
+    """If the updated TSV cannot be written, the command fails and no sidecar certifies the old file."""
+    summaries = _write_consumer(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    blocked = summaries / "dataset_summary_updated.tsv"
+    blocked.mkdir()  # a directory in the output's place makes the write fail
+
+    assert us.main([]) == 1
+    assert not (summaries / "dataset_summary_updated.provenance.json").exists()
