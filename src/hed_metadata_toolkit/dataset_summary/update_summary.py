@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 
 import pandas as pd
-from dotenv import load_dotenv
+from dotenv import find_dotenv, load_dotenv
 
 DEFAULT_CITATIONS = Path("datasets/dataset_summaries/dataset_citations.tsv")
 
@@ -325,7 +325,7 @@ def run_update(
 
 def main(argv: "list[str] | None" = None) -> int:
     """Argparse wrapper around :func:`run_update`."""
-    load_dotenv()
+    load_dotenv(find_dotenv(usecwd=True))
 
     parser = argparse.ArgumentParser(
         description="Update the dataset summary with citation links + HED metadata.",

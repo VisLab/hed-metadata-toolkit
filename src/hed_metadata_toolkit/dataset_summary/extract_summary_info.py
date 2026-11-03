@@ -49,7 +49,7 @@ import json
 from pathlib import Path
 
 import pandas as pd
-from dotenv import load_dotenv
+from dotenv import find_dotenv, load_dotenv
 
 
 def extract_task_names(file_list):
@@ -307,7 +307,7 @@ def run_extraction(
 
 def main(argv: "list[str] | None" = None) -> int:
     """Argparse wrapper around :func:`run_extraction`."""
-    load_dotenv()
+    load_dotenv(find_dotenv(usecwd=True))
 
     parser = argparse.ArgumentParser(
         description="Extract dataset information from repo contents.",

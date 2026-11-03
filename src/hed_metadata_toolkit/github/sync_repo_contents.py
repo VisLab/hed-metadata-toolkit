@@ -65,7 +65,7 @@ from datetime import datetime, timezone
 
 import pandas as pd
 import requests
-from dotenv import load_dotenv
+from dotenv import find_dotenv, load_dotenv
 
 from hed_metadata_toolkit.github.bids_tree import derive_repo_metadata
 
@@ -403,7 +403,7 @@ def sync_repo_contents(
 
 def main(argv: list[str] | None = None) -> int:
     """Argparse wrapper around :func:`sync_repo_contents`."""
-    load_dotenv()
+    load_dotenv(find_dotenv(usecwd=True))
 
     parser = argparse.ArgumentParser(
         description="Sync per-repo BIDS metadata from a GitHub organization to "
