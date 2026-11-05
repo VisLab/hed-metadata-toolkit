@@ -50,7 +50,7 @@ from datetime import datetime, timezone
 
 import pandas as pd
 import requests
-from dotenv import load_dotenv
+from dotenv import find_dotenv, load_dotenv
 
 # is_event_file (root or under a top-level sub-*/) is the shared BIDS rule.
 from hed_metadata_toolkit.github.bids_tree import (  # noqa: F401  (re-exported)
@@ -252,7 +252,7 @@ def list_event_files(
 
 
 def main(argv: list[str] | None = None) -> int:
-    load_dotenv()
+    load_dotenv(find_dotenv(usecwd=True))
 
     parser = argparse.ArgumentParser(
         description="List (without downloading) BIDS event files per repo: "

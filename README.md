@@ -59,7 +59,7 @@ Every client in this toolkit goes through `cache.cache_get_or_fetch`, which writ
 2. `$HED_CACHE_DIR` environment variable.
 3. `<consumer-repo>/outputs/cache/` default.
 
-Set it in the consumer repo's `.env`, alongside `GITHUB_TOKEN`. Copy [`.env.example`](.env.example) to `.env` and fill both in; every `hed-*` command loads `.env` from the directory it runs in, and `.env` is gitignored so no local path is committed.
+Set it in the consumer repo's `.env`, alongside `GITHUB_TOKEN`. Copy [`.env.example`](.env.example) to `.env` and fill both in; every `hed-*` command that uses either setting (the five GitHub commands, `hed-generate-review-queue` and `hed-enrich-pub-ids`) loads `.env` from the directory it runs in, and `.env` is gitignored so no local path is committed.
 
 ```bash
 GITHUB_TOKEN=ghp_...
@@ -99,7 +99,7 @@ src/hed_metadata_toolkit/
 │
 ├── dataset_summary/          # per-dataset TSV builders
 │   ├── extract_summary_info.py
-│   ├── update_summary.py     # enrich with titles, HED versions, link counts
+│   ├── update_summary.py     # titles, HED versions; link counts if citations exist
 │   └── sort_datasets.py
 │
 └── citations/                # citation pipeline
